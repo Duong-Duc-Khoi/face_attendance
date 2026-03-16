@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+data/attendance.db
+data/embeddings.pkl
+data/faces/
+data/captures/
+data/exports/
+*.egg-info/

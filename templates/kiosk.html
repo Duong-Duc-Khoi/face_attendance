@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hệ Thống Chấm Công — FaceID</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #060c17;
+    --surface:   #0d1626;
+    --panel:     #111e34;
+    --border:    #1a2f50;
+    --teal:      #00d4aa;
+    --teal-dim:  #007a63;
+    --teal-glow: rgba(0,212,170,0.15);
+    --blue:      #3a8fff;
+    --red:       #ff4d6a;
+    --text:      #e8f0fe;
+    --muted:     #5a7a9a;
+    --font-sans: 'Sora', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  html, body {
+    height: 100%; width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    overflow: hidden;
+  }
+
+  /* ── Grid background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  /* ── Corner accent lines ── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 100%, rgba(0,212,170,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 30% at 50% 0%,   rgba(58,143,255,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ══════════════════════════════════
+     LAYOUT
+  ══════════════════════════════════ */
+  .app {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-rows: 72px 1fr 90px;
+    height: 100vh;
+    padding: 0 28px;
+    gap: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .brand-icon {
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--teal);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .brand-icon::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--teal-glow);
+  }
+  .brand-icon svg { position: relative; z-index: 1; }
+  .brand-name {
+    font-family: var(--font-mono);
+    font-size: 15px; font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--teal);
+    text-transform: uppercase;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 0.06em; margin-top: 2px;
+  }
+
+  .clock-block { text-align: right; }
+  .clock-time {
+    font-family: var(--font-mono);
+    font-size: 28px; font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+  .clock-date {
+    font-size: 11px; color: var(--muted);
+    margin-top: 4px; letter-spacing: 0.08em;
+  }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px; color: var(--muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 8px var(--teal);
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%,100%{ opacity:1 } 50%{ opacity:0.3 }
+  }
+
+  /* ── Main content ── */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 24px;
+    padding: 24px 0;
+    align-items: stretch;
+    min-height: 0;
+  }
+
+  /* ── Camera panel ── */
+  .camera-wrap {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: #030810;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .camera-feed {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Corner brackets */
+  .cam-corner {
+    position: absolute;
+    width: 28px; height: 28px;
+    pointer-events: none;
+  }
+  .cam-corner.tl { top:16px; left:16px;
+    border-top: 2px solid var(--teal); border-left: 2px solid var(--teal); }
+  .cam-corner.tr { top:16px; right:16px;
+    border-top: 2px solid var(--teal); border-right: 2px solid var(--teal); }
+  .cam-corner.bl { bottom:16px; left:16px;
+    border-bottom: 2px solid var(--teal); border-left: 2px solid var(--teal); }
+  .cam-corner.br { bottom:16px; right:16px;
+    border-bottom: 2px solid var(--teal); border-right: 2px solid var(--teal); }
+
+  /* Scan line */
+  .scan-line {
+    position: absolute; left: 16px; right: 16px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--teal), transparent);
+    box-shadow: 0 0 12px var(--teal);
+    animation: scan 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes scan {
+    0%   { top: 16px;   opacity: 0; }
+    5%   { opacity: 1; }
+    95%  { opacity: 1; }
+    100% { top: calc(100% - 16px); opacity: 0; }
+  }
+
+  /* Camera label */
+  .cam-label {
+    position: absolute; bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--teal);
+    letter-spacing: 0.12em;
+    background: rgba(6,12,23,0.8);
+    padding: 4px 12px;
+    border: 1px solid var(--teal-dim);
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* Camera offline placeholder */
+  .cam-offline {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; height: 100%;
+    color: var(--muted);
+  }
+  .cam-offline svg { opacity: 0.3; }
+  .cam-offline p { font-size: 13px; letter-spacing: 0.06em; }
+
+  /* ── Right panel ── */
+  .side-panel {
+    display: flex; flex-direction: column; gap: 16px;
+    min-height: 0; overflow: hidden;
+  }
+
+  .panel-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  /* ── Instruction card ── */
+  .instruction-card {
+    text-align: center;
+    padding: 28px 20px;
+  }
+  .inst-icon {
+    width: 64px; height: 64px;
+    border: 1.5px solid var(--teal-dim);
+    border-radius: 16px;
+    display: grid; place-items: center;
+    margin: 0 auto 16px;
+    background: var(--teal-glow);
+    position: relative;
+  }
+  .inst-icon::before {
+    content: '';
+    position: absolute; inset: -4px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,212,170,0.2);
+  }
+  .instruction-card h2 {
+    font-size: 18px; font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .instruction-card p {
+    font-size: 13px; color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── Result card ── */
+  .result-card {
+    display: none;
+    animation: slideIn 0.4s cubic-bezier(0.22,1,0.36,1);
+  }
+  .result-card.visible { display: block; }
+  @keyframes slideIn {
+    from { opacity:0; transform: translateY(16px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  .result-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .result-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 2px solid var(--teal);
+    background: var(--teal-glow);
+    display: grid; place-items: center;
+    font-size: 22px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .result-avatar img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .result-name {
+    font-size: 18px; font-weight: 700;
+    color: var(--text); line-height: 1.2;
+  }
+  .result-dept {
+    font-size: 12px; color: var(--muted);
+    margin-top: 3px; letter-spacing: 0.04em;
+  }
+
+  .result-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .result-badge.checkin {
+    background: rgba(0,212,170,0.12);
+    border: 1px solid var(--teal-dim);
+    color: var(--teal);
+  }
+  .result-badge.checkout {
+    background: rgba(58,143,255,0.12);
+    border: 1px solid rgba(58,143,255,0.4);
+    color: var(--blue);
+  }
+  .result-badge.unknown {
+    background: rgba(255,77,106,0.12);
+    border: 1px solid rgba(255,77,106,0.4);
+    color: var(--red);
+  }
+
+  .result-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .result-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .result-item-label {
+    font-size: 10px; color: var(--muted);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .result-item-value {
+    font-family: var(--font-mono);
+    font-size: 14px; font-weight: 700;
+    color: var(--text);
+  }
+
+  /* Confidence bar */
+  .conf-bar-wrap {
+    margin-top: 14px;
+  }
+  .conf-bar-header {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted);
+    margin-bottom: 6px; letter-spacing: 0.06em;
+  }
+  .conf-bar-track {
+    height: 4px; background: var(--border);
+    border-radius: 999px; overflow: hidden;
+  }
+  .conf-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal-dim), var(--teal));
+    border-radius: 999px;
+    transition: width 0.6s ease;
+  }
+
+  /* ── Recent log list ── */
+  .log-box { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .log-title {
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .log-title::after {
+    content: ''; flex: 1; height: 1px;
+    background: var(--border);
+  }
+  .log-list {
+    display: flex; flex-direction: column; gap: 8px;
+    overflow-y: auto;
+    max-height: 230px;
+    padding-right: 4px;
+  }
+  .log-list::-webkit-scrollbar { width: 3px; }
+  .log-list::-webkit-scrollbar-track { background: transparent; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  .log-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity:0; transform: translateX(8px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+  .log-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .log-dot.in  { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+  .log-dot.out { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
+  .log-info { flex: 1; min-width: 0; }
+  .log-name {
+    font-size: 12px; font-weight: 600;
+    color: var(--text); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .log-dept { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .log-time {
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  /* ── Footer ── */
+  footer {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+    padding: 0 4px;
+  }
+  .footer-left {
+    font-size: 11px; color: var(--muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+  .footer-stats {
+    display: flex; gap: 28px;
+  }
+  .stat-item { text-align: center; }
+  .stat-val {
+    font-family: var(--font-mono);
+    font-size: 20px; font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-val.teal { color: var(--teal); }
+  .stat-val.blue { color: var(--blue); }
+  .stat-label {
+    font-size: 9px; color: var(--muted);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-top: 3px;
+  }
+  .footer-right {
+    font-size: 11px; color: var(--muted);
+    font-family: var(--font-mono);
+    text-align: right;
+  }
+
+  /* ── Flash overlay ── */
+  #flash {
+    position: fixed; inset: 0; z-index: 100;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.1s;
+  }
+  #flash.green { background: rgba(0,212,170,0.08); }
+  #flash.red   { background: rgba(255,77,106,0.08); }
+
+  /* ── Ripple on success ── */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid var(--teal);
+    pointer-events: none;
+    animation: rippleOut 0.8s ease-out forwards;
+  }
+  @keyframes rippleOut {
+    from { transform: scale(0.5); opacity: 0.8; }
+    to   { transform: scale(2.5); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══ HEADER ══ -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round">
+          <path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/>
+          <path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/>
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M6.5 6.5 9 9"/><path d="M17.5 6.5 15 9"/><path d="M6.5 17.5 9 15"/><path d="M17.5 17.5 15 15"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">FaceAttend</div>
+        <div class="brand-sub">Hệ thống chấm công thông minh</div>
+      </div>
+    </div>
+
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      <span id="sys-status">HỆ THỐNG HOẠT ĐỘNG</span>
+    </div>
+
+    <div class="clock-block">
+      <div class="clock-time" id="clock">--:--:--</div>
+      <div class="clock-date" id="date-str">--/--/----</div>
+    </div>
+  </header>
+
+  <!-- ══ MAIN ══ -->
+  <main>
+
+    <!-- Camera -->
+    <div class="camera-wrap" id="camWrap">
+      <!-- Live feed: uncomment when connected to FastAPI -->
+      <!-- <img class="camera-feed" src="/video_feed" id="camFeed"> -->
+
+      <!-- Demo placeholder -->
+      <div class="cam-offline" id="camPlaceholder">
+        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M23 7 16 12l7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+        </svg>
+        <p>CAMERA STREAM</p>
+        <p style="font-size:11px;margin-top:-8px;opacity:.5">img src="/video_feed"</p>
+      </div>
+
+      <div class="cam-corner tl"></div>
+      <div class="cam-corner tr"></div>
+      <div class="cam-corner bl"></div>
+      <div class="cam-corner br"></div>
+      <div class="scan-line"></div>
+      <div class="cam-label">● ĐANG QUÉT — ĐỨNG THẲNG TRƯỚC CAMERA</div>
+    </div>
+
+    <!-- Right panel -->
+    <div class="side-panel">
+
+      <!-- Instruction (default) -->
+      <div class="panel-box instruction-card" id="instructionCard">
+        <div class="inst-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="1.8">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <h2>Nhìn vào camera để chấm công</h2>
+        <p>Hệ thống tự động nhận diện<br>và ghi nhận thời gian của bạn</p>
+      </div>
+
+      <!-- Result card (shown on recognition) -->
+      <div class="panel-box result-card" id="resultCard">
+        <div class="result-header">
+          <div class="result-avatar" id="resAvatar">👤</div>
+          <div>
+            <div class="result-name" id="resName">—</div>
+            <div class="result-dept" id="resDept">—</div>
+          </div>
+        </div>
+
+        <div class="result-badge checkin" id="resBadge">
+          <span id="resBadgeIcon">▲</span>
+          <span id="resBadgeText">CHECK IN</span>
+        </div>
+
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-item-label">Mã NV</div>
+            <div class="result-item-value" id="resCode">—</div>
+          </div>
+          <div class="result-item">
+            <div class="result-item-label">Thời gian</div>
+            <div class="result-item-value" id="resTime">—</div>
+          </div>
+          <div class="result-item">
+            <div class="result-item-label">Phòng ban</div>
+            <div class="result-item-value" id="resDeptVal">—</div>
+          </div>
+          <div class="result-item">
+            <div class="result-item-label">Ngày</div>
+            <div class="result-item-value" id="resDate">—</div>
+          </div>
+        </div>
+
+        <div class="conf-bar-wrap">
+          <div class="conf-bar-header">
+            <span>Độ chính xác nhận diện</span>
+            <span id="resConf">—%</span>
+          </div>
+          <div class="conf-bar-track">
+            <div class="conf-bar-fill" id="resConfBar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent log -->
+      <div class="panel-box log-box">
+        <div class="log-title">Lịch sử hôm nay</div>
+        <div class="log-list" id="logList">
+          <div style="text-align:center;padding:24px;color:var(--muted);font-size:12px;">
+            Chưa có lượt chấm công nào hôm nay
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ══ FOOTER ══ -->
+  <footer>
+    <div class="footer-left" id="wsStatus">WS: ĐANG KẾT NỐI...</div>
+    <div class="footer-stats">
+      <div class="stat-item">
+        <div class="stat-val teal" id="statIn">0</div>
+        <div class="stat-label">Đã vào</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val blue" id="statOut">0</div>
+        <div class="stat-label">Đã ra</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="statTotal">0</div>
+        <div class="stat-label">Tổng lượt</div>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div id="footerDate"></div>
+      <div style="margin-top:2px">v1.0.0 — FaceAttend System</div>
+    </div>
+  </footer>
+
+</div>
+
+<div id="flash"></div>
+
+<script>
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
+
+  const days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+  const months = ['tháng 1','tháng 2','tháng 3','tháng 4','tháng 5','tháng 6',
+                  'tháng 7','tháng 8','tháng 9','tháng 10','tháng 11','tháng 12'];
+  const dateStr = `${days[now.getDay()]}, ngày ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  document.getElementById('date-str').textContent = dateStr;
+  document.getElementById('footerDate').textContent = dateStr;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── Stats counter ──
+let statIn = 0, statOut = 0;
+function updateStats(type) {
+  if (type === 'check_in')  statIn++;
+  if (type === 'check_out') statOut++;
+  document.getElementById('statIn').textContent    = statIn;
+  document.getElementById('statOut').textContent   = statOut;
+  document.getElementById('statTotal').textContent = statIn + statOut;
+}
+
+// ── Show result card ──
+let hideTimer = null;
+function showResult(data) {
+  const isIn      = data.check_type === 'check_in';
+  const isUnknown = !data.name || data.name === 'Unknown';
+
+  document.getElementById('instructionCard').style.display = 'none';
+  const rc = document.getElementById('resultCard');
+  rc.classList.remove('visible');
+  void rc.offsetWidth; // reflow for re-animation
+  rc.classList.add('visible');
+
+  document.getElementById('resName').textContent    = isUnknown ? 'Không nhận ra' : data.name;
+  document.getElementById('resDept').textContent    = isUnknown ? 'Vui lòng thử lại' : (data.department || '—');
+  document.getElementById('resCode').textContent    = data.emp_code || '—';
+  document.getElementById('resTime').textContent    = data.time || '--:--:--';
+  document.getElementById('resDeptVal').textContent = data.department || '—';
+  document.getElementById('resDate').textContent    = new Date().toLocaleDateString('vi-VN');
+
+  const conf = Math.round((data.confidence || 0) * 100);
+  document.getElementById('resConf').textContent    = conf + '%';
+  document.getElementById('resConfBar').style.width = conf + '%';
+
+  const badge = document.getElementById('resBadge');
+  badge.className = 'result-badge ' + (isUnknown ? 'unknown' : (isIn ? 'checkin' : 'checkout'));
+  document.getElementById('resBadgeIcon').textContent = isUnknown ? '✕' : (isIn ? '▲' : '▼');
+  document.getElementById('resBadgeText').textContent = isUnknown ? 'KHÔNG NHẬN RA' : (isIn ? 'CHECK IN' : 'CHECK OUT');
+
+  // Avatar
+  const av = document.getElementById('resAvatar');
+  if (data.avatar_url) {
+    av.innerHTML = `<img src="${data.avatar_url}" alt="avatar">`;
+  } else {
+    av.innerHTML = isUnknown ? '?' : (data.name ? data.name[0].toUpperCase() : '?');
+  }
+
+  // Flash overlay
+  const flash = document.getElementById('flash');
+  flash.className = isUnknown ? 'red' : 'green';
+  flash.style.opacity = '1';
+  setTimeout(() => { flash.style.opacity = '0'; }, 300);
+
+  // Update log
+  if (!isUnknown) {
+    updateStats(data.check_type);
+    addLogItem(data);
+  }
+
+  // Auto hide back to instruction after 6s
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    rc.classList.remove('visible');
+    document.getElementById('instructionCard').style.display = '';
+  }, 6000);
+}
+
+// ── Add log item ──
+function addLogItem(data) {
+  const list = document.getElementById('logList');
+  // Remove empty message
+  const empty = list.querySelector('div[style]');
+  if (empty) empty.remove();
+
+  const isIn = data.check_type === 'check_in';
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `
+    <span class="log-dot ${isIn ? 'in' : 'out'}"></span>
+    <div class="log-info">
+      <div class="log-name">${data.name}</div>
+      <div class="log-dept">${data.department || ''} · ${isIn ? 'Vào' : 'Ra'}</div>
+    </div>
+    <span class="log-time">${data.time}</span>
+  `;
+  list.insertBefore(item, list.firstChild);
+  // Keep max 20 items
+  while (list.children.length > 20) list.removeChild(list.lastChild);
+}
+
+// ── WebSocket ──
+function connectWS() {
+  const wsUrl = `ws://${location.host}/ws/attendance`;
+  let ws;
+  try {
+    ws = new WebSocket(wsUrl);
+  } catch(e) {
+    document.getElementById('wsStatus').textContent = 'WS: DEMO MODE';
+    startDemoMode();
+    return;
+  }
+
+  ws.onopen = () => {
+    document.getElementById('wsStatus').textContent = 'WS: ĐÃ KẾT NỐI ✓';
+    document.getElementById('wsStatus').style.color = 'var(--teal)';
+  };
+  ws.onmessage = (e) => {
+    try { showResult(JSON.parse(e.data)); } catch {}
+  };
+  ws.onclose = () => {
+    document.getElementById('wsStatus').textContent = 'WS: MẤT KẾT NỐI — THỬ LẠI...';
+    document.getElementById('wsStatus').style.color = 'var(--red)';
+    setTimeout(connectWS, 3000);
+  };
+  ws.onerror = () => {
+    document.getElementById('wsStatus').textContent = 'WS: DEMO MODE';
+    startDemoMode();
+  };
+}
+
+// ── Demo mode (khi chưa kết nối backend) ──
+const demoData = [
+  { name:'Nguyễn Văn An', emp_code:'NV001', department:'Kỹ thuật',     check_type:'check_in',  confidence:0.96, time:'' },
+  { name:'Trần Thị Bình', emp_code:'NV002', department:'Kinh doanh',   check_type:'check_in',  confidence:0.91, time:'' },
+  { name:'Lê Minh Cường', emp_code:'NV003', department:'Kế toán',      check_type:'check_out', confidence:0.88, time:'' },
+  { name:'Phạm Thu Hà',   emp_code:'NV004', department:'Nhân sự',      check_type:'check_in',  confidence:0.93, time:'' },
+  { name:'Unknown',       emp_code:'—',     department:'',             check_type:'unknown',   confidence:0.28, time:'' },
+];
+let demoIdx = 0;
+function startDemoMode() {
+  document.getElementById('wsStatus').textContent = 'WS: DEMO MODE — Dữ liệu mẫu';
+  setInterval(() => {
+    const d = { ...demoData[demoIdx % demoData.length] };
+    d.time = new Date().toLocaleTimeString('vi-VN');
+    showResult(d);
+    demoIdx++;
+  }, 5000);
+}
+
+connectWS();
+</script>
+</body>
+</html>

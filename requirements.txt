@@ -1,0 +1,25 @@
+# Core
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+jinja2==3.1.2
+aiofiles==23.2.1
+
+# AI & Computer Vision
+insightface==0.7.3
+onnxruntime==1.16.3        # CPU — đổi thành onnxruntime-gpu nếu có GPU
+opencv-python==4.8.1.78
+numpy==1.24.4
+Pillow==10.1.0
+
+# Database
+sqlalchemy==2.0.23
+
+# Export
+openpyxl==3.1.2
+
+# Notification (tùy chọn)
+aiohttp==3.9.1             # Dùng cho Telegram async
+
+# Dev tools
+httpx==0.25.2              # Test API
