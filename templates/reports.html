@@ -1,4 +1,324 @@
 <!DOCTYPE html>
-<html><head><title>Báo cáo</title></head>
-<body><h1>Trang báo cáo — coming soon</h1>
-<p><a href="/">← Về kiosk</a></p></body></html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo cáo — FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#060c17;--surface:#0d1626;--panel:#111e34;--border:#1a2f50;--teal:#00d4aa;--teal-dim:#007a63;--teal-glow:rgba(0,212,170,0.15);--blue:#3a8fff;--red:#ff4d6a;--yellow:#f6c90e;--text:#e8f0fe;--muted:#5a7a9a;--font-sans:'Sora',sans-serif;--font-mono:'Space Mono',monospace}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font-sans)}
+body::before{content:'';position:fixed;inset:0;z-index:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.2;pointer-events:none}
+header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 32px;border-bottom:1px solid var(--border);background:rgba(6,12,23,.9);backdrop-filter:blur(8px)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{width:32px;height:32px;border:1.5px solid var(--teal);border-radius:8px;display:grid;place-items:center;background:var(--teal-glow)}
+.brand-name{font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--teal);letter-spacing:.12em;text-transform:uppercase}
+.nav-links{display:flex;gap:8px}
+.nav-link{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-decoration:none;color:var(--muted);transition:all .2s}
+.nav-link:hover{color:var(--text);background:var(--panel)}
+.nav-link.active{color:var(--teal);background:var(--teal-glow)}
+.page{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:28px 24px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+.panel-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-header-left{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);flex-shrink:0}
+.filter-row{display:flex;gap:12px;align-items:flex-end;padding:20px;flex-wrap:wrap}
+.filter-group{display:flex;flex-direction:column;gap:6px}
+.filter-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.filter-input{background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:13px;padding:9px 14px;border-radius:8px;outline:none;transition:border-color .2s;min-width:160px}
+.filter-input:focus{border-color:var(--teal)}
+select.filter-input option{background:var(--surface)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border-radius:8px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none}
+.btn-teal{background:var(--teal);color:#000}
+.btn-teal:hover{background:#00f0c0;transform:translateY(-1px)}
+.btn-teal:disabled{background:var(--teal-dim);cursor:not-allowed;transform:none}
+.btn-outline{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-outline:hover{color:var(--text);border-color:var(--blue)}
+.quick-btns{display:flex;gap:6px;flex-wrap:wrap}
+.quick-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .2s}
+.quick-btn:hover,.quick-btn.active{background:var(--teal-glow);color:var(--teal);border-color:var(--teal)}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:20px}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
+.stat-label{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.stat-value{font-family:var(--font-mono);font-size:28px;font-weight:700}
+.stat-value.teal{color:var(--teal)}
+.stat-value.blue{color:var(--blue)}
+.stat-value.yellow{color:var(--yellow)}
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:20px;padding:20px;padding-top:0}
+.chart-wrap{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative}
+.chart-title{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px;font-weight:600}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{padding:10px 16px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--panel);border-bottom:1px solid var(--border)}
+.data-table td{padding:11px 16px;border-bottom:1px solid rgba(26,47,80,.5);vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover{background:rgba(0,212,170,.03)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-in{background:rgba(0,212,170,.15);color:var(--teal)}
+.badge-out{background:rgba(58,143,255,.15);color:var(--blue)}
+.badge-late{background:rgba(246,201,14,.15);color:var(--yellow)}
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:13px}
+.spinner{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--teal);animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--panel);border:1px solid var(--border);padding:12px 20px;border-radius:10px;font-size:13px;max-width:300px;transform:translateY(20px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{border-color:var(--teal)}
+#toast.error{border-color:var(--red)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <span class="brand-name">FaceAttend</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Chấm công</a>
+    <a href="/register" class="nav-link">Đăng ký</a>
+    <a href="/dashboard" class="nav-link">Quản lý</a>
+    <a href="/report" class="nav-link active">Báo cáo</a>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- Filter -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-header-left"><span class="dot"></span> Bộ lọc báo cáo</div>
+      <div class="quick-btns">
+        <button class="quick-btn" onclick="setRange(0)">Hôm nay</button>
+        <button class="quick-btn" onclick="setRange(7)">7 ngày</button>
+        <button class="quick-btn active" onclick="setRange(30)">30 ngày</button>
+        <button class="quick-btn" onclick="setRange(90)">3 tháng</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="filter-group">
+        <label class="filter-label">Từ ngày</label>
+        <input type="date" class="filter-input" id="fromDate">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Đến ngày</label>
+        <input type="date" class="filter-input" id="toDate">
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <button class="btn btn-teal" onclick="loadReport()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Tải báo cáo
+        </button>
+        <button class="btn btn-outline" id="btnExport" onclick="exportExcel()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Xuất Excel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="panel" id="summaryPanel">
+    <div class="panel-header">
+      <div class="panel-header-left"><span class="dot"></span> Tổng quan kỳ báo cáo</div>
+      <span id="rangeLabel" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">Tổng lượt chấm công</div><div class="stat-value teal" id="rTotalLogs">—</div></div>
+      <div class="stat-card"><div class="stat-label">Tổng lượt vào</div><div class="stat-value blue" id="rTotalIn">—</div></div>
+      <div class="stat-card"><div class="stat-label">Tổng lượt đi muộn</div><div class="stat-value yellow" id="rTotalLate">—</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="chart-wrap">
+        <div class="chart-title">Lượt chấm công theo ngày</div>
+        <canvas id="chartByDate" height="180"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">Phân bổ theo phòng ban</div>
+        <canvas id="chartByDept" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log table -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-header-left"><span class="dot"></span> Chi tiết chấm công</div>
+      <span id="logCount" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+      <table class="data-table">
+        <thead><tr>
+          <th>STT</th><th>Mã NV</th><th>Họ tên</th><th>Phòng ban</th>
+          <th>Loại</th><th>Thời gian</th><th>Trạng thái</th><th>Độ chính xác</th>
+        </tr></thead>
+        <tbody id="reportBody"><tr><td colspan="8" class="empty">Chọn khoảng thời gian và nhấn "Tải báo cáo"</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let chartDate=null,chartDept=null;
+
+// ── Init dates ──
+(function(){
+  const today=new Date();
+  const from=new Date(today);from.setDate(from.getDate()-29);
+  document.getElementById('toDate').value=fmtDate(today);
+  document.getElementById('fromDate').value=fmtDate(from);
+  loadReport();
+})();
+
+function fmtDate(d){return d.toISOString().split('T')[0];}
+
+function setRange(days){
+  document.querySelectorAll('.quick-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  const to=new Date();
+  const from=new Date(to);
+  if(days>0)from.setDate(from.getDate()-(days-1));
+  document.getElementById('fromDate').value=fmtDate(from);
+  document.getElementById('toDate').value=fmtDate(to);
+  loadReport();
+}
+
+async function loadReport(){
+  const from=document.getElementById('fromDate').value;
+  const to=document.getElementById('toDate').value;
+  if(!from||!to){showToast('Vui lòng chọn khoảng thời gian','error');return;}
+  document.getElementById('reportBody').innerHTML='<tr><td colspan="8" class="empty"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+  try{
+    const [summRes,logRes]=await Promise.all([
+      fetch('/api/summary/range?from_date='+from+'&to_date='+to),
+      fetch('/api/attendance?date='+from+'&days='+daysBetween(from,to))
+    ]);
+    const summ=await summRes.json();
+    const logs=await logRes.json();
+
+    // Summary cards
+    document.getElementById('rTotalLogs').textContent=summ.total_logs||0;
+    const inLogs=(logs.logs||[]).filter(l=>l.check_type==='check_in');
+    document.getElementById('rTotalIn').textContent=inLogs.length;
+    const lateLogs=inLogs.filter(l=>l.status&&l.status.includes('muộn'));
+    document.getElementById('rTotalLate').textContent=lateLogs.length;
+    document.getElementById('rangeLabel').textContent=from+' → '+to;
+
+    // Charts
+    renderDateChart(summ.by_date||[]);
+    renderDeptChart(summ.by_dept||[]);
+
+    // Table
+    const allLogs=logs.logs||[];
+    document.getElementById('logCount').textContent=allLogs.length+' bản ghi';
+    if(!allLogs.length){
+      document.getElementById('reportBody').innerHTML='<tr><td colspan="8" class="empty">Không có dữ liệu trong khoảng thời gian này</td></tr>';
+      return;
+    }
+    document.getElementById('reportBody').innerHTML=allLogs.map((l,i)=>`
+      <tr>
+        <td style="color:var(--muted);font-size:12px">${i+1}</td>
+        <td style="font-family:var(--font-mono);font-size:12px">${l.emp_code}</td>
+        <td style="font-weight:600">${l.name||'—'}</td>
+        <td>${l.department||'—'}</td>
+        <td><span class="badge ${l.check_type==='check_in'?'badge-in':'badge-out'}">${l.check_type==='check_in'?'▲ Vào':'▼ Ra'}</span></td>
+        <td style="font-family:var(--font-mono);font-size:12px">${l.time}<br><span style="color:var(--muted);font-size:10px">${l.date}</span></td>
+        <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
+        <td style="font-family:var(--font-mono);font-size:12px">${l.confidence?(l.confidence*100).toFixed(0)+'%':'—'}</td>
+      </tr>
+    `).join('');
+  }catch(e){
+    document.getElementById('reportBody').innerHTML='<tr><td colspan="8" class="empty">Lỗi tải dữ liệu: '+e.message+'</td></tr>';
+    showToast('Lỗi: '+e.message,'error');
+  }
+}
+
+function daysBetween(from,to){
+  return Math.ceil((new Date(to)-new Date(from))/(86400000))+1;
+}
+
+function renderDateChart(byDate){
+  const labels=byDate.map(d=>d.date.split('-').slice(1).join('/'));
+  const inData=byDate.map(d=>d.checked_in||0);
+  const outData=byDate.map(d=>d.checked_out||0);
+  if(chartDate)chartDate.destroy();
+  const ctx=document.getElementById('chartByDate').getContext('2d');
+  chartDate=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Vào làm',data:inData,backgroundColor:'rgba(0,212,170,.6)',borderColor:'#00d4aa',borderWidth:1,borderRadius:4},
+        {label:'Ra về',data:outData,backgroundColor:'rgba(58,143,255,.5)',borderColor:'#3a8fff',borderWidth:1,borderRadius:4},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#5a7a9a',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#5a7a9a',font:{size:10}},grid:{color:'rgba(26,47,80,.5)'}},
+        y:{ticks:{color:'#5a7a9a',font:{size:10}},grid:{color:'rgba(26,47,80,.5)'},beginAtZero:true}
+      }
+    }
+  });
+}
+
+function renderDeptChart(byDept){
+  if(!byDept.length)return;
+  if(chartDept)chartDept.destroy();
+  const colors=['#00d4aa','#3a8fff','#f6c90e','#ff4d6a','#a78bfa','#fb923c'];
+  const ctx=document.getElementById('chartByDept').getContext('2d');
+  chartDept=new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:byDept.map(d=>d.dept),
+      datasets:[{
+        data:byDept.map(d=>d.count),
+        backgroundColor:colors.slice(0,byDept.length),
+        borderWidth:2,borderColor:'#0d1626'
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#5a7a9a',font:{size:10},padding:10}},
+      },
+      cutout:'65%'
+    }
+  });
+}
+
+async function exportExcel(){
+  const from=document.getElementById('fromDate').value;
+  const to=document.getElementById('toDate').value;
+  if(!from||!to){showToast('Vui lòng chọn khoảng thời gian','error');return;}
+  const btn=document.getElementById('btnExport');
+  btn.innerHTML='<div class="spinner"></div> Đang xuất...';btn.disabled=true;
+  try{
+    const url='/api/reports/export?from_date='+from+'&to_date='+to;
+    const a=document.createElement('a');a.href=url;a.download='BaoCaoChamCong.xlsx';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    showToast('Đã tải xuống file Excel','success');
+  }catch(e){showToast('Lỗi xuất Excel: '+e.message,'error');}
+  finally{
+    setTimeout(()=>{btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Xuất Excel';btn.disabled=false;},1500);
+  }
+}
+
+let toastTimer;
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  const icon=type==='success'?'✓':type==='error'?'✕':'ℹ';
+  const color=type==='success'?'var(--teal)':type==='error'?'var(--red)':'var(--blue)';
+  t.innerHTML='<span style="color:'+color+'">'+icon+'</span> '+msg;
+  t.className='show '+type;clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{t.className='';},4000);
+}
+</script>
+</body>
+</html>

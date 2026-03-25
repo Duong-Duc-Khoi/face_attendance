@@ -1,4 +1,348 @@
 <!DOCTYPE html>
-<html><head><title>Đăng ký nhân viên</title></head>
-<body><h1>Trang đăng ký nhân viên — coming soon</h1>
-<p><a href="/">← Về kiosk</a></p></body></html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng ký nhân viên — FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#060c17;--surface:#0d1626;--panel:#111e34;--border:#1a2f50;--teal:#00d4aa;--teal-dim:#007a63;--teal-glow:rgba(0,212,170,0.15);--blue:#3a8fff;--red:#ff4d6a;--text:#e8f0fe;--muted:#5a7a9a;--font-sans:'Sora',sans-serif;--font-mono:'Space Mono',monospace}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font-sans)}
+body::before{content:'';position:fixed;inset:0;z-index:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.25;pointer-events:none}
+header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 32px;border-bottom:1px solid var(--border);background:rgba(6,12,23,.9);backdrop-filter:blur(8px)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{width:32px;height:32px;border:1.5px solid var(--teal);border-radius:8px;display:grid;place-items:center;background:var(--teal-glow)}
+.brand-name{font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--teal);letter-spacing:.12em;text-transform:uppercase}
+.nav-links{display:flex;gap:8px}
+.nav-link{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-decoration:none;color:var(--muted);transition:all .2s}
+.nav-link:hover{color:var(--text);background:var(--panel)}
+.nav-link.active{color:var(--teal);background:var(--teal-glow)}
+.page{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:32px 24px;display:grid;grid-template-columns:420px 1fr;gap:24px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.panel-header .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal)}
+.panel-body{padding:20px}
+.cam-wrap{position:relative;background:#000;aspect-ratio:4/3;border-radius:8px;overflow:hidden}
+.cam-feed{width:100%;height:100%;object-fit:cover;display:block}
+.cam-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.face-guide{width:160px;height:190px;border:2px solid var(--teal);border-radius:50% 50% 45% 45%/40% 40% 60% 60%;box-shadow:0 0 0 4000px rgba(0,0,0,.3),0 0 20px var(--teal-glow)}
+.cam-label-bottom{position:absolute;bottom:10px;font-family:var(--font-mono);font-size:10px;color:rgba(0,212,170,.8);letter-spacing:.1em}
+.progress-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 0}
+.progress-ring-svg{transform:rotate(-90deg)}
+.progress-ring-bg{fill:none;stroke:var(--border);stroke-width:4}
+.progress-ring-fill{fill:none;stroke:var(--teal);stroke-width:4;stroke-linecap:round;stroke-dasharray:226;stroke-dashoffset:226;transition:stroke-dashoffset .3s ease;filter:drop-shadow(0 0 6px var(--teal))}
+.progress-center{position:absolute;font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--teal)}
+.progress-container{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.progress-label{font-size:12px;color:var(--muted);text-align:center}
+.thumb-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:4px 0}
+.thumb{width:36px;height:36px;border-radius:6px;object-fit:cover;border:1.5px solid var(--border);opacity:.4;transition:all .2s;background:var(--panel)}
+.thumb.captured{opacity:1;border-color:var(--teal);box-shadow:0 0 6px var(--teal-glow)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:8px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;letter-spacing:.04em;text-decoration:none}
+.btn-teal{background:var(--teal);color:#000}
+.btn-teal:hover{background:#00f0c0;transform:translateY(-1px)}
+.btn-teal:disabled{background:var(--teal-dim);color:#003;cursor:not-allowed;transform:none}
+.btn-outline{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-outline:hover{color:var(--text);border-color:var(--blue)}
+.btn-full{width:100%;padding:13px;font-size:14px}
+.btn-sm{padding:7px 14px;font-size:12px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.form-input{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:13px;padding:10px 14px;border-radius:8px;transition:border-color .2s;outline:none}
+.form-input:focus{border-color:var(--teal)}
+.form-input::placeholder{color:var(--muted)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#toast{position:fixed;bottom:24px;right:24px;z-index:100;background:var(--panel);border:1px solid var(--border);padding:12px 20px;border-radius:10px;font-size:13px;max-width:320px;transform:translateY(20px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:10px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{border-color:var(--teal)}
+#toast.error{border-color:var(--red)}
+.step-indicator{display:flex;gap:8px;align-items:center;margin-bottom:20px}
+.step{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.step.active{color:var(--teal)}
+.step-num{width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0}
+.step-sep{flex:1;height:1px;background:var(--border)}
+@keyframes flashCapture{0%{opacity:.8}100%{opacity:0}}
+.capture-flash{position:absolute;inset:0;background:white;pointer-events:none;animation:flashCapture .3s ease-out forwards}
+.spinner{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--teal);animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.success-card{text-align:center;padding:32px 20px;display:none}
+.success-icon{width:72px;height:72px;border-radius:50%;background:var(--teal-glow);border:2px solid var(--teal);display:grid;place-items:center;margin:0 auto 16px;font-size:28px;color:var(--teal)}
+.success-name{font-size:20px;font-weight:700;margin-bottom:4px}
+.success-sub{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <span class="brand-name">FaceAttend</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Chấm công</a>
+    <a href="/register" class="nav-link active">Đăng ký</a>
+    <a href="/dashboard" class="nav-link">Quản lý</a>
+    <a href="/report" class="nav-link">Báo cáo</a>
+  </div>
+</header>
+
+<div class="page">
+  <!-- LEFT: Camera -->
+  <div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-header"><span class="dot"></span> Camera — Thu thập khuôn mặt</div>
+      <div class="panel-body" style="padding:16px">
+        <div class="cam-wrap" id="camWrap">
+          <video id="videoEl" class="cam-feed" autoplay playsinline muted></video>
+          <canvas id="captureCanvas" style="display:none"></canvas>
+          <div class="cam-overlay">
+            <div class="face-guide"></div>
+            <div class="cam-label-bottom">● Căn khuôn mặt vào khung</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-teal btn-sm" id="btnStart" onclick="startCamera()">▶ Bật Camera</button>
+          <button class="btn btn-outline btn-sm" id="btnAutoCapture" onclick="toggleAutoCapture()" disabled>⊙ Tự động chụp</button>
+          <button class="btn btn-outline btn-sm" id="btnManual" onclick="captureManual()" disabled>◎ Chụp thủ công</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="dot"></span> Tiến độ chụp ảnh</div>
+      <div class="panel-body">
+        <div class="progress-wrap">
+          <div class="progress-container">
+            <svg class="progress-ring-svg" width="80" height="80">
+              <circle class="progress-ring-bg" cx="40" cy="40" r="36"/>
+              <circle class="progress-ring-fill" id="progressRing" cx="40" cy="40" r="36"/>
+            </svg>
+            <div class="progress-center" id="progressCount">0/20</div>
+          </div>
+          <div class="progress-label" id="progressLabel">Bắt đầu bật camera và chụp ảnh</div>
+        </div>
+        <div class="thumb-row" id="thumbRow"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Form -->
+  <div>
+    <div class="step-indicator">
+      <div class="step active" id="step1"><div class="step-num">1</div> Thông tin</div>
+      <div class="step-sep"></div>
+      <div class="step" id="step2"><div class="step-num">2</div> Chụp ảnh</div>
+      <div class="step-sep"></div>
+      <div class="step" id="step3"><div class="step-num">3</div> Hoàn tất</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="dot"></span> Thông tin nhân viên</div>
+      <div class="panel-body" id="formBody">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Mã nhân viên *</label>
+            <input class="form-input" id="empCode" placeholder="VD: NV005" maxlength="20">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Họ và tên *</label>
+            <input class="form-input" id="empName" placeholder="Nguyễn Văn A">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phòng ban</label>
+            <input class="form-input" id="empDept" placeholder="VD: Kỹ thuật" list="deptList">
+            <datalist id="deptList"><option value="Kỹ thuật"><option value="Kinh doanh"><option value="Kế toán"><option value="Nhân sự"><option value="Hành chính"><option value="Marketing"></datalist>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Chức vụ</label>
+            <input class="form-input" id="empPosition" placeholder="VD: Lập trình viên">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="empEmail" type="email" placeholder="email@company.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại</label>
+            <input class="form-input" id="empPhone" placeholder="0901234567">
+          </div>
+        </div>
+        <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Hướng dẫn</div>
+          <ul style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.9">
+            <li>Điền đầy đủ mã NV và họ tên trước</li>
+            <li>Bật camera, căn khuôn mặt vào khung</li>
+            <li>Nhấn "Tự động chụp" để chụp 20 ảnh liên tục</li>
+            <li>Đảm bảo ánh sáng tốt, không che khuất mặt</li>
+            <li>Có thể xoay đầu nhẹ để tăng độ chính xác</li>
+          </ul>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-teal btn-full" id="btnSubmit" onclick="submitRegister()" disabled>
+            ✦ Đăng ký nhân viên
+          </button>
+          <button class="btn btn-outline" onclick="resetAll()" style="padding:0 16px;white-space:nowrap">Làm lại</button>
+        </div>
+      </div>
+      <div class="success-card" id="successCard">
+        <div class="success-icon">✓</div>
+        <div class="success-name" id="successName">—</div>
+        <div class="success-sub" id="successSub">Đã đăng ký thành công</div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
+          <button class="btn btn-teal" onclick="resetAll()">Đăng ký tiếp</button>
+          <a href="/" class="btn btn-outline">Về kiosk</a>
+          <a href="/dashboard" class="btn btn-outline">Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const TOTAL=20;
+let stream=null,capturedFrames=[],autoInterval=null,isAuto=false;
+const video=document.getElementById('videoEl');
+const canvas=document.getElementById('captureCanvas');
+const ctx=canvas.getContext('2d');
+
+function initThumbs(){
+  const row=document.getElementById('thumbRow');row.innerHTML='';
+  for(let i=0;i<TOTAL;i++){
+    const img=document.createElement('img');
+    img.className='thumb';img.id='thumb_'+i;
+    img.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    row.appendChild(img);
+  }
+}
+initThumbs();
+
+async function startCamera(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
+    video.srcObject=stream;
+    document.getElementById('btnStart').textContent='✓ Camera đang chạy';
+    document.getElementById('btnStart').disabled=true;
+    document.getElementById('btnAutoCapture').disabled=false;
+    document.getElementById('btnManual').disabled=false;
+    setStep(2);showToast('Camera đã bật thành công','success');
+  }catch(e){showToast('Không thể bật camera: '+e.message,'error');}
+}
+
+function captureFrame(){
+  if(!stream||capturedFrames.length>=TOTAL)return;
+  canvas.width=video.videoWidth||640;canvas.height=video.videoHeight||480;
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const dataUrl=canvas.toDataURL('image/jpeg',0.85);
+  const idx=capturedFrames.length;
+  capturedFrames.push(dataUrl);
+  const flash=document.createElement('div');flash.className='capture-flash';
+  document.getElementById('camWrap').appendChild(flash);
+  setTimeout(()=>flash.remove(),350);
+  const thumb=document.getElementById('thumb_'+idx);
+  if(thumb){thumb.src=dataUrl;thumb.classList.add('captured');}
+  updateProgress();
+  if(capturedFrames.length>=TOTAL){
+    stopAuto();showToast('Đã chụp đủ 20 ảnh! Nhấn Đăng ký để hoàn tất.','success');
+    document.getElementById('btnSubmit').disabled=false;
+  }
+}
+
+function captureManual(){captureFrame();}
+
+function toggleAutoCapture(){
+  if(isAuto){stopAuto();}
+  else{
+    isAuto=true;
+    document.getElementById('btnAutoCapture').innerHTML='<div class="spinner"></div> Đang chụp...';
+    autoInterval=setInterval(()=>{
+      if(capturedFrames.length<TOTAL)captureFrame();else stopAuto();
+    },600);
+  }
+}
+function stopAuto(){
+  isAuto=false;clearInterval(autoInterval);
+  document.getElementById('btnAutoCapture').textContent='⊙ Tự động chụp';
+}
+
+function updateProgress(){
+  const n=capturedFrames.length,pct=n/TOTAL;
+  document.getElementById('progressRing').style.strokeDashoffset=226*(1-pct);
+  document.getElementById('progressCount').textContent=n+'/'+TOTAL;
+  document.getElementById('progressLabel').textContent=
+    n>=TOTAL?'✓ Đã chụp đủ ảnh!':
+    n>0?'Đã chụp '+n+' ảnh — tiếp tục các góc khác nhau':
+    'Bắt đầu bật camera và chụp ảnh';
+}
+
+async function submitRegister(){
+  const empCode=document.getElementById('empCode').value.trim();
+  const empName=document.getElementById('empName').value.trim();
+  if(!empCode||!empName){showToast('Vui lòng nhập mã nhân viên và họ tên','error');return;}
+  if(capturedFrames.length<5){showToast('Cần chụp ít nhất 5 ảnh khuôn mặt','error');return;}
+  const btn=document.getElementById('btnSubmit');
+  btn.innerHTML='<div class="spinner"></div> Đang xử lý...';btn.disabled=true;
+  try{
+    const payload={
+      emp_code:empCode,name:empName,
+      department:document.getElementById('empDept').value.trim(),
+      position:document.getElementById('empPosition').value.trim(),
+      email:document.getElementById('empEmail').value.trim(),
+      phone:document.getElementById('empPhone').value.trim(),
+      frames:capturedFrames,
+    };
+    const res=await fetch('/api/employees/register-from-camera',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.detail||'Lỗi không xác định');
+    setStep(3);
+    document.getElementById('formBody').style.display='none';
+    document.getElementById('successCard').style.display='block';
+    document.getElementById('successName').textContent=empName;
+    document.getElementById('successSub').textContent='Mã: '+empCode+' — '+(data.message||'Đăng ký thành công');
+    showToast('Đăng ký thành công!','success');
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  }catch(e){
+    btn.textContent='✦ Đăng ký nhân viên';btn.disabled=false;
+    showToast('Lỗi: '+e.message,'error');
+  }
+}
+
+function resetAll(){
+  stopAuto();
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  capturedFrames=[];
+  document.getElementById('btnStart').textContent='▶ Bật Camera';
+  document.getElementById('btnStart').disabled=false;
+  document.getElementById('btnAutoCapture').disabled=true;
+  document.getElementById('btnManual').disabled=true;
+  document.getElementById('btnSubmit').disabled=true;
+  ['empCode','empName','empDept','empPosition','empEmail','empPhone'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('formBody').style.display='';
+  document.getElementById('successCard').style.display='none';
+  initThumbs();updateProgress();setStep(1);
+}
+
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('step'+i);
+    el.className='step'+(i===n?' active':i<n?' done':'');
+  });
+}
+
+let toastTimer;
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  const icon=type==='success'?'✓':type==='error'?'✕':'ℹ';
+  const color=type==='success'?'var(--teal)':type==='error'?'var(--red)':'var(--blue)';
+  t.innerHTML='<span style="color:'+color+'">'+icon+'</span> '+msg;
+  t.className='show '+type;clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{t.className='';},4000);
+}
+</script>
+</body>
+</html>
