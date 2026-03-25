@@ -20,9 +20,9 @@ class CameraStream:
         """Kết nối camera"""
         self.cap = cv2.VideoCapture(self.camera_id)
         if self.cap.isOpened():
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            self.cap.set(cv2.CAP_PROP_FPS,          30)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            self.cap.set(cv2.CAP_PROP_FPS,          60)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE,   1)   # Luôn lấy frame mới nhất
             print(f"  ✓ Camera {self.camera_id} đã kết nối")
             self._start_capture_thread()
@@ -117,5 +117,18 @@ class CameraStream:
             self.cap.release()
 
 
-# Singleton — dùng chung toàn app
-camera = CameraStream(camera_id=0)
+# Lazy singleton
+_camera_instance = None
+
+def get_camera() -> CameraStream:
+    """Chỉ mở camera khi được gọi lần đầu"""
+    global _camera_instance
+    if _camera_instance is None:
+        _camera_instance = CameraStream(camera_id=0)
+    return _camera_instance
+
+def release_camera():
+    global _camera_instance
+    if _camera_instance is not None:
+        _camera_instance.release()
+        _camera_instance = None

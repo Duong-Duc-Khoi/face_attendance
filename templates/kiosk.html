@@ -453,7 +453,70 @@
     text-align: right;
   }
 
-  /* ── Flash overlay ── */
+  /* ── Footer left group ── */
+  .footer-left-group {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  /* ── Camera toggle button — matches design language ── */
+  .cam-toggle-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 11px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color 0.25s, color 0.25s, box-shadow 0.25s, background 0.25s;
+    outline: none;
+    width: fit-content;
+  }
+  .cam-toggle-btn:hover {
+    border-color: var(--teal-dim);
+    color: var(--teal);
+  }
+  .cam-toggle-btn.cam-on {
+    border-color: var(--teal-dim);
+    background: var(--teal-glow);
+    color: var(--teal);
+    box-shadow: 0 0 10px rgba(0,212,170,0.12);
+  }
+  .cam-toggle-btn.cam-on:hover {
+    border-color: var(--red);
+    background: rgba(255,77,106,0.08);
+    color: var(--red);
+    box-shadow: none;
+  }
+  .cam-toggle-btn.cam-on:hover #camDot {
+    background: var(--red);
+    box-shadow: 0 0 6px var(--red);
+    animation: none;
+  }
+  .cam-toggle-btn.cam-on:hover #camBtnLabel::before {
+    content: 'TẮT';
+  }
+  .cam-toggle-btn.cam-on #camBtnLabel { visibility: hidden; position: relative; }
+  .cam-toggle-btn.cam-on #camBtnLabel::before {
+    content: 'BẬT';
+    visibility: visible;
+    position: absolute; left: 0;
+  }
+
+  .cam-toggle-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.25s, box-shadow 0.25s;
+  }
+  .cam-toggle-btn.cam-on .cam-toggle-dot {
+    background: var(--teal);
+    box-shadow: 0 0 7px var(--teal);
+    animation: blink 2s ease-in-out infinite;
+  }
   #flash {
     position: fixed; inset: 0; z-index: 100;
     pointer-events: none; opacity: 0;
@@ -607,7 +670,13 @@
 
   <!-- ══ FOOTER ══ -->
   <footer>
-    <div class="footer-left" id="wsStatus">WS: ĐANG KẾT NỐI...</div>
+    <div class="footer-left-group">
+      <div class="footer-left" id="wsStatus">WS: ĐANG KẾT NỐI...</div>
+      <button class="cam-toggle-btn" id="btnCamToggle" onclick="toggleCamera()">
+        <span class="cam-toggle-dot" id="camDot"></span>
+        <span id="camBtnLabel">CAM: TẮT</span>
+      </button>
+    </div>
     <div class="footer-stats">
       <div class="stat-item">
         <div class="stat-val teal" id="statIn">0</div>
@@ -757,7 +826,11 @@ function connectWS() {
     document.getElementById('wsStatus').style.color = 'var(--teal)';
   };
   ws.onmessage = (e) => {
-    try { showResult(JSON.parse(e.data)); } catch {}
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'camera_off') return;
+      showResult(data);
+    } catch {}
   };
   ws.onclose = () => {
     document.getElementById('wsStatus').textContent = 'WS: MẤT KẾT NỐI — THỬ LẠI...';
@@ -789,7 +862,47 @@ function startDemoMode() {
   }, 5000);
 }
 
-connectWS();
-</script>
+// ── Camera toggle ──
+let cameraOn = false;
+
+async function syncCameraStatus() {
+  try {
+    const res  = await fetch('/api/camera/status');
+    const data = await res.json();
+    cameraOn = data.enabled;
+    updateCamUI();
+  } catch {}
+}
+
+async function toggleCamera() {
+  const btn = document.getElementById('btnCamToggle');
+  btn.disabled = true;
+  try {
+    const res  = await fetch(cameraOn ? '/api/camera/stop' : '/api/camera/start', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      cameraOn = !cameraOn;
+      updateCamUI();
+      const feed = document.getElementById('camFeed');
+      if (feed) feed.src = '/video_feed?t=' + Date.now();
+    }
+  } catch(e) { console.warn(e); }
+  finally { btn.disabled = false; }
+}
+
+function updateCamUI() {
+  const btn   = document.getElementById('btnCamToggle');
+  const label = document.getElementById('camBtnLabel');
+  if (cameraOn) {
+    btn.classList.add('cam-on');
+    label.textContent = 'BẬT';
+  } else {
+    btn.classList.remove('cam-on');
+    label.textContent = 'CAM: TẮT';
+  }
+}
+
+syncCameraStatus();
+connectWS();</script>
 </body>
 </html>
