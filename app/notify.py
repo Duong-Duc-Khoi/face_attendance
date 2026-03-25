@@ -1,15 +1,21 @@
+import os
 import smtplib
 import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from dotenv import load_dotenv
+from pathlib import Path
+
+# trỏ tới file .env ở root
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 # ── Cấu hình — điền vào file .env hoặc config.py ──
 EMAIL_HOST     = "smtp.gmail.com"
 EMAIL_PORT     = 587
-EMAIL_USER     = ""          # your@gmail.com
-EMAIL_PASSWORD = ""          # App password (không dùng pass thật)
-EMAIL_TO       = ""          # admin@company.com
+EMAIL_USER     = os.getenv("EMAIL_USER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")         # App password (không dùng pass thật)
+EMAIL_TO       = "ayatoyuuto262@gmail.com"       # admin@company.com
 
 TELEGRAM_TOKEN  = ""         # Bot token từ @BotFather
 TELEGRAM_CHAT_ID = ""        # Chat ID nhận thông báo
