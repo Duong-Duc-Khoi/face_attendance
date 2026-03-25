@@ -2,17 +2,34 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from dotenv import load_dotenv
+from pathlib import Path
+import os
 
-DATABASE_URL = "sqlite:///./data/attendance.db"
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+# ── Kết nối PostgreSQL ──────────────────────────────────────────
+DATABASE_URL = (
+    f"postgresql+psycopg2://"
+    f"{os.getenv('DB_USER', 'postgres')}:"
+    f"{os.getenv('DB_PASSWORD', '')}@"
+    f"{os.getenv('DB_HOST', 'localhost')}:"
+    f"{os.getenv('DB_PORT', '5432')}/"
+    f"{os.getenv('DB_NAME', 'face_attendance')}"
+)
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    pool_pre_ping=True,   # tự kiểm tra kết nối trước khi dùng
+    pool_size=5,          # số kết nối giữ sẵn
+    max_overflow=10       # số kết nối mở thêm khi cần
 )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+# ── Models ──────────────────────────────────────────────────────
 class Employee(Base):
     __tablename__ = "employees"
 
@@ -23,8 +40,8 @@ class Employee(Base):
     position     = Column(String(100), default="")
     email        = Column(String(150), default="")
     phone        = Column(String(20),  default="")
-    face_path    = Column(String(255), default="")   # Thư mục lưu ảnh khuôn mặt
-    avatar_url   = Column(String(255), default="")   # Ảnh đại diện hiển thị
+    face_path    = Column(String(255), default="")
+    avatar_url   = Column(String(255), default="")
     is_active    = Column(Boolean, default=True)
     created_at   = Column(DateTime, default=datetime.now)
     updated_at   = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -38,15 +55,15 @@ class AttendanceLog(Base):
     emp_code     = Column(String(20), index=True)
     emp_name     = Column(String(100), default="")
     department   = Column(String(100), default="")
-    check_type   = Column(String(20))    # "check_in" | "check_out"
+    check_type   = Column(String(20))
     timestamp    = Column(DateTime, default=datetime.now, index=True)
     confidence   = Column(Float, default=0.0)
-    capture_path = Column(String(255), default="")  # Ảnh chụp lúc chấm công
+    capture_path = Column(String(255), default="")
     note         = Column(Text, default="")
 
 
+# ── Helpers ─────────────────────────────────────────────────────
 def get_db():
-    """Dependency cho FastAPI"""
     db = SessionLocal()
     try:
         yield db
@@ -55,10 +72,8 @@ def get_db():
 
 
 def init_db():
-    """Khởi tạo database và tạo dữ liệu mẫu"""
     Base.metadata.create_all(bind=engine)
 
-    # Tạo nhân viên mẫu nếu DB trống
     db = SessionLocal()
     if db.query(Employee).count() == 0:
         samples = [
