@@ -6,11 +6,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.camera import get_camera, release_camera, start_camera, stop_camera, is_camera_enabled
 from app.database import init_db
 from app.face_engine import face_engine
 from app.attendance import process_attendance, get_summary_today
 from app.routes import employees, reports
+from app.routes.auth_routes import router as auth_router
 from app.notify import telegram_checkin
 
 
@@ -19,21 +21,22 @@ from app.notify import telegram_checkin
 # ──────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("\n  FaceAttend — Khởi động hệ thống")
+    print("\n  FaceAttend — Khoi dong he thong")
     init_db()
-    print(f"  ✓ Database sẵn sàng")
-    print(f"  ✓ Face engine: {face_engine.registered_count} nhân viên đã đăng ký")
-    print(f"  ✓ Camera sẽ mở khi có người truy cập")  # ← Không mở ngay
+    print(f"  ✓ Database san sang (bao gom bang auth)")
+    print(f"  ✓ Face engine: {face_engine.registered_count} nhan vien da dang ky")
+    print(f"  ✓ Camera se mo khi co nguoi truy cap")
     yield
-    release_camera()   # ← Đóng camera khi tắt server
-    print("  FaceAttend — Đã tắt")
+    release_camera()
+    print("  FaceAttend — Da tat")
+
 
 # ──────────────────────────────────────────
 # App
 # ──────────────────────────────────────────
 app = FastAPI(
     title       = "FaceAttend API",
-    description = "Hệ thống chấm công nhận diện khuôn mặt",
+    description = "He thong cham cong nhan dien khuon mat",
     version     = "1.0.0",
     lifespan    = lifespan,
 )
@@ -45,34 +48,47 @@ app.add_middleware(
     allow_headers  = ["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"),      name="static")
-app.mount("/data",   StaticFiles(directory="data"),        name="data")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/data",   StaticFiles(directory="data"),   name="data")
 
 templates = Jinja2Templates(directory="templates")
 
-# Đăng ký routes
+# Dang ky routers
+app.include_router(auth_router)
 app.include_router(employees.router)
 app.include_router(reports.router)
 
 
 # ──────────────────────────────────────────
-# Pages (HTML)
+# Auth pages (public)
+# ──────────────────────────────────────────
+@app.get("/auth/login-page")
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/auth/register-page")
+async def register_page_auth(request: Request):
+    return templates.TemplateResponse("user_register.html", {"request": request})
+
+
+# ──────────────────────────────────────────
+# Pages HTML
 # ──────────────────────────────────────────
 @app.get("/")
 async def kiosk_page(request: Request):
-    """Màn hình chấm công kiosk"""
+    """Man hinh cham cong kiosk — public"""
     return templates.TemplateResponse("kiosk.html", {"request": request})
 
 
 @app.get("/register")
 async def register_page(request: Request):
-    """Trang đăng ký nhân viên mới"""
+    """Trang dang ky khuon mat nhan vien — can dang nhap (guard o JS)"""
     return templates.TemplateResponse("register.html", {"request": request})
 
 
 @app.get("/dashboard")
 async def dashboard_page(request: Request):
-    """Dashboard quản lý"""
+    """Dashboard quan ly — can dang nhap (guard o JS)"""
     summary = get_summary_today()
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
@@ -82,7 +98,7 @@ async def dashboard_page(request: Request):
 
 @app.get("/report")
 async def report_page(request: Request):
-    """Trang báo cáo"""
+    """Trang bao cao — can dang nhap (guard o JS)"""
     return templates.TemplateResponse("reports.html", {"request": request})
 
 
@@ -90,7 +106,7 @@ async def report_page(request: Request):
 # Camera stream
 # ──────────────────────────────────────────
 def _placeholder_mjpeg():
-    """Stream ảnh placeholder khi camera tắt"""
+    """Stream anh placeholder khi camera tat"""
     import numpy as np
     import time
     while True:
@@ -100,12 +116,14 @@ def _placeholder_mjpeg():
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (60, 60, 80), 2)
         cv2.putText(img, "Nhan [Bat Camera] de khoi dong", (110, 260),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (60, 60, 80), 1)
-        _, jpeg = cv2.imencode('.jpg', img)
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n'
-               + jpeg.tobytes()
-               + b'\r\n')
-        time.sleep(1.0)   # Placeholder chỉ cần 1fps
+        _, jpeg = cv2.imencode(".jpg", img)
+        yield (
+            b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n'
+            + jpeg.tobytes()
+            + b'\r\n'
+        )
+        time.sleep(1.0)
 
 
 @app.get("/video_feed")
@@ -122,12 +140,11 @@ def video_feed():
     )
 
 
-
 # ──────────────────────────────────────────
-# WebSocket — Nhận diện realtime
+# WebSocket — Nhan dien realtime
 # ──────────────────────────────────────────
 class ConnectionManager:
-    """Quản lý nhiều WebSocket client cùng lúc"""
+    """Quan ly nhieu WebSocket client cung luc"""
     def __init__(self):
         self.active: list[WebSocket] = []
 
@@ -160,8 +177,6 @@ async def ws_attendance(websocket: WebSocket):
                 await asyncio.sleep(2.0)
                 continue
 
-            # Chạy AI nhận diện ~1 lần/giây — kết quả tự cache vào cam
-            # MJPEG stream đọc cache đó để vẽ bbox, không cần chạy AI riêng
             _, results = await asyncio.get_event_loop().run_in_executor(
                 None, cam.run_recognition
             )
@@ -183,27 +198,31 @@ async def ws_attendance(websocket: WebSocket):
 
 
 # ──────────────────────────────────────────
-# Misc API
+# Camera control API
 # ──────────────────────────────────────────
 @app.post("/api/camera/start")
 def api_camera_start():
-    """Bật camera"""
+    """Bat camera"""
     return start_camera()
 
 @app.post("/api/camera/stop")
 def api_camera_stop():
-    """Tắt camera"""
+    """Tat camera"""
     return stop_camera()
 
 @app.get("/api/camera/status")
 def api_camera_status():
-    """Trạng thái camera hiện tại"""
+    """Trang thai camera hien tai"""
     cam = get_camera()
     return {
         "enabled": is_camera_enabled(),
         "opened":  cam.cap.isOpened() if cam and cam.cap else False,
     }
 
+
+# ──────────────────────────────────────────
+# Misc API
+# ──────────────────────────────────────────
 @app.get("/api/health")
 def health_check():
     cam = get_camera()
@@ -216,17 +235,16 @@ def health_check():
 
 @app.get("/api/config")
 def get_config():
-    """Cấu hình hiện tại của hệ thống"""
+    """Cau hinh hien tai cua he thong"""
     return {
         "threshold":        face_engine.threshold,
         "cooldown_minutes": 5,
         "work_start":       "08:30",
     }
 
-
 @app.put("/api/config")
 async def update_config(payload: dict):
-    """Cập nhật cấu hình"""
+    """Cap nhat cau hinh"""
     if "threshold" in payload:
         face_engine.threshold = float(payload["threshold"])
-    return {"success": True, "message": "Đã cập nhật cấu hình"}
+    return {"success": True, "message": "Da cap nhat cau hinh"}
