@@ -156,12 +156,16 @@ async def ws_attendance(websocket: WebSocket):
         while True:
             cam = get_camera()
             if cam is None:
-                # Camera đang tắt — báo về client, chờ
                 await websocket.send_json({"type": "camera_off"})
                 await asyncio.sleep(2.0)
                 continue
 
-            _, results = cam.get_processed_frame()
+            # Chạy AI nhận diện ~1 lần/giây — kết quả tự cache vào cam
+            # MJPEG stream đọc cache đó để vẽ bbox, không cần chạy AI riêng
+            _, results = await asyncio.get_event_loop().run_in_executor(
+                None, cam.run_recognition
+            )
+
             for r in results:
                 if not r["recognized"]:
                     continue
@@ -172,6 +176,7 @@ async def ws_attendance(websocket: WebSocket):
                 if log:
                     await manager.broadcast(log)
                     asyncio.create_task(telegram_checkin(log))
+
             await asyncio.sleep(1.0)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
