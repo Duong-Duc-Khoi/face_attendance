@@ -53,22 +53,17 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .fi-icon .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);
   cursor:pointer;color:var(--muted);font-size:15px;user-select:none}
 .fi-icon .eye:hover{color:var(--teal)}
-.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-/* Field hint */
 .hint{font-size:10px;color:var(--muted);margin-top:4px;display:flex;gap:5px;align-items:center}
 .hint.ok{color:var(--teal)}.hint.err{color:var(--red)}
 
-/* Password strength */
 .pw-bar{height:3px;border-radius:2px;margin-top:6px;background:var(--border);overflow:hidden}
 .pw-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;width:0}
 
-/* Requirements checklist */
 .req-list{margin-top:8px;display:flex;flex-direction:column;gap:3px}
 .req{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:5px;transition:color .2s}
 .req.ok{color:var(--teal)}.req .ri{font-size:9px}
 
-/* Alert */
 .alert{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:16px;
   display:none;align-items:flex-start;gap:8px;line-height:1.5}
 .alert.show{display:flex}
@@ -76,7 +71,6 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .alert.ok {background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:#00d4aa}
 .alert-icon{flex-shrink:0}
 
-/* Btn */
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
   padding:13px;border-radius:9px;font-family:var(--font-sans);font-size:14px;
   font-weight:700;cursor:pointer;border:none;transition:all .2s}
@@ -92,7 +86,6 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   border-top-color:#000;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* Success screen */
 .success-screen{display:none;text-align:center;padding:12px 0}
 .success-icon{width:68px;height:68px;border-radius:50%;background:var(--teal-glow);
   border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;
@@ -134,29 +127,31 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="card-title">Đăng ký tài khoản</div>
       <div class="card-sub">Tài khoản dùng để truy cập dashboard quản lý</div>
 
-      <div class="alert" id="alert"><span class="alert-icon"></span><span id="alertMsg"></span></div>
+      <div class="alert" id="alert">
+        <span class="alert-icon" id="alertIcon"></span>
+        <span id="alertMsg"></span>
+      </div>
 
-      <div class="fr">
-        <div class="fg">
-          <label class="fl">Họ và tên</label>
-          <input class="fi" id="fullName" placeholder="Nguyễn Văn A">
-        </div>
-      
+      <div class="fg">
+        <label class="fl">Họ và tên</label>
+        <input class="fi" id="fullName" placeholder="Nguyễn Văn A" autocomplete="name">
       </div>
 
       <div class="fg">
         <label class="fl">Email *</label>
-        <input class="fi" id="email" type="email" placeholder="your@email.com" autocomplete="email">
+        <input class="fi" id="email" type="email" placeholder="your@email.com"
+               autocomplete="email" oninput="clearAlert()">
       </div>
 
       <div class="fg">
         <label class="fl">Mật khẩu *</label>
         <div class="fi-icon">
-          <input class="fi" id="password" type="password" placeholder="Tối thiểu 8 ký tự" autocomplete="new-password" oninput="checkPwd()">
+          <input class="fi" id="password" type="password" placeholder="Tối thiểu 8 ký tự"
+                 autocomplete="new-password" oninput="checkPwd()">
           <span class="eye" id="eye1" onclick="togglePwd('password','eye1')">👁</span>
         </div>
         <div class="pw-bar"><div class="pw-fill" id="pwFill"></div></div>
-        <div class="req-list" id="reqList">
+        <div class="req-list">
           <div class="req" id="r-len"><span class="ri">○</span> Ít nhất 8 ký tự</div>
           <div class="req" id="r-num"><span class="ri">○</span> Có ít nhất 1 chữ số</div>
           <div class="req" id="r-up"><span class="ri">○</span> Có ít nhất 1 chữ hoa</div>
@@ -166,7 +161,8 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="fg">
         <label class="fl">Xác nhận mật khẩu *</label>
         <div class="fi-icon">
-          <input class="fi" id="confirmPwd" type="password" placeholder="Nhập lại mật khẩu" autocomplete="new-password" oninput="checkConfirm()">
+          <input class="fi" id="confirmPwd" type="password" placeholder="Nhập lại mật khẩu"
+                 autocomplete="new-password" oninput="checkConfirm()">
           <span class="eye" id="eye2" onclick="togglePwd('confirmPwd','eye2')">👁</span>
         </div>
         <div class="hint" id="confirmHint"></div>
@@ -195,7 +191,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       </div>
       <a href="/auth/login-page" class="btn btn-t" style="text-decoration:none">Đến trang đăng nhập</a>
       <div style="margin-top:12px;font-size:12px;color:var(--muted)">
-        Không nhận được? 
+        Không nhận được?
         <span style="color:var(--teal);cursor:pointer;text-decoration:underline" onclick="resendVerify()">Gửi lại email</span>
       </div>
     </div>
@@ -205,115 +201,132 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <script>
 let registeredEmail = '';
 
-// ── Password toggle ──
-function togglePwd(id, eyeId){
-  const f=document.getElementById(id);
-  f.type=f.type==='password'?'text':'password';
-  document.getElementById(eyeId).textContent=f.type==='password'?'👁':'🙈';
+function togglePwd(id, eyeId) {
+  const f = document.getElementById(id);
+  f.type = f.type === 'password' ? 'text' : 'password';
+  document.getElementById(eyeId).textContent = f.type === 'password' ? '👁' : '🙈';
 }
 
-// ── Alert ──
-function showAlert(msg, type='err'){
-  const el=document.getElementById('alert');
-  document.getElementById('alertMsg').textContent=msg;
-  document.querySelector('.alert-icon').textContent=type==='ok'?'✓':'✕';
-  el.className='alert show '+type;
+function showAlert(msg, type = 'err') {
+  const el = document.getElementById('alert');
+  document.getElementById('alertMsg').textContent = msg;
+  document.getElementById('alertIcon').textContent = type === 'ok' ? '✓' : '✕';
+  el.className = 'alert show ' + type;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-function clearAlert(){ document.getElementById('alert').className='alert'; }
+function clearAlert() { document.getElementById('alert').className = 'alert'; }
 
-// ── Username validation ──
-function validateUsername(){
-  const v=document.getElementById('username').value.trim();
-  const hint=document.getElementById('usernameHint');
-  const fi=document.getElementById('username');
-  if(!v){ hint.textContent='';fi.className='fi';return; }
-  if(v.length<3){ hint.className='hint err';hint.textContent='⚠ Cần ít nhất 3 ký tự';fi.className='fi err';return; }
-  if(!/^[a-zA-Z0-9_-]+$/.test(v)){ hint.className='hint err';hint.textContent='⚠ Chỉ dùng chữ, số, _, -';fi.className='fi err';return; }
-  hint.className='hint ok';hint.textContent='✓ Hợp lệ';fi.className='fi ok';
-}
-
-// ── Password strength ──
-function checkPwd(){
-  const v=document.getElementById('password').value;
-  const hasLen=v.length>=8, hasNum=/\d/.test(v), hasUp=/[A-Z]/.test(v);
-  setReq('r-len',hasLen,'Ít nhất 8 ký tự');
-  setReq('r-num',hasNum,'Có ít nhất 1 chữ số');
-  setReq('r-up',hasUp,'Có ít nhất 1 chữ hoa');
-  const score=[hasLen,hasNum,hasUp].filter(Boolean).length;
-  const fill=document.getElementById('pwFill');
-  const colors=['#ff4d6a','#f6c90e','#f6c90e','#00d4aa'];
-  fill.style.width=(score/3*100)+'%';
-  fill.style.background=colors[score]||'#ff4d6a';
+function checkPwd() {
+  const v = document.getElementById('password').value;
+  const hasLen = v.length >= 8, hasNum = /\d/.test(v), hasUp = /[A-Z]/.test(v);
+  setReq('r-len', hasLen, 'Ít nhất 8 ký tự');
+  setReq('r-num', hasNum, 'Có ít nhất 1 chữ số');
+  setReq('r-up',  hasUp,  'Có ít nhất 1 chữ hoa');
+  const score = [hasLen, hasNum, hasUp].filter(Boolean).length;
+  const fill = document.getElementById('pwFill');
+  fill.style.width = (score / 3 * 100) + '%';
+  fill.style.background = ['#ff4d6a','#ff4d6a','#f6c90e','#00d4aa'][score];
   checkConfirm();
 }
 
-function setReq(id,ok,label){
-  const el=document.getElementById(id);
-  el.className='req'+(ok?' ok':'');
-  el.innerHTML=`<span class="ri">${ok?'✓':'○'}</span> ${label}`;
+function setReq(id, ok, label) {
+  const el = document.getElementById(id);
+  el.className = 'req' + (ok ? ' ok' : '');
+  el.innerHTML = `<span class="ri">${ok ? '✓' : '○'}</span> ${label}`;
 }
 
-function checkConfirm(){
-  const p=document.getElementById('password').value;
-  const c=document.getElementById('confirmPwd').value;
-  const hint=document.getElementById('confirmHint');
-  const fi=document.getElementById('confirmPwd');
-  if(!c){ hint.textContent='';fi.className='fi';return; }
-  if(p===c){ hint.className='hint ok';hint.textContent='✓ Mật khẩu khớp';fi.className='fi ok'; }
-  else      { hint.className='hint err';hint.textContent='⚠ Chưa khớp';fi.className='fi err'; }
+function checkConfirm() {
+  const p = document.getElementById('password').value;
+  const c = document.getElementById('confirmPwd').value;
+  const hint = document.getElementById('confirmHint');
+  const fi   = document.getElementById('confirmPwd');
+  if (!c) { hint.textContent = ''; fi.className = 'fi'; return; }
+  if (p === c) { hint.className = 'hint ok'; hint.textContent = '✓ Mật khẩu khớp'; fi.className = 'fi ok'; }
+  else         { hint.className = 'hint err'; hint.textContent = '⚠ Chưa khớp'; fi.className = 'fi err'; }
 }
 
-// ── Submit ──
-async function doRegister(){
+async function doRegister() {
   clearAlert();
+
   const email      = document.getElementById('email').value.trim();
-  const username   = document.getElementById('username').value.trim().toLowerCase();
   const fullName   = document.getElementById('fullName').value.trim();
   const password   = document.getElementById('password').value;
   const confirmPwd = document.getElementById('confirmPwd').value;
 
-  if(!email)    { showAlert('Vui lòng nhập email'); return; }
-  if(!username) { showAlert('Vui lòng nhập tên đăng nhập'); return; }
-  if(!password) { showAlert('Vui lòng nhập mật khẩu'); return; }
-  if(password.length<8) { showAlert('Mật khẩu cần ít nhất 8 ký tự'); return; }
-  if(!/\d/.test(password)) { showAlert('Mật khẩu cần có ít nhất 1 chữ số'); return; }
-  if(password !== confirmPwd) { showAlert('Mật khẩu xác nhận không khớp'); return; }
+  // ── Validate phía client ──
+  if (!email)               { showAlert('Vui lòng nhập email'); return; }
+  if (!password)            { showAlert('Vui lòng nhập mật khẩu'); return; }
+  if (password.length < 8)  { showAlert('Mật khẩu cần ít nhất 8 ký tự'); return; }
+  if (!/\d/.test(password)) { showAlert('Mật khẩu cần có ít nhất 1 chữ số'); return; }
+  if (password !== confirmPwd) { showAlert('Mật khẩu xác nhận không khớp'); return; }
 
-  const btn=document.getElementById('btnRegister');
-  btn.innerHTML='<div class="spinner"></div> Đang tạo tài khoản...'; btn.disabled=true;
+  const btn = document.getElementById('btnRegister');
+  btn.innerHTML = '<div class="spinner"></div> Đang tạo tài khoản...';
+  btn.disabled = true;
 
-  try{
-    const res=await fetch('/auth/register',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email, username, full_name:fullName, password, role:'staff'})
+  try {
+    const res = await fetch('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Không gửi username nữa, backend dùng email làm định danh
+      body: JSON.stringify({
+        email,
+        full_name: fullName,
+        password,
+        role: 'staff'
+      })
     });
-    const data=await res.json();
-    if(!res.ok) throw new Error(data.detail||'Lỗi đăng ký');
 
-    registeredEmail=email;
-    document.getElementById('formScreen').style.display='none';
-    document.getElementById('successScreen').style.display='block';
-    document.getElementById('successEmail').textContent=email;
-  }catch(e){
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('Server trả về phản hồi không hợp lệ (không phải JSON)');
+    }
+
+    if (!res.ok) {
+      // FastAPI trả detail dạng string hoặc array (validation errors)
+      if (Array.isArray(data.detail)) {
+        const msgs = data.detail.map(e => e.msg).join(', ');
+        throw new Error(msgs);
+      }
+      throw new Error(data.detail || `Lỗi ${res.status}`);
+    }
+
+    // Thành công
+    registeredEmail = email;
+    document.getElementById('formScreen').style.display = 'none';
+    document.getElementById('successScreen').style.display = 'block';
+    document.getElementById('successEmail').textContent = email;
+
+  } catch (e) {
     showAlert(e.message);
-  }finally{
-    btn.innerHTML='Tạo tài khoản'; btn.disabled=false;
+    console.error('[Register error]', e);
+  } finally {
+    btn.innerHTML = 'Tạo tài khoản';
+    btn.disabled = false;
   }
 }
 
-async function resendVerify(){
-  if(!registeredEmail) return;
-  try{
-    await fetch('/auth/resend-verify',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:registeredEmail})
+async function resendVerify() {
+  if (!registeredEmail) return;
+  try {
+    await fetch('/auth/resend-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: registeredEmail })
     });
     alert('Email xác minh đã được gửi lại!');
-  }catch(e){ alert('Lỗi: '+e.message); }
+  } catch (e) {
+    alert('Lỗi: ' + e.message);
+  }
 }
 
-// ── Enter key ──
-document.addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('formScreen').style.display !== 'none') {
+    doRegister();
+  }
+});
 </script>
 </body>
 </html>
