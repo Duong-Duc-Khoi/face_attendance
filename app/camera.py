@@ -128,7 +128,7 @@ class CameraStream:
                 results, emp_map = self.get_recognition_results()
                 if results:
                     face_engine.draw_results(frame, results, emp_map)
-
+            frame = cv2.flip(frame, 1)  # flip ngang SAU khi vẽ bbox    
             _, jpeg = cv2.imencode('.jpg', frame,
                                    [cv2.IMWRITE_JPEG_QUALITY, 90])
             yield (b'--frame\r\n'
