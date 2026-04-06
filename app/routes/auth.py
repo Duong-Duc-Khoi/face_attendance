@@ -1,5 +1,5 @@
 """
-app/routes/auth_routes.py
+app/routes/auth.py
 Tất cả endpoints xác thực:
   POST /auth/register          — đăng ký tài khoản
   GET  /auth/verify-email      — xác minh email qua link
@@ -19,22 +19,15 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
-from app.database import (
-    # Models
+from app.database import get_db
+from app.auth import (
     User, EmailToken, RefreshToken,
-    # Password
     hash_password, verify_password,
-    # JWT
     create_access_token, create_refresh_token, decode_access_token,
-    # Email tokens & OTP
     create_verify_token, create_otp_token,
     verify_email_token, consume_token,
-    # Email sending
     send_verification_email, send_login_otp_email,
-    # FastAPI dependencies
-    get_current_user, get_db,
-    # Helpers
-    _hash_token,
+    get_current_user, _hash_token,
     REFRESH_TOKEN_EXP,
 )
 
@@ -46,20 +39,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # ──────────────────────────────────────────
 class RegisterRequest(BaseModel):
     email:     EmailStr
-    username:  str
     full_name: Optional[str] = ""
     password:  str
     role:      Optional[str] = "staff"
-
-    @field_validator("username")
-    @classmethod
-    def validate_username(cls, v):
-        v = v.strip()
-        if len(v) < 3:
-            raise ValueError("Username cần ít nhất 3 ký tự")
-        if not v.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("Username chỉ chứa chữ, số, _, -")
-        return v.lower()
 
     @field_validator("password")
     @classmethod
@@ -97,13 +79,12 @@ class ResendVerifyRequest(BaseModel):
 
 
 # ──────────────────────────────────────────
-# Helper: tạo response dict cho user
+# Helper
 # ──────────────────────────────────────────
 def _user_dict(u: User) -> dict:
     return {
         "id":                u.id,
         "email":             u.email,
-        "username":          u.username,
         "full_name":         u.full_name,
         "role":              u.role,
         "is_active":         u.is_active,
@@ -120,12 +101,9 @@ def _user_dict(u: User) -> dict:
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter_by(email=req.email).first():
         raise HTTPException(400, "Email đã được sử dụng")
-    if db.query(User).filter_by(username=req.username).first():
-        raise HTTPException(400, "Username đã được sử dụng")
 
     user = User(
         email             = req.email,
-        username          = req.username,
         full_name         = req.full_name or "",
         hashed_password   = hash_password(req.password),
         role              = req.role,
@@ -137,7 +115,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     token = create_verify_token(user.id, db)
-    send_verification_email(user.email, user.username, token)
+    send_verification_email(user.email, user.full_name, token)
 
     return {
         "success": True,
@@ -171,7 +149,7 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
     return HTMLResponse(_verify_html(
         "success",
         "Xác minh thành công!",
-        f"Tài khoản <strong>{user.username}</strong> đã được kích hoạt. Bạn có thể đăng nhập ngay bây giờ.",
+        f"Email <strong>{user.email}</strong> đã được xác minh. Bạn có thể đăng nhập ngay bây giờ.",
     ))
 
 
@@ -182,6 +160,7 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter_by(email=req.email).first()
 
+    # Luôn verify dù user không tồn tại để chống timing attack
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(401, "Email hoặc mật khẩu không đúng")
 
@@ -192,7 +171,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(403, "Tài khoản đã bị khóa. Liên hệ quản trị viên.")
 
     otp = create_otp_token(user.id, db)
-    send_login_otp_email(user.email, user.username, otp)
+    send_login_otp_email(user.email, user.full_name, otp)
 
     return {
         "success": True,
@@ -293,7 +272,7 @@ def resend_verify(req: ResendVerifyRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter_by(email=req.email).first()
     if user and not user.is_email_verified:
         token = create_verify_token(user.id, db)
-        send_verification_email(user.email, user.username, token)
+        send_verification_email(user.email, user.full_name, token)
     return {
         "success": True,
         "message": "Nếu email tồn tại và chưa xác minh, bạn sẽ nhận được email mới.",
@@ -306,8 +285,8 @@ def resend_verify(req: ResendVerifyRequest, db: Session = Depends(get_db)):
 def _verify_html(status: str, title: str, body: str) -> str:
     is_ok   = status == "success"
     color   = "#00d4aa" if is_ok else "#ff4d6a"
-    icon    = "✓" if is_ok else "✕"
     rgb     = "0,212,170" if is_ok else "255,77,106"
+    icon    = "✓" if is_ok else "✕"
     btn_txt = "Đến trang đăng nhập" if is_ok else "Về trang chủ"
     btn_url = "/auth/login-page" if is_ok else "/"
     return f"""<!DOCTYPE html>
@@ -326,8 +305,7 @@ body{{min-height:100vh;background:#060c17;display:flex;align-items:center;justif
 .card{{background:#0d1626;border:1px solid #1a2f50;border-radius:20px;padding:52px 48px;
   max-width:440px;width:90%;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.5)}}
 .icon{{width:72px;height:72px;border-radius:50%;border:2px solid {color};
-  background:rgba({rgb},.12);
-  display:flex;align-items:center;justify-content:center;
+  background:rgba({rgb},.12);display:flex;align-items:center;justify-content:center;
   font-size:28px;color:{color};margin:0 auto 24px}}
 h1{{font-size:20px;font-weight:700;margin-bottom:12px}}
 p{{font-size:13px;color:#5a7a9a;line-height:1.7;margin-bottom:32px}}

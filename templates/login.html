@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng nhập — FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060c17;--surface:#0d1626;--panel:#111e34;--border:#1a2f50;
+  --teal:#00d4aa;--teal-glow:rgba(0,212,170,0.12);
+  --blue:#3a8fff;--red:#ff4d6a;--yellow:#f6c90e;
+  --text:#e8f0fe;--muted:#5a7a9a;
+  --font-sans:'Sora',sans-serif;--font-mono:'Space Mono',monospace
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font-sans);
+  display:flex;align-items:center;justify-content:center}
+
+/* Grid BG */
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(var(--border) 1px,transparent 1px),
+    linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:40px 40px;opacity:.2;pointer-events:none}
+/* Glow */
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 50% 100%,rgba(0,212,170,.06) 0%,transparent 70%)}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:420px;padding:20px}
+
+/* Logo */
+.logo{text-align:center;margin-bottom:32px}
+.logo-icon{width:52px;height:52px;border:2px solid var(--teal);border-radius:14px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--teal-glow);margin-bottom:12px}
+.logo-name{font-family:var(--font-mono);font-size:15px;font-weight:700;
+  color:var(--teal);letter-spacing:.14em;text-transform:uppercase}
+.logo-sub{font-size:12px;color:var(--muted);margin-top:3px}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:32px 28px;box-shadow:0 40px 80px rgba(0,0,0,.4)}
+
+/* Steps */
+.step-tabs{display:flex;gap:0;margin-bottom:28px;border-radius:8px;overflow:hidden;
+  border:1px solid var(--border)}
+.stab{flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  background:var(--panel);cursor:default;transition:all .2s}
+.stab.active{background:var(--teal);color:#000}
+.stab.done{background:rgba(0,212,170,.12);color:var(--teal)}
+
+/* Form */
+.fg{margin-bottom:16px}
+.fl{display:block;font-size:10px;font-weight:700;color:var(--muted);
+  letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+.fi{width:100%;background:var(--panel);border:1.5px solid var(--border);
+  color:var(--text);font-family:var(--font-sans);font-size:13px;
+  padding:11px 14px;border-radius:9px;outline:none;transition:border-color .2s}
+.fi:focus{border-color:var(--teal)}
+.fi::placeholder{color:var(--muted)}
+.fi.err{border-color:var(--red)}
+.fi-icon{position:relative}
+.fi-icon .fi{padding-right:42px}
+.fi-icon .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  cursor:pointer;color:var(--muted);font-size:16px;user-select:none;transition:color .2s}
+.fi-icon .eye:hover{color:var(--teal)}
+
+/* OTP boxes */
+.otp-row{display:flex;gap:10px;justify-content:center;margin-bottom:6px}
+.otp-box{width:48px;height:58px;background:var(--panel);border:1.5px solid var(--border);
+  color:var(--text);font-family:var(--font-mono);font-size:22px;font-weight:700;
+  text-align:center;border-radius:10px;outline:none;transition:all .2s;caret-color:var(--teal)}
+.otp-box:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,212,170,.15)}
+.otp-box.filled{border-color:var(--teal);color:var(--teal)}
+.otp-box.err{border-color:var(--red);animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* Timer */
+.otp-timer{text-align:center;font-size:12px;color:var(--muted);margin-bottom:20px}
+.otp-timer span{font-family:var(--font-mono);color:var(--yellow);font-weight:700}
+.otp-resend{color:var(--teal);cursor:pointer;text-decoration:underline;display:none}
+.otp-resend.show{display:inline}
+
+/* Btn */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:13px;border-radius:9px;font-family:var(--font-sans);font-size:14px;
+  font-weight:700;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em}
+.btn-t{background:var(--teal);color:#000}
+.btn-t:hover:not(:disabled){background:#00f0c0;transform:translateY(-1px)}
+.btn-t:disabled{background:#005544;color:#003;cursor:not-allowed;transform:none}
+.btn-o{background:transparent;color:var(--muted);border:1px solid var(--border);margin-top:10px}
+.btn-o:hover{color:var(--text);border-color:var(--blue)}
+
+/* Alert */
+.alert{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:16px;display:none;
+  display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.alert.show{display:flex}
+.alert.err{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:#ff8fa0}
+.alert.ok {background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:#00d4aa}
+.alert.info{background:rgba(58,143,255,.1);border:1px solid rgba(58,143,255,.25);color:#7ab8ff}
+.alert-icon{flex-shrink:0;font-size:14px}
+
+/* Links */
+.aux{text-align:center;margin-top:20px;font-size:12px;color:var(--muted)}
+.aux a{color:var(--teal);text-decoration:none}
+.aux a:hover{text-decoration:underline}
+
+/* Spinner */
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(0,0,0,.2);
+  border-top-color:#000;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Success anim */
+.success-icon{width:64px;height:64px;border-radius:50%;background:var(--teal-glow);
+  border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;
+  font-size:26px;color:var(--teal);margin:0 auto 16px;
+  animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Logo -->
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round">
+        <path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/>
+        <path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/>
+        <path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+    </div>
+    <div class="logo-name">FaceAttend</div>
+    <div class="logo-sub">Hệ thống chấm công thông minh</div>
+  </div>
+
+  <div class="card">
+    <!-- Step tabs -->
+    <div class="step-tabs">
+      <div class="stab active" id="tab1">① Thông tin</div>
+      <div class="stab" id="tab2">② Xác nhận OTP</div>
+    </div>
+
+    <!-- Alert -->
+    <div class="alert" id="alert"><span class="alert-icon"></span><span id="alertMsg"></span></div>
+
+    <!-- ── STEP 1: Email + Password ── -->
+    <div id="step1">
+      <div class="fg">
+        <label class="fl">Email</label>
+        <input class="fi" id="email" type="email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="fg">
+        <label class="fl">Mật khẩu</label>
+        <div class="fi-icon">
+          <input class="fi" id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+          <span class="eye" id="eyeBtn" onclick="togglePwd()">👁</span>
+        </div>
+      </div>
+      <button class="btn btn-t" id="btnLogin" onclick="doLogin()">
+        Đăng nhập
+      </button>
+      <div class="aux">
+        Chưa có tài khoản? <a href="/auth/register-page">Đăng ký ngay</a>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: OTP ── -->
+    <div id="step2" style="display:none">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Mã OTP đã gửi tới</div>
+        <div style="font-weight:700;color:var(--text)" id="otpEmail">—</div>
+      </div>
+
+      <div class="otp-row">
+        <input class="otp-box" id="o0" maxlength="1" inputmode="numeric">
+        <input class="otp-box" id="o1" maxlength="1" inputmode="numeric">
+        <input class="otp-box" id="o2" maxlength="1" inputmode="numeric">
+        <input class="otp-box" id="o3" maxlength="1" inputmode="numeric">
+        <input class="otp-box" id="o4" maxlength="1" inputmode="numeric">
+        <input class="otp-box" id="o5" maxlength="1" inputmode="numeric">
+      </div>
+
+      <div class="otp-timer">
+        Hết hạn sau <span id="timerEl">10:00</span> &nbsp;|&nbsp;
+        <span class="otp-resend" id="resendBtn" onclick="resendOTP()">Gửi lại OTP</span>
+      </div>
+
+      <button class="btn btn-t" id="btnVerify" onclick="doVerifyOTP()">
+        Xác nhận & Đăng nhập
+      </button>
+      <button class="btn btn-o" onclick="backToStep1()">← Quay lại</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentEmail = '';
+let timerInterval = null;
+
+// ── Keydown Enter ──
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const s1 = document.getElementById('step1');
+  if(s1.style.display !== 'none') doLogin();
+  else doVerifyOTP();
+});
+
+// ── Password toggle ──
+function togglePwd(){
+  const f = document.getElementById('password');
+  f.type = f.type === 'password' ? 'text' : 'password';
+  document.getElementById('eyeBtn').textContent = f.type === 'password' ? '👁' : '🙈';
+}
+
+// ── Alert ──
+function showAlert(msg, type='err'){
+  const el = document.getElementById('alert');
+  const icon = type==='ok'?'✓':type==='info'?'ℹ':'✕';
+  document.getElementById('alertMsg').textContent = msg;
+  document.querySelector('.alert-icon').textContent = icon;
+  el.className = 'alert show '+type;
+}
+function clearAlert(){ document.getElementById('alert').className='alert'; }
+
+// ── Step 1: Login ──
+async function doLogin(){
+  clearAlert();
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  if(!email){ showAlert('Vui lòng nhập email'); return; }
+  if(!password){ showAlert('Vui lòng nhập mật khẩu'); return; }
+
+  const btn = document.getElementById('btnLogin');
+  btn.innerHTML = '<div class="spinner"></div>'; btn.disabled = true;
+
+  try{
+    const res  = await fetch('/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || 'Lỗi đăng nhập');
+
+    currentEmail = email;
+    goToStep2();
+  }catch(e){
+    showAlert(e.message);
+  }finally{
+    btn.innerHTML = 'Đăng nhập'; btn.disabled = false;
+  }
+}
+
+// ── Go to step 2 ──
+function goToStep2(){
+  clearAlert();
+  document.getElementById('step1').style.display = 'none';
+  document.getElementById('step2').style.display = '';
+  document.getElementById('tab1').className = 'stab done';
+  document.getElementById('tab2').className = 'stab active';
+  document.getElementById('otpEmail').textContent = currentEmail;
+  setupOTPBoxes();
+  startTimer(10 * 60);
+  document.getElementById('o0').focus();
+  showAlert('Mã OTP đã gửi tới email của bạn. Kiểm tra hộp thư.', 'info');
+}
+
+function backToStep1(){
+  clearTimer();clearAlert();
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('step1').style.display = '';
+  document.getElementById('tab1').className = 'stab active';
+  document.getElementById('tab2').className = 'stab';
+  resetOTP();
+}
+
+// ── OTP boxes ──
+function setupOTPBoxes(){
+  for(let i=0;i<6;i++){
+    const box = document.getElementById('o'+i);
+    box.value = ''; box.className = 'otp-box';
+    box.addEventListener('input', ()=>onOTPInput(i));
+    box.addEventListener('keydown', e=>onOTPKey(e,i));
+    box.addEventListener('paste', onOTPPaste);
+  }
+}
+
+function onOTPInput(i){
+  const box = document.getElementById('o'+i);
+  const val = box.value.replace(/\D/g,'');
+  box.value = val.slice(-1);
+  if(val){ box.classList.add('filled'); if(i<5) document.getElementById('o'+(i+1)).focus(); }
+  else    { box.classList.remove('filled'); }
+  if(getOTP().length===6) setTimeout(doVerifyOTP, 100);
+}
+
+function onOTPKey(e,i){
+  if(e.key==='Backspace' && !document.getElementById('o'+i).value && i>0)
+    document.getElementById('o'+(i-1)).focus();
+  if(e.key==='ArrowLeft' && i>0) document.getElementById('o'+(i-1)).focus();
+  if(e.key==='ArrowRight' && i<5) document.getElementById('o'+(i+1)).focus();
+}
+
+function onOTPPaste(e){
+  const txt = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'');
+  if(!txt) return; e.preventDefault();
+  [...txt.slice(0,6)].forEach((c,i)=>{
+    const box=document.getElementById('o'+i);if(!box)return;
+    box.value=c;box.classList.add('filled');
+  });
+  const next=Math.min(txt.length,5);
+  document.getElementById('o'+next).focus();
+  if(txt.length>=6) setTimeout(doVerifyOTP,100);
+}
+
+function getOTP(){ return Array.from({length:6},(_,i)=>document.getElementById('o'+i).value).join(''); }
+
+function resetOTP(){
+  for(let i=0;i<6;i++){
+    const b=document.getElementById('o'+i);if(b){b.value='';b.className='otp-box';}
+  }
+}
+
+// ── Timer ──
+function startTimer(seconds){
+  clearTimer();
+  let rem = seconds;
+  const el = document.getElementById('timerEl');
+  const resend = document.getElementById('resendBtn');
+  resend.classList.remove('show');
+
+  timerInterval = setInterval(()=>{
+    rem--;
+    const m = String(Math.floor(rem/60)).padStart(2,'0');
+    const s = String(rem%60).padStart(2,'0');
+    el.textContent = `${m}:${s}`;
+    if(rem<=0){ clearTimer(); el.textContent='Hết hạn'; resend.classList.add('show'); }
+  },1000);
+}
+function clearTimer(){ if(timerInterval){clearInterval(timerInterval);timerInterval=null;} }
+
+async function resendOTP(){
+  document.getElementById('resendBtn').classList.remove('show');
+  clearAlert();
+  try{
+    const res  = await fetch('/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email:currentEmail, password: document.getElementById('password').value})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail);
+    resetOTP();startTimer(10*60);
+    showAlert('Đã gửi lại OTP mới. Kiểm tra hộp thư!','ok');
+    document.getElementById('o0').focus();
+  }catch(e){ showAlert(e.message); document.getElementById('resendBtn').classList.add('show'); }
+}
+
+// ── Step 2: Verify OTP ──
+async function doVerifyOTP(){
+  clearAlert();
+  const otp = getOTP();
+  if(otp.length < 6){ showAlert('Vui lòng nhập đủ 6 chữ số'); return; }
+
+  const btn = document.getElementById('btnVerify');
+  btn.innerHTML = '<div class="spinner"></div>'; btn.disabled = true;
+
+  try{
+    const res  = await fetch('/auth/login/verify-otp', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email:currentEmail, otp})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || 'OTP không đúng');
+
+    // Lưu tokens
+    localStorage.setItem('access_token',  data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+
+    clearTimer();
+    // Redirect theo role
+    const role = data.user?.role;
+    window.location.href = (role==='admin'||role==='manager') ? '/dashboard' : '/';
+  }catch(e){
+    // Shake OTP boxes
+    for(let i=0;i<6;i++) document.getElementById('o'+i).classList.add('err');
+    setTimeout(()=>{ for(let i=0;i<6;i++) document.getElementById('o'+i).classList.remove('err'); },500);
+    resetOTP(); document.getElementById('o0').focus();
+    showAlert(e.message);
+  }finally{
+    btn.innerHTML = 'Xác nhận & Đăng nhập'; btn.disabled = false;
+  }
+}
+
+// ── Check nếu đã đăng nhập ──
+(function(){
+  const token = localStorage.getItem('access_token');
+  if(token){
+    // Thử verify token — nếu còn hợp lệ thì redirect
+    fetch('/auth/me', {headers:{Authorization:'Bearer '+token}})
+      .then(r=>r.json())
+      .then(d=>{ if(d.user){ const role=d.user.role; window.location.href=(role==='admin'||role==='manager')?'/dashboard':'/'; } })
+      .catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>

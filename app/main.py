@@ -12,7 +12,7 @@ from app.database import init_db
 from app.face_engine import face_engine
 from app.attendance import process_attendance, get_summary_today
 from app.routes import employees, reports
-from app.routes.auth_routes import router as auth_router
+from app.routes.auth import router as auth_router
 from app.notify import telegram_checkin
 
 
