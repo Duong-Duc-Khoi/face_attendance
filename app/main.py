@@ -105,23 +105,27 @@ async def report_page(request: Request):
 # Camera stream
 # ──────────────────────────────────────────
 def _placeholder_mjpeg():
-    """Stream anh placeholder khi camera tat"""
+    """Stream anh placeholder khi camera tat — tao frame 1 lan, yield lai nhieu lan"""
     import numpy as np
     import time
+
+    # Tạo và encode 1 lần duy nhất — frame tĩnh không cần rebuild mỗi giây
+    img = np.zeros((480, 640, 3), dtype=np.uint8)
+    img[:] = (20, 30, 45)
+    cv2.putText(img, "CAMERA DA TAT", (175, 210),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (60, 60, 80), 2)
+    cv2.putText(img, "Nhan [Bat Camera] de khoi dong", (110, 260),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (60, 60, 80), 1)
+    _, jpeg = cv2.imencode(".jpg", img)
+    frame_bytes = (
+        b'--frame\r\n'
+        b'Content-Type: image/jpeg\r\n\r\n'
+        + jpeg.tobytes()
+        + b'\r\n'
+    )
+
     while True:
-        img = np.zeros((480, 640, 3), dtype=np.uint8)
-        img[:] = (20, 30, 45)
-        cv2.putText(img, "CAMERA DA TAT", (175, 210),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (60, 60, 80), 2)
-        cv2.putText(img, "Nhan [Bat Camera] de khoi dong", (110, 260),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (60, 60, 80), 1)
-        _, jpeg = cv2.imencode(".jpg", img)
-        yield (
-            b'--frame\r\n'
-            b'Content-Type: image/jpeg\r\n\r\n'
-            + jpeg.tobytes()
-            + b'\r\n'
-        )
+        yield frame_bytes
         time.sleep(1.0)
 
 

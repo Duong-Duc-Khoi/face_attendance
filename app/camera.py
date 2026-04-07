@@ -5,6 +5,8 @@ import numpy as np
 from app.face_engine import face_engine
 from app.database import SessionLocal, Employee
 
+_EMP_MAP_TTL = 30.0   # Làm mới employee map mỗi 30 giây
+
 
 class CameraStream:
     def __init__(self, camera_id: int = 0):
@@ -20,6 +22,10 @@ class CameraStream:
         self._last_emp_map    = {}         # { emp_code: name }
         self._result_lock     = threading.Lock()
 
+        # ── Cache employee map tránh query DB mỗi giây ──
+        self._emp_map_cache: dict = {}
+        self._emp_map_ts:  float  = 0.0
+
         self._connect()
 
     # ──────────────────────────────────────────
@@ -29,7 +35,6 @@ class CameraStream:
         """Kết nối camera — dùng CAP_DSHOW trên Windows tránh lag khởi tạo"""
         self.cap = cv2.VideoCapture(self.camera_id, cv2.CAP_DSHOW)
         if not self.cap.isOpened():
-            # Fallback không dùng DSHOW (Linux/Mac)
             self.cap = cv2.VideoCapture(self.camera_id)
 
         if self.cap.isOpened():
@@ -57,8 +62,11 @@ class CameraStream:
                 if ret:
                     with self.lock:
                         self.frame = frame
-            # Không sleep — đọc nhanh nhất có thể để giảm lag buffer
-        
+                # cap.read() tự block đến khi có frame — không cần sleep
+            else:
+                # Camera chưa mở hoặc bị ngắt — tránh busy-spin
+                time.sleep(0.1)
+
     # ──────────────────────────────────────────
     # Đọc frame
     # ──────────────────────────────────────────
@@ -89,14 +97,24 @@ class CameraStream:
     # Nhận diện (chỉ gọi từ WebSocket loop)
     # ──────────────────────────────────────────
     def _employee_map(self) -> dict:
+        """
+        Trả về {emp_code: name} với TTL cache để tránh query DB mỗi giây.
+        DB chỉ được hỏi lại sau _EMP_MAP_TTL giây.
+        """
+        now = time.monotonic()
+        if now - self._emp_map_ts < _EMP_MAP_TTL and self._emp_map_cache:
+            return self._emp_map_cache
+
         db = SessionLocal()
         try:
             emps = db.query(Employee).filter_by(is_active=True).all()
-            return {e.emp_code: e.name for e in emps}
+            self._emp_map_cache = {e.emp_code: e.name for e in emps}
+            self._emp_map_ts    = now
+            return self._emp_map_cache
         finally:
             db.close()
 
-    def run_recognition(self):
+    def run_recognition(self) -> tuple:
         """
         Thread 3 (WebSocket) gọi hàm này ~1 lần/giây.
         Chạy AI, cache kết quả, KHÔNG vẽ lên frame.
@@ -124,11 +142,10 @@ class CameraStream:
             if not ret or frame is None:
                 frame = self._make_placeholder()
             else:
-                # Vẽ kết quả nhận diện đã cache (không gọi AI)
                 results, emp_map = self.get_recognition_results()
                 if results:
                     face_engine.draw_results(frame, results, emp_map)
-            frame = cv2.flip(frame, 1)  # flip ngang SAU khi vẽ bbox    
+            frame = cv2.flip(frame, 1)  # flip ngang SAU khi vẽ bbox
             _, jpeg = cv2.imencode('.jpg', frame,
                                    [cv2.IMWRITE_JPEG_QUALITY, 90])
             yield (b'--frame\r\n'
@@ -147,10 +164,19 @@ class CameraStream:
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (60, 60, 80), 2)
         return img
 
-    def capture_snapshot(self, emp_code: str) -> str:
-        ret, frame = self.read()
-        if not ret:
-            return ""
+    def capture_snapshot(self, emp_code: str, frame: np.ndarray | None = None) -> str:
+        """
+        Lưu ảnh chụp tại thời điểm chấm công.
+
+        frame: nếu truyền vào (từ ws.py — frame đã dùng để nhận diện),
+               dùng luôn frame đó thay vì đọc frame mới từ camera.
+               Điều này đảm bảo ảnh bằng chứng khớp với frame được nhận diện.
+        """
+        if frame is None:
+            ret, frame = self.read()
+            if not ret or frame is None:
+                return ""
+
         ts   = time.strftime("%Y%m%d_%H%M%S")
         path = f"data/captures/{emp_code}_{ts}.jpg"
         cv2.imwrite(path, frame)

@@ -5,8 +5,6 @@ import numpy as np
 from numpy.linalg import norm
 from datetime import datetime
 
-# InsightFace sẽ được import khi chạy thực tế
-# pip install insightface onnxruntime
 try:
     import insightface
     from insightface.app import FaceAnalysis
@@ -28,6 +26,12 @@ class FaceEngine:
         self.embeddings   = {}   # { emp_code: [embedding_array, ...] }
         self.threshold    = THRESHOLD
         self._initialized = False
+
+        # ── Ma trận tìm kiếm nhanh (rebuild khi embeddings thay đổi) ──
+        # Mỗi hàng = mean embedding (đã normalize) của 1 nhân viên
+        self._emb_matrix: np.ndarray | None = None  # shape: (N, 512)
+        self._emb_codes:  list[str]         = []    # tương ứng với từng hàng
+
         self._init_model()
         self._load_embeddings()
 
@@ -59,10 +63,38 @@ class FaceEngine:
             print(f"  ✓ Đã load {len(self.embeddings)} nhân viên từ embeddings")
         else:
             self.embeddings = {}
+        self._rebuild_matrix()
 
     def _save_embeddings(self):
         with open(EMBEDDINGS_PATH, "wb") as f:
             pickle.dump(self.embeddings, f)
+
+    # ──────────────────────────────────────────
+    # Ma trận tìm kiếm (rebuild sau mỗi thay đổi)
+    # ──────────────────────────────────────────
+    def _rebuild_matrix(self):
+        """
+        Tính mean embedding (đã normalize) cho mỗi nhân viên
+        và xếp thành ma trận (N, 512) để tìm kiếm bằng 1 lần matrix multiply.
+
+        Gọi sau: _load_embeddings(), register(), delete()
+        """
+        if not self.embeddings:
+            self._emb_matrix = None
+            self._emb_codes  = []
+            return
+
+        codes, vecs = [], []
+        for code, embs in self.embeddings.items():
+            mean_emb = np.mean(embs, axis=0)
+            n = norm(mean_emb)
+            if n > 0:
+                mean_emb = mean_emb / n   # đảm bảo unit vector
+            codes.append(code)
+            vecs.append(mean_emb.astype(np.float32))
+
+        self._emb_matrix = np.array(vecs, dtype=np.float32)  # (N, 512)
+        self._emb_codes  = codes
 
     # ──────────────────────────────────────────
     # Đăng ký nhân viên mới
@@ -75,8 +107,9 @@ class FaceEngine:
         """
         if not self._initialized:
             # Demo mode: giả lập đăng ký thành công
-            self.embeddings[emp_code] = [np.random.rand(512)]
+            self.embeddings[emp_code] = [np.random.rand(512).astype(np.float32)]
             self._save_embeddings()
+            self._rebuild_matrix()
             return {"success": True, "count": 1, "message": "Demo mode — đăng ký ảo"}
 
         embeddings = []
@@ -87,7 +120,10 @@ class FaceEngine:
                     face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0]) * (f.bbox[3]-f.bbox[1]))
                     w = face.bbox[2] - face.bbox[0]
                     if w >= MIN_FACE_SIZE:
-                        embeddings.append(face.embedding / norm(face.embedding))  # Normalize
+                        emb = face.embedding
+                        n   = norm(emb)
+                        if n > 0:
+                            embeddings.append((emb / n).astype(np.float32))
             except Exception:
                 continue
 
@@ -96,11 +132,12 @@ class FaceEngine:
 
         self.embeddings[emp_code] = embeddings
         self._save_embeddings()
+        self._rebuild_matrix()
 
         # Lưu ảnh mẫu đại diện
         face_dir = os.path.join(FACES_DIR, emp_code)
         os.makedirs(face_dir, exist_ok=True)
-        for i, img in enumerate(images[:5]):  # Lưu tối đa 5 ảnh
+        for i, img in enumerate(images[:5]):
             cv2.imwrite(os.path.join(face_dir, f"{i}.jpg"), img)
 
         return {
@@ -114,6 +151,7 @@ class FaceEngine:
         if emp_code in self.embeddings:
             del self.embeddings[emp_code]
             self._save_embeddings()
+            self._rebuild_matrix()
 
     # ──────────────────────────────────────────
     # Nhận diện từ frame camera
@@ -124,7 +162,7 @@ class FaceEngine:
         Trả về list kết quả cho mỗi khuôn mặt phát hiện được.
         """
         if not self._initialized:
-            return []   # Không demo ở đây — camera.py xử lý
+            return []
 
         try:
             faces = self.model.get(frame)
@@ -138,7 +176,12 @@ class FaceEngine:
             if w < MIN_FACE_SIZE:
                 continue
 
-            emb = face.embedding / norm(face.embedding)
+            emb = face.embedding
+            n   = norm(emb)
+            if n == 0:
+                continue
+            emb = (emb / n).astype(np.float32)
+
             emp_code, similarity = self._match(emb)
 
             results.append({
@@ -150,44 +193,45 @@ class FaceEngine:
             })
         return results
 
-    def _match(self, embedding: np.ndarray) -> tuple:
-        """So sánh embedding với toàn bộ database. Trả về (emp_code, similarity)"""
-        best_code, best_sim = "Unknown", 0.0
-        for code, embs in self.embeddings.items():
-            sims = [float(np.dot(embedding, e) / (norm(e) + 1e-8)) for e in embs]
-            avg  = float(np.mean(sims))
-            if avg > best_sim:
-                best_sim, best_code = avg, code
-        return best_code, best_sim
+    def _match(self, embedding: np.ndarray) -> tuple[str, float]:
+        """
+        Tìm nhân viên khớp nhất bằng 1 lần matrix multiply thay vì Python loop.
+
+        embedding: unit vector float32 (512,)
+        _emb_matrix: (N, 512) — mỗi hàng là mean embedding (unit vector) của 1 nhân viên
+
+        cosine_similarity = dot(q, e) khi cả 2 đã normalize → không cần chia norm.
+        """
+        if self._emb_matrix is None or len(self._emb_codes) == 0:
+            return "Unknown", 0.0
+
+        # (N,) — cosine similarity với tất cả nhân viên trong 1 phép nhân
+        sims = self._emb_matrix @ embedding
+
+        idx = int(np.argmax(sims))
+        return self._emb_codes[idx], float(sims[idx])
 
     # ──────────────────────────────────────────
     # Vẽ kết quả lên frame
     # ──────────────────────────────────────────
     def draw_results(self, frame: np.ndarray, results: list,
                      employee_map: dict = None) -> np.ndarray:
-        """
-        Vẽ bounding box + tên lên frame.
-        employee_map: { emp_code: employee_name } để hiển thị tên thật
-        """
+        """Vẽ bounding box + tên lên frame."""
         for r in results:
             x1, y1, x2, y2 = r["bbox"]
             recognized      = r["recognized"]
             emp_code        = r["emp_code"]
             sim             = r["similarity"]
 
-            # Màu: xanh lá = nhận ra, đỏ = không nhận ra
             color  = (0, 200, 100) if recognized else (60, 60, 220)
             label  = employee_map.get(emp_code, emp_code) if (recognized and employee_map) else emp_code
             sublbl = f"{sim:.0%}"
 
-            # Bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
-            # Label background
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
             cv2.rectangle(frame, (x1, y1 - th - 14), (x1 + tw + 12, y1), color, -1)
 
-            # Text
             cv2.putText(frame, label,  (x1 + 6, y1 - 6),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255,255,255), 2, cv2.LINE_AA)
             cv2.putText(frame, sublbl, (x1 + 6, y2 + 18),
