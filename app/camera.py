@@ -152,7 +152,7 @@ class CameraStream:
                    b'Content-Type: image/jpeg\r\n\r\n'
                    + jpeg.tobytes()
                    + b'\r\n')
-            time.sleep(1 / 25)   # 25 FPS
+            time.sleep(1 / 60)   # 60 FPS
 
     # ──────────────────────────────────────────
     # Placeholder & snapshot
