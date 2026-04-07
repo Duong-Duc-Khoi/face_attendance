@@ -5,35 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Đăng ký nhân viên — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/components.css">
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#060c17;--surface:#0d1626;--panel:#111e34;--border:#1a2f50;
-  --teal:#00d4aa;--teal-dim:#007a63;--teal-glow:rgba(0,212,170,0.15);
-  --blue:#3a8fff;--red:#ff4d6a;--yellow:#f6c90e;
-  --text:#e8f0fe;--muted:#5a7a9a;
-  --font-sans:'Sora',sans-serif;--font-mono:'Space Mono',monospace
-}
-html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font-sans)}
-body::before{content:'';position:fixed;inset:0;z-index:0;
-  background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
-  background-size:40px 40px;opacity:.18;pointer-events:none}
-
-header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;
-  height:60px;padding:0 28px;border-bottom:1px solid var(--border);
-  background:rgba(6,12,23,.92);backdrop-filter:blur(10px)}
-.brand{display:flex;align-items:center;gap:10px}
-.brand-icon{width:30px;height:30px;border:1.5px solid var(--teal);border-radius:7px;
-  display:grid;place-items:center;background:var(--teal-glow)}
-.brand-name{font-family:var(--font-mono);font-size:13px;font-weight:700;
-  color:var(--teal);letter-spacing:.12em;text-transform:uppercase}
-.nav-links{display:flex;gap:6px}
-.nav-link{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;
-  letter-spacing:.05em;text-decoration:none;color:var(--muted);transition:all .2s}
-.nav-link:hover{color:var(--text);background:var(--panel)}
-.nav-link.active{color:var(--teal);background:var(--teal-glow)}
+html,body{min-height:100vh}
 
 .page{position:relative;z-index:1;max-width:1300px;margin:0 auto;
   padding:24px 20px;display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}

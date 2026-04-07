@@ -1,134 +1,117 @@
-# 🎯 Hệ Thống Chấm Công Nhân Viên Bằng Nhận Diện Khuôn Mặt
+# FaceAttend — Hệ Thống Chấm Công Nhận Diện Khuôn Mặt
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python" />
   <img src="https://img.shields.io/badge/FastAPI-0.104+-green?style=for-the-badge&logo=fastapi" />
   <img src="https://img.shields.io/badge/InsightFace-ArcFace-purple?style=for-the-badge" />
   <img src="https://img.shields.io/badge/OpenCV-4.8+-red?style=for-the-badge&logo=opencv" />
-  <img src="https://img.shields.io/badge/SQLite-Database-orange?style=for-the-badge&logo=sqlite" />
+  <img src="https://img.shields.io/badge/PostgreSQL-Database-blue?style=for-the-badge&logo=postgresql" />
 </p>
 
-<p align="center">
-  Ứng dụng chấm công thời gian thực sử dụng trí tuệ nhân tạo để nhận diện khuôn mặt nhân viên,
-  thay thế hoàn toàn các phương pháp chấm công truyền thống như thẻ từ, vân tay.
-</p>
+Ứng dụng chấm công thời gian thực sử dụng AI nhận diện khuôn mặt (InsightFace ArcFace), chạy trên phần cứng thông thường (PC + webcam). Nhân viên chỉ cần đứng trước camera — hệ thống tự động nhận diện và ghi nhận thời gian vào/ra trong vòng dưới 1 giây.
 
 ---
 
-## 📋 Mục Lục
+## Mục Lục
 
-- [Giới thiệu](#-giới-thiệu)
-- [Tính năng](#-tính-năng)
-- [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
-- [Kiến trúc hệ thống](#-kiến-trúc-hệ-thống)
-- [Cài đặt](#-cài-đặt)
-- [Hướng dẫn sử dụng](#-hướng-dẫn-sử-dụng)
-- [Cấu trúc thư mục](#-cấu-trúc-thư-mục)
-- [API Documentation](#-api-documentation)
-- [Hiệu năng & Độ chính xác](#-hiệu-năng--độ-chính-xác)
-- [Tác giả](#-tác-giả)
+- [Tính năng](#tính-năng)
+- [Công nghệ](#công-nghệ)
+- [Kiến trúc](#kiến-trúc)
+- [Cài đặt](#cài-đặt)
+- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
+- [API](#api)
 
 ---
 
-## 🌟 Giới Thiệu
+## Tính Năng
 
-Hệ thống chấm công thông minh được xây dựng như một **ứng dụng kiosk** chạy trên máy tính để bàn có gắn webcam. Nhân viên chỉ cần đứng trước camera — hệ thống tự động nhận diện và ghi nhận thời gian ra/vào trong vòng dưới **1 giây**, không cần chạm vào thiết bị.
+**Chấm công (Kiosk)**
+- Nhận diện khuôn mặt thời gian thực qua webcam (MJPEG + WebSocket)
+- Tự động phân biệt check-in (lần đầu trong ngày) và check-out
+- Phát hiện đi muộn so với giờ làm cấu hình
+- Chống chấm công lặp (cooldown 5 phút)
+- Thông báo Telegram tức thời khi có sự kiện
 
-**Vấn đề giải quyết:**
-- Chấm công thủ công dễ gian lận (chấm hộ, ký hộ)
-- Thẻ từ / vân tay tốn chi phí phần cứng chuyên dụng
-- Không có báo cáo thống kê tự động, khó quản lý
+**Quản lý nhân viên**
+- Đăng ký khuôn mặt từ camera (nhiều ảnh, nhiều góc) hoặc upload file
+- CRUD nhân viên: mã NV, tên, phòng ban, chức vụ, email, điện thoại
+- Soft delete (vô hiệu hóa, không xóa dữ liệu lịch sử)
 
-**Giải pháp:**
-- Nhận diện khuôn mặt bằng AI — không thể giả mạo
-- Chạy trên phần cứng thông thường (PC + webcam)
-- Dashboard quản lý và báo cáo đầy đủ ngay trong trình duyệt
+**Báo cáo**
+- Lịch sử chấm công theo ngày, khoảng thời gian, phòng ban
+- Thống kê tổng hợp: đã vào, đã ra, vắng mặt, đi muộn
+- Biểu đồ theo ngày và theo phòng ban (Chart.js)
+- Xuất báo cáo Excel (.xlsx) có định dạng màu sắc
 
----
-
-## ✨ Tính Năng
-
-### Màn hình chấm công (Kiosk)
-- ✅ Nhận diện khuôn mặt **thời gian thực** qua webcam
-- ✅ Hiển thị tên, phòng ban và giờ check-in/check-out ngay lập tức
-- ✅ Phân biệt tự động **check-in** (vào) và **check-out** (ra)
-- ✅ Phát âm thanh/thông báo khi chấm công thành công
-- ✅ Chống chấm công lặp (cooldown 5 phút)
-
-### Quản lý nhân viên
-- ✅ Đăng ký nhân viên mới với chụp ảnh trực tiếp từ camera
-- ✅ Quản lý thông tin: mã NV, tên, phòng ban, chức vụ
-- ✅ Kích hoạt / vô hiệu hóa tài khoản nhân viên
-
-### Dashboard & Báo cáo
-- ✅ Xem lịch sử chấm công theo ngày / tuần / tháng
-- ✅ Thống kê đi muộn, về sớm, vắng mặt
-- ✅ Xuất báo cáo **Excel (.xlsx)** và **PDF**
-- ✅ Biểu đồ trực quan theo phòng ban
-
-### Bảo mật & Nâng cao
-- ✅ **Anti-spoofing** — chống dùng ảnh/video để gian lận
-- ✅ Lưu ảnh chụp tại thời điểm chấm công làm bằng chứng
-- ✅ Thông báo qua **Email** / **Telegram** khi có sự kiện bất thường
-- ✅ Log đầy đủ với độ chính xác nhận diện (confidence score)
+**Xác thực & Phân quyền**
+- Đăng ký tài khoản với xác minh email
+- Đăng nhập 2 bước: mật khẩu → OTP gửi qua email
+- 3 vai trò: `admin`, `manager`, `staff`
+- JWT access token (15 phút) + Refresh token (7 ngày, có thu hồi)
+- Phân quyền chi tiết theo từng action (`attendance:read_own`, `employee:write`, v.v.)
 
 ---
 
-## 🛠 Công Nghệ Sử Dụng
+## Công Nghệ
 
-| Thành phần | Công nghệ | Phiên bản |
-|---|---|---|
-| **AI Model** | InsightFace (ArcFace) | 0.7+ |
-| **Backend** | FastAPI + Uvicorn | 0.104+ |
-| **Camera Stream** | OpenCV → MJPEG | 4.8+ |
-| **Realtime** | WebSocket (FastAPI native) | — |
-| **Database** | SQLite + SQLAlchemy | 2.0+ |
-| **Frontend** | HTML5 + Tailwind CSS + Vanilla JS | — |
-| **Xuất báo cáo** | OpenPyXL + ReportLab | — |
-| **Anti-spoofing** | Silent-Face-Anti-Spoofing | — |
-| **Thông báo** | smtplib (Email) + python-telegram-bot | — |
+| Thành phần | Công nghệ |
+|---|---|
+| AI nhận diện | InsightFace `buffalo_l` (ArcFace 512-dim, cosine similarity) |
+| Backend | FastAPI + Uvicorn |
+| Camera stream | OpenCV → MJPEG (threading) + WebSocket (recognition) |
+| Database | PostgreSQL + SQLAlchemy 2.0 |
+| Auth | JWT (PyJWT) + bcrypt (passlib) + OTP email |
+| Frontend | Jinja2 + Vanilla JS + Custom CSS (tách file theo component) |
+| Thông báo | Gmail SMTP + Telegram Bot API (aiohttp) |
+| Xuất báo cáo | OpenPyXL |
 
 ---
 
-## 🏗 Kiến Trúc Hệ Thống
+## Kiến Trúc
 
 ```
-┌─────────────────────────────────────────────────┐
-│                  BROWSER (localhost:8000)         │
-│   Kiosk Screen │ Dashboard │ Register │ Reports  │
-└────────────────────────┬────────────────────────┘
-                         │ HTTP / WebSocket
-┌────────────────────────▼────────────────────────┐
-│               FASTAPI BACKEND                    │
-│  face_engine │ camera │ attendance │ notify      │
-└──────┬──────────────┬──────────────┬────────────┘
-       │              │              │
-  ┌────▼────┐   ┌─────▼─────┐  ┌────▼────┐
-  │ SQLite  │   │ Embeddings│  │  Ảnh    │
-  │  (DB)   │   │  (.pkl)   │  │ chụp CC │
-  └─────────┘   └───────────┘  └─────────┘
-```
+Browser (localhost:8000)
+  ├── GET /              → kiosk.html     (public)
+  ├── GET /video_feed    → MJPEG stream
+  ├── WS  /ws/attendance → realtime recognition
+  ├── GET /dashboard     → quản lý (cần đăng nhập)
+  ├── GET /register      → đăng ký nhân viên
+  └── GET /report        → báo cáo
 
-**Luồng xử lý chấm công:**
+FastAPI Backend
+  ├── app/main.py        → routes HTML, camera, health
+  ├── app/ws.py          → WebSocket handler + ConnectionManager
+  ├── app/face_engine.py → InsightFace singleton (load model 1 lần)
+  ├── app/camera.py      → CameraStream (3 thread: capture / MJPEG / recognition)
+  ├── app/attendance.py  → business logic check-in/out, cooldown, late detection
+  ├── app/auth.py        → JWT, OTP, RBAC, email verification
+  ├── app/notify.py      → Email SMTP + Telegram
+  ├── app/database.py    → SQLAlchemy models (Employee, AttendanceLog, User, ...)
+  └── app/routes/
+       ├── auth.py       → /auth/* endpoints
+       ├── employees.py  → /api/employees/*
+       └── reports.py    → /api/attendance, /api/summary, /api/reports/export
 
-```
-Camera Frame → Face Detection (MTCNN)
-            → Anti-Spoofing Check
-            → Face Alignment (112×112)
-            → Feature Extraction (ArcFace, 512-dim)
-            → Cosine Similarity So Sánh DB
-            → Nếu similarity ≥ 0.5 → Ghi log → WebSocket → UI
+Luồng chấm công:
+Camera frame (60 FPS capture)
+  → MJPEG stream (25 FPS, không AI, dùng cached bbox)
+  → WebSocket loop (~1/giây): face_engine.recognize()
+      → cosine similarity ≥ 0.50 → process_attendance()
+          → lưu AttendanceLog vào PostgreSQL
+          → broadcast WebSocket → UI cập nhật
+          → telegram_checkin() async
 ```
 
 ---
 
-## 🚀 Cài Đặt
+## Cài Đặt
 
-### Yêu cầu hệ thống
-- Python **3.10+**
+### Yêu cầu
+
+- Python 3.10+
+- PostgreSQL 14+
 - Webcam (USB hoặc tích hợp)
-- RAM tối thiểu **4GB** (khuyến nghị 8GB)
-- Windows 10/11 hoặc Ubuntu 20.04+
+- RAM tối thiểu 4GB (khuyến nghị 8GB cho model AI)
 
 ### Bước 1 — Clone và tạo môi trường ảo
 
@@ -151,152 +134,165 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Nội dung `requirements.txt`:
-```
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-insightface==0.7.3
-opencv-python==4.8.1.78
-sqlalchemy==2.0.23
-jinja2==3.1.2
-python-multipart==0.0.6
-openpyxl==3.1.2
-aiofiles==23.2.1
-numpy==1.24.4
-pillow==10.1.0
-python-telegram-bot==20.6
+### Bước 3 — Tạo database PostgreSQL
+
+```sql
+CREATE DATABASE face_attendance;
+CREATE USER face_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE face_attendance TO face_user;
 ```
 
-### Bước 3 — Khởi tạo thư mục dữ liệu
+### Bước 4 — Cấu hình môi trường
+
+Tạo file `.env` từ mẫu:
 
 ```bash
-mkdir -p data/faces data/captures
+cp .env.example .env
 ```
 
-### Bước 4 — Chạy ứng dụng
+Chỉnh sửa `.env`:
+
+```env
+# Database
+DATABASE_URL=postgresql+psycopg2://face_user:your_password@localhost:5432/face_attendance
+
+# JWT
+JWT_SECRET=your-32-character-secret-key-here
+
+# Camera
+CAMERA_ID=0
+FACE_THRESHOLD=0.50
+COOLDOWN_MINUTES=5
+WORK_START=08:30
+
+# Email (Gmail, cần bật App Password)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_HOST=smtp.gmail.com
+
+# Telegram (tuỳ chọn)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+### Bước 5 — Chạy ứng dụng
 
 ```bash
 python run.py
-# hoặc
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Mở trình duyệt và truy cập: **http://localhost:8000**
+Ứng dụng tự động:
+- Tạo các bảng database nếu chưa có
+- Tạo thư mục `data/faces`, `data/captures`, `data/exports`
+- Load model InsightFace lần đầu (tải ~300MB nếu chưa có)
+
+Truy cập: **http://localhost:8000**
 
 ---
 
-## 📖 Hướng Dẫn Sử Dụng
-
-### Đăng ký nhân viên mới
-
-1. Truy cập **http://localhost:8000/register**
-2. Nhập thông tin: Mã NV, Họ tên, Phòng ban, Chức vụ
-3. Nhấn **"Chụp ảnh"** — hệ thống tự động chụp 20 ảnh từ nhiều góc
-4. Nhấn **"Đăng ký"** — AI tự động tạo vector đặc trưng khuôn mặt
-5. Nhân viên đã có thể chấm công ngay
-
-### Chấm công hàng ngày
-
-1. Màn hình kiosk luôn mở tại **http://localhost:8000**
-2. Nhân viên đứng trước camera trong vòng **1 giây**
-3. Hệ thống hiển thị: Tên, Phòng ban, Giờ vào/ra, Trạng thái
-4. Lần đầu trong ngày = **Check-in**, lần tiếp theo = **Check-out**
-
-### Xem báo cáo
-
-1. Truy cập **http://localhost:8000/dashboard** (dành cho quản lý)
-2. Chọn khoảng thời gian cần xem
-3. Lọc theo phòng ban hoặc nhân viên cụ thể
-4. Nhấn **"Xuất Excel"** hoặc **"Xuất PDF"** để tải báo cáo
-
----
-
-## 📁 Cấu Trúc Thư Mục
+## Cấu Trúc Thư Mục
 
 ```
 face_attendance/
 ├── app/
-│   ├── main.py            # FastAPI app, routes chính
-│   ├── face_engine.py     # InsightFace, nhận diện & đăng ký
-│   ├── camera.py          # OpenCV stream MJPEG
-│   ├── attendance.py      # Logic check-in/check-out
-│   ├── database.py        # SQLAlchemy models
-│   ├── anti_spoof.py      # Chống giả mạo khuôn mặt
-│   ├── notify.py          # Email & Telegram alerts
+│   ├── __init__.py
+│   ├── main.py            # FastAPI app, page routes, camera endpoints
+│   ├── ws.py              # WebSocket handler, ConnectionManager
+│   ├── face_engine.py     # InsightFace singleton, register & recognize
+│   ├── camera.py          # CameraStream (3-thread: capture/MJPEG/recognition)
+│   ├── attendance.py      # Business logic check-in/out, late detection
+│   ├── database.py        # SQLAlchemy models: Employee, AttendanceLog
+│   ├── auth.py            # JWT, bcrypt, OTP, RBAC, email verification
+│   ├── notify.py          # Gmail SMTP + Telegram notifications
 │   └── routes/
-│       ├── employees.py   # CRUD nhân viên
-│       └── reports.py     # Báo cáo, xuất file
+│       ├── __init__.py
+│       ├── auth.py        # POST /auth/register, login, OTP, refresh...
+│       ├── employees.py   # GET/POST/PUT/DELETE /api/employees
+│       └── reports.py     # GET /api/attendance, /api/summary, /api/reports/export
 ├── templates/
-│   ├── kiosk.html         # Màn hình chấm công
-│   ├── dashboard.html     # Quản lý & thống kê
-│   ├── register.html      # Đăng ký nhân viên
-│   └── reports.html       # Xem & xuất báo cáo
+│   ├── kiosk.html         # Màn hình chấm công (public)
+│   ├── dashboard.html     # Quản lý nhân viên + lịch sử
+│   ├── register.html      # Đăng ký khuôn mặt nhân viên
+│   ├── reports.html       # Báo cáo & xuất Excel
+│   ├── login.html         # Đăng nhập (email + OTP 2 bước)
+│   └── user_register.html # Tạo tài khoản quản lý
 ├── static/
-│   ├── css/               # Tailwind CSS
-│   ├── js/                # WebSocket client, UI logic
-│   └── sounds/            # Âm thanh thông báo
+│   ├── css/
+│   │   ├── base.css        # CSS variables, reset, grid background
+│   │   ├── nav.css         # Header, brand, navigation
+│   │   ├── components.css  # Panel, table, badge, button, toast, spinner
+│   │   ├── auth.css        # Layout auth, card, form fields
+│   │   ├── dashboard.css   # Stats, modal, employee cell
+│   │   ├── reports.css     # Charts, filter row, quick buttons
+│   │   ├── login.css       # Step tabs, OTP input boxes
+│   │   └── user_register.css # Password strength, success screen
+│   ├── js/
+│   │   └── toast.js        # showToast() dùng chung
+│   └── sounds/             # Âm thanh thông báo chấm công
 ├── data/
-│   ├── attendance.db      # SQLite database
-│   ├── embeddings.pkl     # Face embeddings nhân viên
-│   ├── faces/             # Ảnh đăng ký nhân viên
-│   └── captures/          # Ảnh chụp lúc chấm công
+│   ├── embeddings.pkl      # Face embeddings (tự động tạo khi đăng ký)
+│   ├── faces/              # Ảnh đăng ký theo {emp_code}/
+│   ├── captures/           # Ảnh chụp lúc chấm công (bằng chứng)
+│   └── exports/            # File Excel xuất ra
+├── .env                    # Cấu hình (không commit)
+├── .env.example            # Mẫu cấu hình
 ├── requirements.txt
-├── run.py                 # Entry point
-└── README.md
+├── run.py                  # Entry point (uvicorn)
+└── Readme.md
 ```
 
 ---
 
-## 📡 API Documentation
+## API
 
-Sau khi chạy app, truy cập **http://localhost:8000/docs** để xem Swagger UI đầy đủ.
+Swagger UI đầy đủ tại **http://localhost:8000/docs**
+
+**Auth**
 
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| `GET` | `/` | Màn hình kiosk chấm công |
-| `GET` | `/video_feed` | MJPEG stream từ camera |
-| `WS` | `/ws/attendance` | WebSocket kết quả nhận diện realtime |
-| `GET` | `/register` | Trang đăng ký nhân viên |
-| `POST` | `/api/employees` | Tạo nhân viên mới + lưu embedding |
+| `POST` | `/auth/register` | Tạo tài khoản mới |
+| `GET` | `/auth/verify-email` | Xác minh email qua link |
+| `POST` | `/auth/login` | Gửi OTP đến email |
+| `POST` | `/auth/login/verify-otp` | Xác nhận OTP → trả JWT |
+| `POST` | `/auth/refresh` | Lấy access token mới |
+| `POST` | `/auth/logout` | Thu hồi refresh token |
+| `GET` | `/auth/me` | Thông tin user hiện tại |
+
+**Nhân viên**
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
 | `GET` | `/api/employees` | Danh sách nhân viên |
+| `POST` | `/api/employees` | Tạo mới + đăng ký khuôn mặt (multipart) |
 | `PUT` | `/api/employees/{id}` | Cập nhật thông tin |
-| `DELETE` | `/api/employees/{id}` | Xóa / vô hiệu hóa |
-| `GET` | `/api/attendance` | Lịch sử chấm công (query: date, emp_code) |
-| `GET` | `/api/reports/export` | Xuất báo cáo Excel/PDF |
-| `GET` | `/dashboard` | Dashboard quản lý |
+| `DELETE` | `/api/employees/{id}` | Vô hiệu hóa (soft delete) |
+
+**Chấm công & Báo cáo**
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/attendance` | Lịch sử chấm công (query: `date`, `days`) |
+| `GET` | `/api/summary` | Thống kê hôm nay |
+| `GET` | `/api/summary/range` | Thống kê theo khoảng thời gian |
+| `GET` | `/api/reports/export` | Xuất Excel (query: `from_date`, `to_date`) |
+
+**Camera**
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/video_feed` | MJPEG stream |
+| `WS` | `/ws/attendance` | WebSocket nhận diện realtime |
+| `POST` | `/api/camera/start` | Bật camera |
+| `POST` | `/api/camera/stop` | Tắt camera |
+| `GET` | `/api/camera/status` | Trạng thái camera |
 
 ---
 
-## 📊 Hiệu Năng & Độ Chính Xác
+## Lưu Ý Vận Hành
 
-| Chỉ số | Giá trị |
-|---|---|
-| Độ chính xác nhận diện (LFW Benchmark) | **99.4%** |
-| Thời gian nhận diện / frame | **< 200ms** |
-| Số nhân viên hỗ trợ tối đa | **500+** |
-| FPS xử lý realtime | **15–30 FPS** |
-| Ngưỡng cosine similarity | **≥ 0.50** |
-| Anti-spoofing accuracy | **> 96%** |
-
-> **Lưu ý:** Độ chính xác thực tế phụ thuộc vào điều kiện ánh sáng và chất lượng camera. Khuyến nghị đặt camera ở vị trí đủ sáng, ngang tầm mặt.
-
----
-
-## 👨‍💻 Tác Giả
-
-**[Tên sinh viên]**
-Đồ án tốt nghiệp — Ngành Công nghệ Thông tin
-Trường: [Tên trường]
-GVHD: [Tên giáo viên hướng dẫn]
-Năm: 2025
-
----
-
-## 📄 Giấy Phép
-
-Dự án này được phát triển cho mục đích học thuật và đồ án tốt nghiệp.
-Model AI sử dụng [InsightFace](https://github.com/deepinsight/insightface) theo giấy phép MIT.
-
----
-
-<p align="center">Made with ❤️ for graduation thesis</p>
+- **Camera lần đầu:** Model InsightFace `buffalo_l` (~300MB) sẽ tự tải về `~/.insightface/` lần đầu chạy
+- **GPU:** Nếu có CUDA, hệ thống tự dùng GPU; nếu không, fallback sang CPU (chậm hơn ~3x)
+- **Ánh sáng:** Đặt camera ở vị trí đủ sáng, ngang tầm mặt để đạt độ chính xác tối đa
+- **Ngưỡng nhận diện:** `FACE_THRESHOLD=0.50` — tăng lên nếu nhận nhầm người, giảm xuống nếu không nhận ra
+- **Gmail OTP:** Cần bật [App Password](https://myaccount.google.com/apppasswords) trong tài khoản Google (không dùng mật khẩu thường)

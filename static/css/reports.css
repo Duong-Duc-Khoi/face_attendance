@@ -1,0 +1,42 @@
+/* ── Reports layout ── */
+html,body{min-height:100vh}
+.panel{margin-bottom:20px}
+
+/* ── Filter row ── */
+.filter-row{display:flex;gap:12px;align-items:flex-end;padding:20px;flex-wrap:wrap}
+.filter-group{display:flex;flex-direction:column;gap:6px}
+.filter-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+
+/* ── Override filter-input size for reports ── */
+.filter-input{font-size:13px;padding:9px 14px;border-radius:8px;min-width:160px}
+
+/* ── Override btn size for reports ── */
+.btn{padding:9px 20px;font-size:13px;border-radius:8px}
+.btn-teal:hover{transform:translateY(-1px)}
+.btn-teal:disabled{background:var(--teal-dim);cursor:not-allowed;transform:none}
+
+/* ── Quick range buttons ── */
+.quick-btns{display:flex;gap:6px;flex-wrap:wrap}
+.quick-btn{
+  padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;
+  cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);
+  transition:all .2s;
+}
+.quick-btn:hover,.quick-btn.active{background:var(--teal-glow);color:var(--teal);border-color:var(--teal)}
+
+/* ── Stats (3-col) ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:20px}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
+.stat-label{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.stat-value{font-family:var(--font-mono);font-size:28px;font-weight:700}
+.stat-value.teal{color:var(--teal)}
+.stat-value.blue{color:var(--blue)}
+.stat-value.yellow{color:var(--yellow)}
+
+/* ── Charts ── */
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:20px;padding:20px;padding-top:0}
+.chart-wrap{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative}
+.chart-title{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px;font-weight:600}
+
+/* ── Override spinner size ── */
+.spinner{width:20px;height:20px}

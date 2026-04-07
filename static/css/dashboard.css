@@ -1,0 +1,55 @@
+/* ── Dashboard layout ── */
+html,body{min-height:100vh}
+
+/* ── Stats row ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px}
+.stat-label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.stat-value{font-family:var(--font-mono);font-size:32px;font-weight:700;line-height:1}
+.stat-value.teal{color:var(--teal)}
+.stat-value.blue{color:var(--blue)}
+.stat-value.red{color:var(--red)}
+.stat-value.yellow{color:var(--yellow)}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:6px}
+
+/* ── 2-col grid ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+
+/* ── Filter bar (inline table toolbar) ── */
+.filter-bar{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+
+/* ── Employee cell ── */
+.emp-avatar{
+  width:32px;height:32px;border-radius:50%;object-fit:cover;
+  background:var(--panel);border:1.5px solid var(--border);
+  font-size:12px;font-weight:700;color:var(--teal);
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;overflow:hidden;
+}
+.emp-cell{display:flex;align-items:center;gap:10px}
+
+/* ── Modal ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(4px);
+}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:28px;min-width:440px;max-width:520px;
+  transform:translateY(16px);transition:transform .2s;
+}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+
+/* ── Form inside modal ── */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.form-input{
+  width:100%;background:var(--panel);border:1px solid var(--border);
+  color:var(--text);font-family:var(--font-sans);font-size:13px;
+  padding:9px 13px;border-radius:7px;outline:none;transition:border-color .2s;
+}
+.form-input:focus{border-color:var(--teal)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}

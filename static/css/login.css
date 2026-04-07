@@ -1,0 +1,31 @@
+/* ── Step tabs ── */
+.step-tabs{
+  display:flex;gap:0;margin-bottom:28px;border-radius:8px;overflow:hidden;
+  border:1px solid var(--border);
+}
+.stab{
+  flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  background:var(--panel);cursor:default;transition:all .2s;
+}
+.stab.active{background:var(--teal);color:#000}
+.stab.done{background:rgba(0,212,170,.12);color:var(--teal)}
+
+/* ── OTP input boxes ── */
+.otp-row{display:flex;gap:10px;justify-content:center;margin-bottom:6px}
+.otp-box{
+  width:48px;height:58px;background:var(--panel);border:1.5px solid var(--border);
+  color:var(--text);font-family:var(--font-mono);font-size:22px;font-weight:700;
+  text-align:center;border-radius:10px;outline:none;
+  transition:all .2s;caret-color:var(--teal);
+}
+.otp-box:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,212,170,.15)}
+.otp-box.filled{border-color:var(--teal);color:var(--teal)}
+.otp-box.err{border-color:var(--red);animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ── OTP timer ── */
+.otp-timer{text-align:center;font-size:12px;color:var(--muted);margin-bottom:20px}
+.otp-timer span{font-family:var(--font-mono);color:var(--yellow);font-weight:700}
+.otp-resend{color:var(--teal);cursor:pointer;text-decoration:underline;display:none}
+.otp-resend.show{display:inline}

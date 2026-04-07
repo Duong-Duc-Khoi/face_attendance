@@ -1,0 +1,85 @@
+/* ── Auth layout ── */
+html,body{min-height:100vh;display:flex;align-items:center;justify-content:center}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 50% 100%,rgba(0,212,170,.06) 0%,transparent 70%);
+}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:420px;padding:20px}
+
+/* ── Logo ── */
+.logo{text-align:center;margin-bottom:32px}
+.logo-icon{
+  width:52px;height:52px;border:2px solid var(--teal);border-radius:14px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--teal-glow);margin-bottom:12px;
+}
+.logo-name{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--teal);letter-spacing:.14em;text-transform:uppercase}
+.logo-sub{font-size:12px;color:var(--muted);margin-top:3px}
+
+/* ── Card ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:32px 28px;box-shadow:0 40px 80px rgba(0,0,0,.4);
+}
+
+/* ── Form elements ── */
+.fg{margin-bottom:16px}
+.fl{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+.fi{
+  width:100%;background:var(--panel);border:1.5px solid var(--border);
+  color:var(--text);font-family:var(--font-sans);font-size:13px;
+  padding:11px 14px;border-radius:9px;outline:none;transition:border-color .2s;
+}
+.fi:focus{border-color:var(--teal)}
+.fi::placeholder{color:var(--muted)}
+.fi.err{border-color:var(--red)}
+.fi.ok{border-color:var(--teal)}
+.fi-icon{position:relative}
+.fi-icon .fi{padding-right:42px}
+.fi-icon .eye{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  cursor:pointer;color:var(--muted);font-size:16px;user-select:none;transition:color .2s;
+}
+.fi-icon .eye:hover{color:var(--teal)}
+
+/* ── Auth buttons ── */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:13px;border-radius:9px;font-family:var(--font-sans);font-size:14px;
+  font-weight:700;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em;
+}
+.btn-t{background:var(--teal);color:#000}
+.btn-t:hover:not(:disabled){background:#00f0c0;transform:translateY(-1px)}
+.btn-t:disabled{background:#005544;color:#003;cursor:not-allowed;transform:none}
+.btn-o{background:transparent;color:var(--muted);border:1px solid var(--border);margin-top:10px}
+.btn-o:hover{color:var(--text);border-color:var(--blue)}
+
+/* ── Alert ── */
+.alert{
+  padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:16px;
+  display:none;align-items:flex-start;gap:8px;line-height:1.5;
+}
+.alert.show{display:flex}
+.alert.err{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:#ff8fa0}
+.alert.ok {background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:#00d4aa}
+.alert.info{background:rgba(58,143,255,.1);border:1px solid rgba(58,143,255,.25);color:#7ab8ff}
+.alert-icon{flex-shrink:0;font-size:14px}
+
+/* ── Aux links ── */
+.aux{text-align:center;margin-top:20px;font-size:12px;color:var(--muted)}
+.aux a{color:var(--teal);text-decoration:none}
+.aux a:hover{text-decoration:underline}
+
+/* ── Spinner (dark bg for auth buttons) ── */
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(0,0,0,.2);border-top-color:#000;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Success animation ── */
+.success-icon{
+  width:64px;height:64px;border-radius:50%;background:var(--teal-glow);
+  border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;
+  font-size:26px;color:var(--teal);margin:0 auto 16px;
+  animation:popIn .4s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
