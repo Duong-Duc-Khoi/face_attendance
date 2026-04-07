@@ -118,16 +118,16 @@ class CameraStream:
         """
         Thread 3 (WebSocket) gọi hàm này ~1 lần/giây.
         Chạy AI, cache kết quả, KHÔNG vẽ lên frame.
-        Trả về: (frame_thô, results)
+        Trả về: (frame_thô, results, emp_map)
         """
         ret, frame = self.read()
         if not ret or frame is None:
-            return None, []
+            return None, [], {}
 
         results = face_engine.recognize(frame)
         emp_map = self._employee_map() if results else {}
         self.update_recognition_results(results, emp_map)
-        return frame, results
+        return frame, results, emp_map
 
     # ──────────────────────────────────────────
     # MJPEG stream — KHÔNG chạy AI

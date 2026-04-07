@@ -43,9 +43,27 @@ async def ws_attendance(websocket: WebSocket):
                 continue
 
             # run_recognition là CPU-bound (AI) → chạy trong thread pool
-            frame, results = await loop.run_in_executor(None, cam.run_recognition)
+            frame, results, emp_map = await loop.run_in_executor(None, cam.run_recognition)
 
-            for r in results:
+            # Broadcast bbox overlay data cho client vẽ lên video stream
+            if results is not None:
+                faces_payload = []
+                for r in results:
+                    faces_payload.append({
+                        "bbox":       r["bbox"],
+                        "recognized": r["recognized"],
+                        "name":       emp_map.get(r["emp_code"], r["emp_code"]) if r["recognized"] else "",
+                        "confidence": r["similarity"],
+                    })
+                # Gửi kèm kích thước frame để client scale đúng tọa độ bbox
+                fw = frame.shape[1] if frame is not None else 1280
+                fh = frame.shape[0] if frame is not None else 720
+                await manager.broadcast({
+                    "type": "faces", "faces": faces_payload,
+                    "fw": fw, "fh": fh,
+                })
+
+            for r in (results or []):
                 if not r["recognized"]:
                     continue
 

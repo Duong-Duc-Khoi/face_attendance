@@ -161,6 +161,15 @@
     width: 100%; height: 100%;
     object-fit: cover;
     display: block;
+    transform: scaleX(-1); /* mirror — khớp với góc nhìn tự nhiên */
+  }
+
+  #bboxCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    transform: scaleX(-1); /* mirror cùng chiều với video */
   }
 
   /* Corner brackets */
@@ -575,17 +584,15 @@
 
     <!-- Camera -->
     <div class="camera-wrap" id="camWrap">
-      <!-- Live feed: uncomment when connected to FastAPI -->
-      <img class="camera-feed" src="/video_feed" id="camFeed" style="image-rendering: auto" >
+      <video class="camera-feed" id="camFeed" autoplay muted playsinline style="display:none"></video>
+      <canvas id="bboxCanvas"></canvas>
 
-      <!-- Demo placeholder -->
-      <!-- <div class="cam-offline" id="camPlaceholder">
+      <div class="cam-offline" id="camPlaceholder" style="display:flex">
         <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
           <path d="M23 7 16 12l7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
         </svg>
-        <p>CAMERA STREAM</p>
-        <p style="font-size:11px;margin-top:-8px;opacity:.5">img src="/video_feed"</p>
-      </div> -->
+        <p>NHẤN BẬT CAMERA ĐỂ CHẤM CÔNG</p>
+      </div>
 
       <div class="cam-corner tl"></div>
       <div class="cam-corner tr"></div>
@@ -829,6 +836,7 @@ function connectWS() {
     try {
       const data = JSON.parse(e.data);
       if (data.type === 'camera_off') return;
+      if (data.type === 'faces') { drawBboxes(data.faces, data.fw, data.fh); return; }
       showResult(data);
     } catch {}
   };
@@ -862,14 +870,102 @@ function startDemoMode() {
   }, 5000);
 }
 
-// ── Camera toggle ──
+// ── Camera (getUserMedia) ──
 let cameraOn = false;
+let mediaStream = null;
+let bboxClearTimer = null;
+
+// Vẽ bounding box từ kết quả nhận diện gửi về qua WebSocket
+function drawBboxes(faces, serverW, serverH) {
+  const video  = document.getElementById('camFeed');
+  const canvas = document.getElementById('bboxCanvas');
+  if (!canvas || !video.videoWidth) return;
+
+  // Canvas = kích thước hiển thị thực tế của video element
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Scale từ server frame coords → canvas display coords
+  const scaleX = canvas.width  / (serverW || canvas.width);
+  const scaleY = canvas.height / (serverH || canvas.height);
+
+  for (const f of faces) {
+    const [x1, y1, x2, y2] = f.bbox;
+    const color = f.recognized ? '#00d4aa' : '#3a8fff';
+    const bw = (x2 - x1) * scaleX;
+    const bh = (y2 - y1) * scaleY;
+    const bx = x1 * scaleX;
+    const by = y1 * scaleY;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 2;
+    ctx.strokeRect(bx, by, bw, bh);
+
+    if (f.name) {
+      const label = `${f.name}  ${Math.round(f.confidence * 100)}%`;
+      ctx.font      = 'bold 13px Sora, sans-serif';
+      ctx.fillStyle = color;
+      const tw = ctx.measureText(label).width;
+      ctx.fillRect(bx, by - 20, tw + 12, 20);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, bx + 6, by - 5);
+    } else {
+      const conf = `${Math.round(f.confidence * 100)}%`;
+      ctx.font      = '12px Sora, sans-serif';
+      ctx.fillStyle = color;
+      ctx.fillText(conf, bx + 4, by + bh + 16);
+    }
+  }
+
+  // Xóa bbox sau 2s nếu không có frame mới
+  clearTimeout(bboxClearTimer);
+  bboxClearTimer = setTimeout(() => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, 2000);
+}
+
+async function startBrowserCamera() {
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    const video = document.getElementById('camFeed');
+    video.srcObject = mediaStream;
+    video.style.display = 'block';
+    document.getElementById('camPlaceholder').style.display = 'none';
+  } catch (err) {
+    console.warn('getUserMedia failed:', err);
+    alert('Không thể truy cập camera: ' + err.message);
+  }
+}
+
+function stopBrowserCamera() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  const video = document.getElementById('camFeed');
+  video.srcObject = null;
+  video.style.display = 'none';
+  document.getElementById('camPlaceholder').style.display = 'flex';
+
+  // Xóa bbox
+  const canvas = document.getElementById('bboxCanvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
 
 async function syncCameraStatus() {
   try {
     const res  = await fetch('/api/camera/status');
     const data = await res.json();
     cameraOn = data.enabled;
+    if (cameraOn) startBrowserCamera();
     updateCamUI();
   } catch {}
 }
@@ -883,8 +979,11 @@ async function toggleCamera() {
     if (data.success) {
       cameraOn = !cameraOn;
       updateCamUI();
-      const feed = document.getElementById('camFeed');
-      if (feed) feed.src = '/video_feed?t=' + Date.now();
+      if (cameraOn) {
+        await startBrowserCamera();
+      } else {
+        stopBrowserCamera();
+      }
     }
   } catch(e) { console.warn(e); }
   finally { btn.disabled = false; }
