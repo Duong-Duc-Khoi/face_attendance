@@ -736,14 +736,19 @@ function updateStats(type) {
 // ── Show result card ──
 let hideTimer = null;
 function showResult(data) {
+  console.log('[showResult] gọi với:', data.name, data.check_type);
   const isIn      = data.check_type === 'check_in';
   const isUnknown = !data.name || data.name === 'Unknown';
 
-  document.getElementById('instructionCard').style.display = 'none';
-  const rc = document.getElementById('resultCard');
+  const instructionEl = document.getElementById('instructionCard');
+  const rc            = document.getElementById('resultCard');
+  if (!instructionEl || !rc) { console.error('[showResult] Không tìm thấy element!'); return; }
+
+  instructionEl.style.display = 'none';
   rc.classList.remove('visible');
   void rc.offsetWidth; // reflow for re-animation
   rc.classList.add('visible');
+  console.log('[showResult] resultCard.visible:', rc.classList.contains('visible'), 'display:', getComputedStyle(rc).display);
 
   document.getElementById('resName').textContent    = isUnknown ? 'Không nhận ra' : data.name;
   document.getElementById('resDept').textContent    = isUnknown ? 'Vui lòng thử lại' : (data.department || '—');
@@ -837,7 +842,8 @@ function connectWS() {
 
     // attendance event: type='attendance' (server mới) hoặc có check_type (server cũ)
     if (data.type === 'attendance' || data.check_type) {
-      try { showResult(data); } catch(err) { console.error('showResult error:', err); }
+      console.log('[WS] attendance nhận được:', data);
+      showResult(data);
     }
   };
   ws.onclose = () => {
@@ -880,43 +886,55 @@ function drawBboxes(faces, serverW, serverH) {
   const canvas = document.getElementById('bboxCanvas');
   if (!canvas || !imgEl.offsetWidth) return;
 
-  canvas.width  = imgEl.offsetWidth;
-  canvas.height = imgEl.offsetHeight;
+  if (canvas.width !== imgEl.offsetWidth || canvas.height !== imgEl.offsetHeight) {
+    canvas.width  = imgEl.offsetWidth;
+    canvas.height = imgEl.offsetHeight;
+  }
+
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!faces || faces.length === 0) return;
 
-  const scaleX = canvas.width  / (serverW || canvas.width);
-  const scaleY = canvas.height / (serverH || canvas.height);
+  const dw = canvas.width, dh = canvas.height;
+  const imgRatio = serverW / serverH;
+  const elRatio  = dw / dh;
+
+  let renderW, renderH, offsetX = 0, offsetY = 0;
+  if (imgRatio > elRatio) {
+    renderH = dh;  renderW = dh * imgRatio;
+    offsetX = (dw - renderW) / 2;
+  } else {
+    renderW = dw;  renderH = dw / imgRatio;
+    offsetY = (dh - renderH) / 2;
+  }
+
+  const scaleX = renderW / serverW;
+  const scaleY = renderH / serverH;
 
   for (const f of faces) {
     const [x1, y1, x2, y2] = f.bbox;
-    const color = f.recognized ? '#00d4aa' : '#3a8fff';
+    const bx = offsetX + x1 * scaleX;
+    const by = offsetY + y1 * scaleY;
     const bw = (x2 - x1) * scaleX;
     const bh = (y2 - y1) * scaleY;
-    const bx = x1 * scaleX;
-    const by = y1 * scaleY;
+
+    const color = f.recognized ? '#00d4aa' : '#ff4d6a';
 
     ctx.strokeStyle = color;
     ctx.lineWidth   = 2;
     ctx.strokeRect(bx, by, bw, bh);
 
-    if (f.name) {
-      const label = `${f.name}  ${Math.round(f.confidence * 100)}%`;
-      ctx.font      = 'bold 13px Sora, sans-serif';
-      ctx.fillStyle = color;
-      const tw = ctx.measureText(label).width;
-      ctx.fillRect(bx, by - 20, tw + 12, 20);
-      ctx.fillStyle = '#fff';
-      ctx.fillText(label, bx + 6, by - 5);
-    } else {
-      const conf = `${Math.round(f.confidence * 100)}%`;
-      ctx.font      = '12px Sora, sans-serif';
-      ctx.fillStyle = color;
-      ctx.fillText(conf, bx + 4, by + bh + 16);
-    }
+    const label = f.recognized
+      ? `${f.name}  ${Math.round(f.confidence * 100)}%`
+      : `Lạ  ${Math.round(f.confidence * 100)}%`;
+    ctx.font = 'bold 13px Sora, sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = color;
+    ctx.fillRect(bx, by - 22, tw + 12, 22);
+    ctx.fillStyle = '#060c17';
+    ctx.fillText(label, bx + 6, by - 6);
   }
 
-  // Xóa bbox sau 2s nếu không có frame mới
   clearTimeout(bboxClearTimer);
   bboxClearTimer = setTimeout(() => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -979,7 +997,44 @@ function updateCamUI() {
   }
 }
 
+window.addEventListener('resize', () => {
+  const canvas = document.getElementById('bboxCanvas');
+  const imgEl  = document.getElementById('camFeed');
+  if (canvas && imgEl) {
+    canvas.width  = imgEl.offsetWidth;
+    canvas.height = imgEl.offsetHeight;
+  }
+});
+
+// Load lịch sử hôm nay từ DB khi mở trang
+async function loadTodayHistory() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const res   = await fetch(`/api/attendance?date=${today}`);
+    const json  = await res.json();
+
+    // API trả về {logs: [...], total: N}
+    const logs = json.logs ?? json;
+    if (!Array.isArray(logs) || logs.length === 0) return;
+
+    logs.forEach(l => {
+      if (l.check_type === 'check_in')  statIn++;
+      if (l.check_type === 'check_out') statOut++;
+    });
+    document.getElementById('statIn').textContent    = statIn;
+    document.getElementById('statOut').textContent   = statOut;
+    document.getElementById('statTotal').textContent = statIn + statOut;
+
+    const list = document.getElementById('logList');
+    list.innerHTML = '';
+    logs.slice(0, 20).forEach(l => addLogItem(l));
+
+  } catch(e) {
+    console.warn('Không load được lịch sử:', e);
+  }
+}
+
 syncCameraStatus();
-connectWS();</script>
-</body>
+connectWS();
+loadTodayHistory(); // ← thêm dòng này</script>
 </html>
