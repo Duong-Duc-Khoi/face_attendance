@@ -40,7 +40,7 @@ class CameraStream:
         if self.cap.isOpened():
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            self.cap.set(cv2.CAP_PROP_FPS,          60)
+            self.cap.set(cv2.CAP_PROP_FPS,          30)   # Hầu hết webcam cap 30fps ở 720p
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE,   1)   # Luôn lấy frame mới nhất
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS,    1)   # Bật autofocus
             print(f"  ✓ Camera {self.camera_id} đã kết nối")

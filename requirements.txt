@@ -20,8 +20,8 @@ psycopg2-binary==2.9.11
 # Export
 openpyxl==3.1.2
 
-# Notification (tùy chọn)
-aiohttp==3.9.1             # Dùng cho Telegram async
+# Notification & Scheduler
+apscheduler==3.10.4
 
 # Dev tools
 httpx==0.25.2              # Test API
