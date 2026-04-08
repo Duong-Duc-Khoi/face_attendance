@@ -3,7 +3,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from app.camera import get_camera
 from app.attendance import process_attendance
-from app.notify import telegram_checkin
+from app.notify import notify_late_async
 
 
 class ConnectionManager:
@@ -79,7 +79,13 @@ async def ws_attendance(websocket: WebSocket):
                 log = process_attendance(emp_code, confidence, capture)
                 if log:
                     await manager.broadcast(log)
-                    asyncio.create_task(telegram_checkin(log))
+                    status = log.get("status", "")
+                    if status and "muộn" in status:
+                        minutes_late = int("".join(filter(str.isdigit, status)) or 0)
+                        asyncio.create_task(notify_late_async(
+                            log["name"], log["emp_code"], log["department"],
+                            minutes_late, log.get("email", ""),
+                        ))
 
             await asyncio.sleep(1.0)
     except WebSocketDisconnect:

@@ -1,23 +1,34 @@
 import cv2
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 from app.camera import get_camera, release_camera, start_camera, stop_camera, is_camera_enabled
 from app.database import init_db
 from app.face_engine import face_engine
 from app.attendance import get_summary_today
+from app.notify import notify_daily_report_async
 from app.routes import employees, reports
 from app.routes.auth import router as auth_router
 from app.ws import ws_attendance
+
+scheduler = AsyncIOScheduler()
 
 
 # ──────────────────────────────────────────
 # Startup / Shutdown
 # ──────────────────────────────────────────
+async def _send_daily_report():
+    summary = get_summary_today()
+    await notify_daily_report_async(summary)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("\n  FaceAttend — Khoi dong he thong")
@@ -25,7 +36,12 @@ async def lifespan(app: FastAPI):
     print(f"  ✓ Database san sang (bao gom bang auth)")
     print(f"  ✓ Face engine: {face_engine.registered_count} nhan vien da dang ky")
     print(f"  ✓ Camera se mo khi co nguoi truy cap")
+    scheduler.add_job(_send_daily_report, CronTrigger(hour=18, minute=0),
+                      id="daily_report", replace_existing=True)
+    scheduler.start()
+    print(f"  ✓ Scheduler bat dau — bao cao ngay se gui luc 18:00")
     yield
+    scheduler.shutdown(wait=False)
     release_camera()
     print("  FaceAttend — Da tat")
 

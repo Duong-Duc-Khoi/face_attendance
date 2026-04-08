@@ -40,7 +40,7 @@ class CameraStream:
         if self.cap.isOpened():
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            self.cap.set(cv2.CAP_PROP_FPS,          60)
+            self.cap.set(cv2.CAP_PROP_FPS,          30)   # Hầu hết webcam cap 30fps ở 720p
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE,   1)   # Luôn lấy frame mới nhất
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS,    1)   # Bật autofocus
             print(f"  ✓ Camera {self.camera_id} đã kết nối")
@@ -142,17 +142,32 @@ class CameraStream:
             if not ret or frame is None:
                 frame = self._make_placeholder()
             else:
+                # Flip trước để text vẽ lên frame không bị ngược
+                frame = cv2.flip(frame, 1)
                 results, emp_map = self.get_recognition_results()
                 if results:
-                    face_engine.draw_results(frame, results, emp_map)
-            frame = cv2.flip(frame, 1)  # flip ngang SAU khi vẽ bbox
+                    w = frame.shape[1]
+                    flipped = [dict(r, bbox=[w - r["bbox"][2], r["bbox"][1],
+                                             w - r["bbox"][0], r["bbox"][3]])
+                               for r in results]
+                    face_engine.draw_results(frame, flipped, emp_map)
+                # Đã flip rồi, skip flip bên dưới
+                _, jpeg = cv2.imencode('.jpg', frame,
+                                       [cv2.IMWRITE_JPEG_QUALITY, 90])
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n'
+                       + jpeg.tobytes()
+                       + b'\r\n')
+                time.sleep(1 / 60)
+                continue
+            frame = cv2.flip(frame, 1)  # flip placeholder
             _, jpeg = cv2.imencode('.jpg', frame,
                                    [cv2.IMWRITE_JPEG_QUALITY, 90])
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n'
                    + jpeg.tobytes()
                    + b'\r\n')
-            time.sleep(1 / 25)   # 25 FPS
+            time.sleep(1 / 60)   # 60 FPS
 
     # ──────────────────────────────────────────
     # Placeholder & snapshot

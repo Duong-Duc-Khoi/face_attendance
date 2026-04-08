@@ -6,6 +6,30 @@ from numpy.linalg import norm
 from datetime import datetime
 
 try:
+    from PIL import Image, ImageDraw, ImageFont
+    _FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
+    _font_name  = ImageFont.truetype(_FONT_PATH, 15)
+    _font_conf  = ImageFont.truetype(_FONT_PATH, 12)
+    PIL_AVAILABLE = True
+except Exception:
+    PIL_AVAILABLE = False
+
+
+def _put_text_pil(frame: np.ndarray, text: str, pos: tuple,
+                  font, bg_color: tuple, text_color=(255, 255, 255)):
+    """Vẽ text Unicode lên OpenCV frame qua PIL (hỗ trợ tiếng Việt)."""
+    img_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    draw    = ImageDraw.Draw(img_pil)
+    bbox    = draw.textbbox(pos, text, font=font)
+    pad     = 4
+    draw.rectangle(
+        (bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad),
+        fill=bg_color
+    )
+    draw.text(pos, text, font=font, fill=text_color)
+    frame[:] = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+
+try:
     import insightface
     from insightface.app import FaceAnalysis
     INSIGHTFACE_AVAILABLE = True
@@ -216,26 +240,32 @@ class FaceEngine:
     # ──────────────────────────────────────────
     def draw_results(self, frame: np.ndarray, results: list,
                      employee_map: dict = None) -> np.ndarray:
-        """Vẽ bounding box + tên lên frame."""
+        """Vẽ bounding box + tên lên frame (hỗ trợ tiếng Việt qua PIL)."""
         for r in results:
             x1, y1, x2, y2 = r["bbox"]
-            recognized      = r["recognized"]
-            emp_code        = r["emp_code"]
-            sim             = r["similarity"]
+            recognized = r["recognized"]
+            emp_code   = r["emp_code"]
+            sim        = r["similarity"]
 
-            color  = (0, 200, 100) if recognized else (60, 60, 220)
-            label  = employee_map.get(emp_code, emp_code) if (recognized and employee_map) else emp_code
+            color_bgr = (0, 200, 100) if recognized else (60, 60, 220)
+            # Luôn lấy tên từ map; chỉ fallback "Unknown" khi không nhận ra
+            if recognized and employee_map:
+                label = employee_map.get(emp_code) or emp_code
+            else:
+                label = "Unknown"
             sublbl = f"{sim:.0%}"
 
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color_bgr, 2)
 
-            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
-            cv2.rectangle(frame, (x1, y1 - th - 14), (x1 + tw + 12, y1), color, -1)
-
-            cv2.putText(frame, label,  (x1 + 6, y1 - 6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255,255,255), 2, cv2.LINE_AA)
-            cv2.putText(frame, sublbl, (x1 + 6, y2 + 18),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.48, color, 1, cv2.LINE_AA)
+            if PIL_AVAILABLE:
+                color_pil = (color_bgr[2], color_bgr[1], color_bgr[0])  # BGR→RGB
+                _put_text_pil(frame, label,  (x1 + 4, y1 - 22), _font_name, color_pil)
+                _put_text_pil(frame, sublbl, (x1 + 4, y2 + 4),  _font_conf, color_pil)
+            else:
+                cv2.putText(frame, label,  (x1 + 6, y1 - 6),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2, cv2.LINE_AA)
+                cv2.putText(frame, sublbl, (x1 + 6, y2 + 18),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.48, color_bgr, 1, cv2.LINE_AA)
         return frame
 
     @property

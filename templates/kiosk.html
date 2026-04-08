@@ -161,15 +161,6 @@
     width: 100%; height: 100%;
     object-fit: cover;
     display: block;
-    transform: scaleX(-1); /* mirror — khớp với góc nhìn tự nhiên */
-  }
-
-  #bboxCanvas {
-    position: absolute;
-    inset: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    transform: scaleX(-1); /* mirror cùng chiều với video */
   }
 
   /* Corner brackets */
@@ -584,14 +575,17 @@
 
     <!-- Camera -->
     <div class="camera-wrap" id="camWrap">
-      <video class="camera-feed" id="camFeed" autoplay muted playsinline style="display:none"></video>
-      <canvas id="bboxCanvas"></canvas>
+      <!-- Live feed: MJPEG stream từ FastAPI backend -->
+      <img class="camera-feed" id="camFeed" src="" style="display:none; image-rendering: auto;" alt="Camera stream">
 
-      <div class="cam-offline" id="camPlaceholder" style="display:flex">
+      <!-- Placeholder khi camera tắt -->
+      <div class="cam-offline" id="camPlaceholder">
         <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
           <path d="M23 7 16 12l7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+          <line x1="2" y1="2" x2="22" y2="22" stroke-width="1.5"/>
         </svg>
-        <p>NHẤN BẬT CAMERA ĐỂ CHẤM CÔNG</p>
+        <p>CAMERA ĐANG TẮT</p>
+        <p style="font-size:11px;margin-top:-8px;opacity:.5">Nhấn nút BẬT để khởi động</p>
       </div>
 
       <div class="cam-corner tl"></div>
@@ -870,24 +864,21 @@ function startDemoMode() {
   }, 5000);
 }
 
-// ── Camera (getUserMedia) ──
+// ── Camera toggle ──
 let cameraOn = false;
-let mediaStream = null;
 let bboxClearTimer = null;
 
 // Vẽ bounding box từ kết quả nhận diện gửi về qua WebSocket
 function drawBboxes(faces, serverW, serverH) {
-  const video  = document.getElementById('camFeed');
+  const imgEl  = document.getElementById('camFeed');
   const canvas = document.getElementById('bboxCanvas');
-  if (!canvas || !video.videoWidth) return;
+  if (!canvas || !imgEl.offsetWidth) return;
 
-  // Canvas = kích thước hiển thị thực tế của video element
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
+  canvas.width  = imgEl.offsetWidth;
+  canvas.height = imgEl.offsetHeight;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Scale từ server frame coords → canvas display coords
   const scaleX = canvas.width  / (serverW || canvas.width);
   const scaleY = canvas.height / (serverH || canvas.height);
 
@@ -926,38 +917,23 @@ function drawBboxes(faces, serverW, serverH) {
   }, 2000);
 }
 
-async function startBrowserCamera() {
-  try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    });
-    const video = document.getElementById('camFeed');
-    video.srcObject = mediaStream;
-    video.style.display = 'block';
-    document.getElementById('camPlaceholder').style.display = 'none';
-  } catch (err) {
-    console.warn('getUserMedia failed:', err);
-    alert('Không thể truy cập camera: ' + err.message);
-  }
+function showCameraFeed() {
+  const feed = document.getElementById('camFeed');
+  const placeholder = document.getElementById('camPlaceholder');
+  feed.src = '/video_feed?t=' + Date.now();
+  feed.style.display = 'block';
+  if (placeholder) placeholder.style.display = 'none';
 }
 
-function stopBrowserCamera() {
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(t => t.stop());
-    mediaStream = null;
-  }
-  const video = document.getElementById('camFeed');
-  video.srcObject = null;
-  video.style.display = 'none';
-  document.getElementById('camPlaceholder').style.display = 'flex';
-
+function hideCameraFeed() {
+  const feed = document.getElementById('camFeed');
+  const placeholder = document.getElementById('camPlaceholder');
+  feed.src = '';
+  feed.style.display = 'none';
+  if (placeholder) placeholder.style.display = 'flex';
   // Xóa bbox
   const canvas = document.getElementById('bboxCanvas');
-  if (canvas) {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
+  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 }
 
 async function syncCameraStatus() {
@@ -965,7 +941,7 @@ async function syncCameraStatus() {
     const res  = await fetch('/api/camera/status');
     const data = await res.json();
     cameraOn = data.enabled;
-    if (cameraOn) startBrowserCamera();
+    if (cameraOn) showCameraFeed();
     updateCamUI();
   } catch {}
 }
@@ -979,11 +955,7 @@ async function toggleCamera() {
     if (data.success) {
       cameraOn = !cameraOn;
       updateCamUI();
-      if (cameraOn) {
-        await startBrowserCamera();
-      } else {
-        stopBrowserCamera();
-      }
+      if (cameraOn) showCameraFeed(); else hideCameraFeed();
     }
   } catch(e) { console.warn(e); }
   finally { btn.disabled = false; }
