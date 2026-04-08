@@ -1,9 +1,13 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.camera import get_camera
 from app.attendance import process_attendance
 from app.notify import notify_late_async
+
+# Executor riêng cho AI inference — tránh tranh chấp với MJPEG thread pool
+_ai_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="face_ai")
 
 
 class ConnectionManager:
@@ -42,22 +46,23 @@ async def ws_attendance(websocket: WebSocket):
                 await asyncio.sleep(2.0)
                 continue
 
-            # run_recognition là CPU-bound (AI) → chạy trong thread pool
-            frame, results, emp_map = await loop.run_in_executor(None, cam.run_recognition)
+            # run_recognition là CPU-bound (AI) → chạy trong executor riêng, không chặn MJPEG
+            frame, results, emp_map = await loop.run_in_executor(_ai_executor, cam.run_recognition)
 
             # Broadcast bbox overlay data cho client vẽ lên video stream
             if results is not None:
+                fw = frame.shape[1] if frame is not None else 1280
+                fh = frame.shape[0] if frame is not None else 720
                 faces_payload = []
                 for r in results:
+                    x1, y1, x2, y2 = r["bbox"]
+                    # MJPEG đã flip ngang → mirror tọa độ x để bbox khớp với video
                     faces_payload.append({
-                        "bbox":       r["bbox"],
+                        "bbox":       [fw - x2, y1, fw - x1, y2],
                         "recognized": r["recognized"],
                         "name":       emp_map.get(r["emp_code"], r["emp_code"]) if r["recognized"] else "",
                         "confidence": r["similarity"],
                     })
-                # Gửi kèm kích thước frame để client scale đúng tọa độ bbox
-                fw = frame.shape[1] if frame is not None else 1280
-                fh = frame.shape[0] if frame is not None else 720
                 await manager.broadcast({
                     "type": "faces", "faces": faces_payload,
                     "fw": fw, "fh": fh,
@@ -73,12 +78,15 @@ async def ws_attendance(websocket: WebSocket):
                 # Lưu snapshot trong executor (cv2.imwrite là blocking IO)
                 # Dùng frame đã nhận diện thay vì đọc frame mới
                 capture = await loop.run_in_executor(
-                    None, cam.capture_snapshot, emp_code, frame
+                    _ai_executor, cam.capture_snapshot, emp_code, frame
                 )
 
-                log = process_attendance(emp_code, confidence, capture)
+                # process_attendance là blocking DB call → chạy trong executor
+                log = await loop.run_in_executor(
+                    _ai_executor, process_attendance, emp_code, confidence, capture
+                )
                 if log:
-                    await manager.broadcast(log)
+                    await manager.broadcast({**log, "type": "attendance"})
                     status = log.get("status", "")
                     if status and "muộn" in status:
                         minutes_late = int("".join(filter(str.isdigit, status)) or 0)
