@@ -142,10 +142,25 @@ class CameraStream:
             if not ret or frame is None:
                 frame = self._make_placeholder()
             else:
+                # Flip trước để text vẽ lên frame không bị ngược
+                frame = cv2.flip(frame, 1)
                 results, emp_map = self.get_recognition_results()
                 if results:
-                    face_engine.draw_results(frame, results, emp_map)
-            frame = cv2.flip(frame, 1)  # flip ngang SAU khi vẽ bbox
+                    w = frame.shape[1]
+                    flipped = [dict(r, bbox=[w - r["bbox"][2], r["bbox"][1],
+                                             w - r["bbox"][0], r["bbox"][3]])
+                               for r in results]
+                    face_engine.draw_results(frame, flipped, emp_map)
+                # Đã flip rồi, skip flip bên dưới
+                _, jpeg = cv2.imencode('.jpg', frame,
+                                       [cv2.IMWRITE_JPEG_QUALITY, 90])
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n'
+                       + jpeg.tobytes()
+                       + b'\r\n')
+                time.sleep(1 / 60)
+                continue
+            frame = cv2.flip(frame, 1)  # flip placeholder
             _, jpeg = cv2.imencode('.jpg', frame,
                                    [cv2.IMWRITE_JPEG_QUALITY, 90])
             yield (b'--frame\r\n'
