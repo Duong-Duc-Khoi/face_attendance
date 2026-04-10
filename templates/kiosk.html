@@ -784,6 +784,7 @@ function showResult(data) {
   if (!isUnknown) {
     updateStats(data.check_type);
     addLogItem(data);
+    loadTodayHistory();
   }
 
   // Auto hide back to instruction after 6s
@@ -857,24 +858,24 @@ function connectWS() {
   };
 }
 
-// ── Demo mode (khi chưa kết nối backend) ──
-const demoData = [
-  { name:'Nguyễn Văn An', emp_code:'NV001', department:'Kỹ thuật',     check_type:'check_in',  confidence:0.96, time:'' },
-  { name:'Trần Thị Bình', emp_code:'NV002', department:'Kinh doanh',   check_type:'check_in',  confidence:0.91, time:'' },
-  { name:'Lê Minh Cường', emp_code:'NV003', department:'Kế toán',      check_type:'check_out', confidence:0.88, time:'' },
-  { name:'Phạm Thu Hà',   emp_code:'NV004', department:'Nhân sự',      check_type:'check_in',  confidence:0.93, time:'' },
-  { name:'Unknown',       emp_code:'—',     department:'',             check_type:'unknown',   confidence:0.28, time:'' },
-];
-let demoIdx = 0;
-function startDemoMode() {
-  document.getElementById('wsStatus').textContent = 'WS: DEMO MODE — Dữ liệu mẫu';
-  setInterval(() => {
-    const d = { ...demoData[demoIdx % demoData.length] };
-    d.time = new Date().toLocaleTimeString('vi-VN');
-    showResult(d);
-    demoIdx++;
-  }, 5000);
-}
+// // ── Demo mode (khi chưa kết nối backend) ──
+// const demoData = [
+//   { name:'Nguyễn Văn An', emp_code:'NV001', department:'Kỹ thuật',     check_type:'check_in',  confidence:0.96, time:'' },
+//   { name:'Trần Thị Bình', emp_code:'NV002', department:'Kinh doanh',   check_type:'check_in',  confidence:0.91, time:'' },
+//   { name:'Lê Minh Cường', emp_code:'NV003', department:'Kế toán',      check_type:'check_out', confidence:0.88, time:'' },
+//   { name:'Phạm Thu Hà',   emp_code:'NV004', department:'Nhân sự',      check_type:'check_in',  confidence:0.93, time:'' },
+//   { name:'Unknown',       emp_code:'—',     department:'',             check_type:'unknown',   confidence:0.28, time:'' },
+// ];
+// let demoIdx = 0;
+// function startDemoMode() {
+//   document.getElementById('wsStatus').textContent = 'WS: DEMO MODE — Dữ liệu mẫu';
+//   setInterval(() => {
+//     const d = { ...demoData[demoIdx % demoData.length] };
+//     d.time = new Date().toLocaleTimeString('vi-VN');
+//     showResult(d);
+//     demoIdx++;
+//   }, 5000);
+// }
 
 // ── Camera toggle ──
 let cameraOn = false;
@@ -1017,6 +1018,8 @@ async function loadTodayHistory() {
     const logs = json.logs ?? json;
     if (!Array.isArray(logs) || logs.length === 0) return;
 
+    // Reset trước khi đếm lại tránh cộng dồn
+    statIn = 0; statOut = 0;
     logs.forEach(l => {
       if (l.check_type === 'check_in')  statIn++;
       if (l.check_type === 'check_out') statOut++;
@@ -1036,5 +1039,5 @@ async function loadTodayHistory() {
 
 syncCameraStatus();
 connectWS();
-loadTodayHistory(); // ← thêm dòng này</script>
+setTimeout(loadTodayHistory, 500);</script>
 </html>
