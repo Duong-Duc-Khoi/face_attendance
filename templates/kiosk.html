@@ -737,6 +737,8 @@ function updateStats(type) {
 let hideTimer = null;
 function showResult(data) {
   console.log('[showResult] gọi với:', data.name, data.check_type);
+  console.log('[showResult] data đầy đủ:', JSON.stringify(data));
+  console.log('[showResult] name:', data.name, '| check_type:', data.check_type);
   const isIn      = data.check_type === 'check_in';
   const isUnknown = !data.name || data.name === 'Unknown';
 
@@ -784,7 +786,7 @@ function showResult(data) {
   if (!isUnknown) {
     updateStats(data.check_type);
     addLogItem(data);
-    loadTodayHistory();
+    setTimeout(loadTodayHistory, 800);
   }
 
   // Auto hide back to instruction after 6s
