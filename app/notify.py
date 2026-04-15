@@ -141,3 +141,48 @@ async def notify_daily_report_async(summary: dict):
     </div>
     """
     await _send_email_async(EMAIL_USER, subject, html)
+
+def notify_account_created(to_email: str, emp_name: str, emp_code: str, temp_password: str):
+    """Gửi thông tin tài khoản vừa tạo cho nhân viên"""
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        print("  ⚠ Email chưa cấu hình — bỏ qua")
+        return False
+    
+    subject = "[FaceAttend] Tài khoản của bạn đã được tạo"
+    html = f"""
+    <div style="font-family:Arial;padding:20px;background:#f5f5f5">
+      <div style="background:#fff;border-radius:8px;padding:24px;max-width:480px">
+        <h2 style="color:#00d4aa">✅ Chào mừng đến FaceAttend</h2>
+        <p>Xin chào <strong>{emp_name}</strong>,</p>
+        <p>Tài khoản của bạn đã được tạo thành công. Thông tin đăng nhập:</p>
+        <table style="width:100%;border-collapse:collapse;background:#f9f9f9;border-radius:6px">
+          <tr><td style="padding:10px;color:#666">Mã nhân viên</td>
+              <td style="font-weight:bold">{emp_code}</td></tr>
+          <tr><td style="padding:10px;color:#666">Tên đăng nhập</td>
+              <td style="font-weight:bold">{to_email}</td></tr>
+          <tr><td style="padding:10px;color:#666">Mật khẩu tạm</td>
+              <td style="font-weight:bold;color:#e53e3e;letter-spacing:2px">{temp_password}</td></tr>
+        </table>
+        <p style="color:#e53e3e;font-size:13px">⚠ Vui lòng đổi mật khẩu ngay sau lần đăng nhập đầu tiên.</p>
+        <p style="color:#999;font-size:12px">Nếu bạn không thực hiện đăng ký này, vui lòng liên hệ HR.</p>
+      </div>
+    </div>
+    """
+    
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = EMAIL_USER
+        msg["To"]      = to_email          # ← gửi đến nhân viên, không phải admin
+        msg.attach(MIMEText(html, "html", "utf-8"))
+
+        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_USER, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_USER, to_email, msg.as_string())
+        
+        print(f"  ✓ Đã gửi tài khoản đến {to_email}")
+        return True
+    except Exception as e:
+        print(f"  ✗ Lỗi gửi email: {e}")
+        return False

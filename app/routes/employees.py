@@ -8,9 +8,21 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import SessionLocal, Employee
 from app.face_engine import face_engine
-
+from app.notify import notify_account_created
 router = APIRouter(prefix="/api/employees", tags=["employees"])
+import secrets
+import string
+import smtplib
+from email.mime.text import MIMEText
+from app.database import SessionLocal, Employee, Account  # thêm Account
+from passlib.context import CryptContext
 
+pwd_ctx = CryptContext(schemes=["bcrypt"])
+
+def _gen_password(length=6) -> str:
+    """Gen mật khẩu tạm: chữ hoa + thường + số, VD: Nv3xKp8mQa"""
+    chars = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(chars) for _ in range(length))
 
 # ── Schemas ──
 class EmployeeCreate(BaseModel):
@@ -171,6 +183,18 @@ async def register_from_camera(payload: dict):
             avatar_url = f"/data/faces/{emp_code}/0.jpg",
         )
         db.add(emp); db.commit(); db.refresh(emp)
+        email = payload.get("email", "").strip()
+        if email:
+            temp_pw = _gen_password()
+            account = Account(
+                employee_id          = emp.id,
+                username             = email,
+                hashed_password      = pwd_ctx.hash(temp_pw),
+                role                 = "employee",
+                must_change_password = True,
+            )
+            db.add(account); db.commit()
+            _send_email(email, name, emp_code, temp_pw)
 
         return {"success": True, "employee": _emp_dict(emp), "message": result["message"]}
     finally:
