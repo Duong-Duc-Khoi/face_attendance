@@ -28,3 +28,8 @@ data/attendance.db
 # OS
 .DS_Store
 Thumbs.db
+
+#file
+note.txt
+pip.txt
+phancong.png
