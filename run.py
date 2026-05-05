@@ -1,22 +1,33 @@
+"""
+run.py
+Entry point khởi động server.
+"""
+
+import ctypes
 import uvicorn
-import os
+from app.core.config import settings
 
 if __name__ == "__main__":
-    # Tạo thư mục cần thiết nếu chưa có
-    os.makedirs("data/faces", exist_ok=True)
-    os.makedirs("data/captures", exist_ok=True)
-    os.makedirs("data/exports", exist_ok=True)
+    # Nâng độ phân giải timer Windows từ 15.6ms → 1ms (giảm jitter MJPEG)
+    try:
+        ctypes.windll.winmm.timeBeginPeriod(1)
+    except Exception:
+        pass
+
+    # Tạo thư mục cần thiết
+    for d in [settings.FACES_DIR, settings.CAPTURES_DIR, settings.EXPORTS_DIR]:
+        d.mkdir(parents=True, exist_ok=True)
 
     print("=" * 50)
-    print("  FaceAttend System - Khởi động...")
-    print("  Truy cập: http://localhost:8000")
-    print("  API Docs: http://localhost:8000/docs")
+    print("  FaceAttend System — Khởi động...")
+    print(f"  Truy cập : http://{settings.HOST}:{settings.PORT}")
+    print(f"  API Docs : http://{settings.HOST}:{settings.PORT}/docs")
     print("=" * 50)
 
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+        host      = settings.HOST,
+        port      = settings.PORT,
+        reload    = True,
+        log_level = "info",
     )

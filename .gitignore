@@ -1,10 +1,30 @@
-venv/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Env
 .env
-data/attendance.db
-data/embeddings.pkl
+!.env.example
+
+# Data (không commit dữ liệu người dùng)
 data/faces/
 data/captures/
 data/exports/
-*.egg-info/
+data/embeddings.pkl
+data/attendance.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
