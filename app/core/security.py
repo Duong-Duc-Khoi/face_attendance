@@ -108,9 +108,11 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Cần đăng nhập")
 
     payload = decode_access_token(creds.credentials)
-    user = db.query(User).filter_by(id=int(payload["sub"])).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="Tài khoản không hợp lệ hoặc bị khóa")
+    user = db.query(User).filter_by(id=int(payload["sub"]), is_active=True).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Tài khoản không tồn tại hoặc đã bị khóa")
+    if not user.is_approved:
+        raise HTTPException(status_code=403, detail="Tài khoản chưa được duyệt. Vui lòng chờ admin/manager phê duyệt.")
     return user
 
 

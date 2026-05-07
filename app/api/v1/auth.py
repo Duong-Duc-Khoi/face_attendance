@@ -76,6 +76,7 @@ def _user_dict(u: User) -> dict:
         "full_name":         u.full_name,
         "role":              u.role,
         "is_active":         u.is_active,
+        "is_approved":       u.is_approved,
         "is_email_verified": u.is_email_verified,
         "created_at":        u.created_at.strftime("%d/%m/%Y") if u.created_at else "",
         "last_login":        u.last_login.strftime("%d/%m/%Y %H:%M") if u.last_login else None,
@@ -115,11 +116,11 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
     if not user:
         return HTMLResponse(_verify_html("error", "Tài khoản không tồn tại", ""), 400)
     user.is_email_verified = True
-    user.is_active         = True
+    user.is_active         = True  # Được phép login sau khi admin/manager approve
     consume_token(et, db)
     db.commit()
     return HTMLResponse(_verify_html("success", "Xác minh thành công!",
-                                    f"Email <strong>{user.email}</strong> đã được xác minh. Bạn có thể đăng nhập."))
+                                    f"Email <strong>{user.email}</strong> đã được xác minh. Tài khoản đang chờ admin/manager phê duyệt trước khi đăng nhập được."))
 
 
 # ── POST /auth/login (bước 1) ────────────────────────────────────
@@ -132,6 +133,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(403, "Email chưa được xác minh. Kiểm tra hộp thư và click link xác minh.")
     if not user.is_active:
         raise HTTPException(403, "Tài khoản đã bị khóa. Liên hệ quản trị viên.")
+    if not user.is_approved:
+        raise HTTPException(403, "Tài khoản chưa được duyệt. Vui lòng chờ admin/manager phê duyệt.")
     otp = create_otp_token(user.id, db)
     send_login_otp_email(user.email, user.full_name, otp)
     return {"success": True, "message": f"Mã OTP đã gửi tới {user.email}.", "step": "otp_required", "email": user.email}
