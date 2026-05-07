@@ -1,0 +1,13 @@
+NV điền form + chụp mặt → Đăng ký
+        ↓
+Lưu Employee + face vector
+        ↓
+Tạo User (is_active=False, is_approved=False)
+        ↓
+Gửi email "Xác minh email" (dùng send_verification_email có sẵn)
+        ↓
+NV click link → is_email_verified=True
+        ↓
+Admin/Manager vào dashboard duyệt → is_approved=True
+        ↓                           → send_approval_notification() gửi mail
+NV đăng nhập được bình thường

@@ -16,6 +16,7 @@ class CameraStream:
         self.lock             = threading.Lock()
         self.running          = False
         self._capture_thread  = None
+        self._frame_id        = 0          # Tăng mỗi khi có frame mới — dùng để dedup
 
         # ── Cache kết quả nhận diện (cập nhật ~1 lần/giây bởi WebSocket) ──
         self._last_results    = []         # list kết quả recognize()
@@ -61,7 +62,8 @@ class CameraStream:
                 ret, frame = self.cap.read()
                 if ret:
                     with self.lock:
-                        self.frame = frame
+                        self.frame    = frame
+                        self._frame_id += 1   # đánh dấu frame mới
                 # cap.read() tự block đến khi có frame — không cần sleep
             else:
                 # Camera chưa mở hoặc bị ngắt — tránh busy-spin
@@ -134,40 +136,46 @@ class CameraStream:
     # ──────────────────────────────────────────
     def generate_mjpeg(self):
         """
-        Thread 2 — stream nhanh 25fps.
-        Lấy frame thô + overlay kết quả nhận diện đã cache → KHÔNG lag.
+        Stream raw frame ở 25fps.
+
+        Thay đổi so với trước:
+        - Xóa toàn bộ PIL / draw_results — bbox overlay do client canvas đảm nhận
+        - Frame deduplication: chỉ encode JPEG khi _frame_id thay đổi
+        - Timing bằng perf_counter thay vì time.sleep(1/60) cố định
         """
+        INTERVAL     = 1.0 / 25   # 25fps — khớp camera 30fps, có dư
+        last_fid     = -1
+        cached_packet = None
+
         while self.running:
-            ret, frame = self.read()
-            if not ret or frame is None:
-                frame = self._make_placeholder()
-            else:
-                # Flip trước để text vẽ lên frame không bị ngược
-                frame = cv2.flip(frame, 1)
-                results, emp_map = self.get_recognition_results()
-                if results:
-                    w = frame.shape[1]
-                    flipped = [dict(r, bbox=[w - r["bbox"][2], r["bbox"][1],
-                                             w - r["bbox"][0], r["bbox"][3]])
-                               for r in results]
-                    face_engine.draw_results(frame, flipped, emp_map)
-                # Đã flip rồi, skip flip bên dưới
-                _, jpeg = cv2.imencode('.jpg', frame,
-                                       [cv2.IMWRITE_JPEG_QUALITY, 90])
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n'
-                       + jpeg.tobytes()
-                       + b'\r\n')
-                time.sleep(1 / 60)
-                continue
-            frame = cv2.flip(frame, 1)  # flip placeholder
-            _, jpeg = cv2.imencode('.jpg', frame,
-                                   [cv2.IMWRITE_JPEG_QUALITY, 90])
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n'
-                   + jpeg.tobytes()
-                   + b'\r\n')
-            time.sleep(1 / 60)   # 60 FPS
+            t0 = time.perf_counter()
+
+            # ── Kiểm tra frame mới trong lock ngắn ──
+            with self.lock:
+                fid     = self._frame_id
+                has_new = fid != last_fid
+                frame   = self.frame.copy() if has_new and self.frame is not None else None
+
+            if has_new:
+                last_fid = fid
+                if frame is not None:
+                    frame = cv2.flip(frame, 1)
+                else:
+                    frame = self._make_placeholder()
+                _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                cached_packet = (
+                    b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'
+                    + jpeg.tobytes()
+                    + b'\r\n'
+                )
+
+            if cached_packet:
+                yield cached_packet
+
+            # ── Ngủ đúng thời gian còn lại trong interval ──
+            wait = INTERVAL - (time.perf_counter() - t0)
+            if wait > 0.001:
+                time.sleep(wait)
 
     # ──────────────────────────────────────────
     # Placeholder & snapshot

@@ -30,8 +30,11 @@ def _put_text_pil(frame: np.ndarray, text: str, pos: tuple,
     frame[:] = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
 try:
-    import insightface
-    from insightface.app import FaceAnalysis
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
+        import insightface
+        from insightface.app import FaceAnalysis
     INSIGHTFACE_AVAILABLE = True
 except ImportError:
     INSIGHTFACE_AVAILABLE = False
