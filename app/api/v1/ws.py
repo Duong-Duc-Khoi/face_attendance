@@ -85,8 +85,6 @@ async def ws_attendance(websocket: WebSocket):
                 emp_code   = r["emp_code"]
                 confidence = r["similarity"]
 
-                capture = await loop.run_in_executor(_ai_executor, cam.capture_snapshot, emp_code, frame)
-
                 try:
                     log = await loop.run_in_executor(
                         _ai_executor, process_attendance, emp_code, confidence, capture
@@ -96,6 +94,7 @@ async def ws_attendance(websocket: WebSocket):
                     continue
 
                 if log:
+                    capture = await loop.run_in_executor(_ai_executor, cam.capture_snapshot, emp_code, frame)
                     print(f"  → {log.get('name')} {log.get('check_type')}")
                     await manager.broadcast({**log, "type": "attendance"})
 
