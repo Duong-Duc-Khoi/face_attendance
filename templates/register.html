@@ -360,41 +360,35 @@ const POSES = [
   },
   {
     id:'left', label:'Trái', icon:'⬅️', arrows:['L'],
-    enter:(m)=> m.yaw < -20 && m.yaw > -55 && Math.abs(m.pitch)<20 && m.inZoneSoft,
-    exit: (m)=> m.yaw > -14 || m.yaw < -60 || Math.abs(m.pitch)>26,
+    enter:(m)=> m.yaw < -15 && m.yaw > -50 && Math.abs(m.pitch)<20 && m.inZoneSoft,
+    exit: (m)=> m.yaw > -12 || m.yaw < -55 || Math.abs(m.pitch)>26,
     instr:'Quay đầu sang trái',
-    sub:'Khoảng 20–50° rồi giữ yên'
+    sub:'Khoảng 15–40° rồi giữ yên'
   },
   {
     id:'right', label:'Phải', icon:'➡️', arrows:['R'],
-    enter:(m)=> m.yaw > 20 && m.yaw < 55 && Math.abs(m.pitch)<20 && m.inZoneSoft,
-    exit: (m)=> m.yaw < 14 || m.yaw > 60 || Math.abs(m.pitch)>26,
+    enter:(m)=> m.yaw > 15 && m.yaw < 50 && Math.abs(m.pitch)<20 && m.inZoneSoft,
+    exit: (m)=> m.yaw < 12 || m.yaw > 55 || Math.abs(m.pitch)>26,
     instr:'Quay đầu sang phải',
-    sub:'Khoảng 20–50° rồi giữ yên'
+    sub:'Khoảng 15–40° rồi giữ yên'
   },
   {
     id:'up', label:'Lên', icon:'⬆️', arrows:['U'],
-    enter:(m)=> m.pitch < -13 && Math.abs(m.yaw)<22 && m.inZoneSoft,
-    exit: (m)=> m.pitch > -8 || Math.abs(m.yaw)>28,
+    enter:(m)=> m.pitch < -10 && Math.abs(m.yaw)<22 && m.inZoneSoft,
+    exit: (m)=> m.pitch > -6 || Math.abs(m.yaw)>28,
     instr:'Ngước đầu lên nhẹ',
-    sub:'Nhìn phía trên ống kính ~13°+'
+    sub:'Nhìn phía trên ống kính ~10°+'
   },
   {
-    // DOWN — hoàn toàn dùng DELTA so với baseline được calibrate từ pose CENTER
-    // deltaCNR  = chinNoseRatio - baseline (tăng khi cúi, GIẢM khi ngước)
-    // deltaPitch = pitchRaw - baseline (tăng khi cúi xuống)
-    // Điều kiện: cả 2 delta phải DƯƠNG và đủ lớn → loại bỏ false positive khi ngước
-    id:'down', label:'Xuống', icon:'⬇️', arrows:['D'],
-    enter:(m)=> CAL.done
-              && (m.chinNoseRatio - CAL.chinNoseRatio) > 0.22
-              && (m.pitchRaw      - CAL.pitchRaw)      > 4
-              && Math.abs(m.yaw) < 28,
-    exit: (m)=> !CAL.done
-              || (m.chinNoseRatio - CAL.chinNoseRatio) < 0.12
-              || (m.pitchRaw      - CAL.pitchRaw)      < 1,
-    instr:'Cúi đầu xuống nhẹ',
-    sub:'Nhìn xuống ~15° — đủ thấy trán bạn'
-  },
+  id:'down', label:'Xuống', icon:'⬇️', arrows:['D'],
+  enter:(m)=> CAL.done
+          && (m.pitchRaw - CAL.pitchRaw) > 8
+          && Math.abs(m.yaw) < 28,
+  exit: (m)=> !CAL.done
+          || (m.pitchRaw - CAL.pitchRaw) < 3,
+  instr:'Cúi đầu xuống nhẹ',
+  sub:'Nhìn xuống ~15° — đủ thấy trán bạn'
+},
 ];
 
 // Zone settings — inZone = chặt (yaw/pitch), inZoneSoft = rộng hơn (cho phép nhích)
@@ -413,7 +407,7 @@ const EMA_ALPHA = 0.35;
 let stream=null, faceMesh=null, mpCam=null;
 let captured={}, lockId=null, lockStart=null, lockTmr=null;
 let isLocked = false; // hysteresis state
-const LOCK_MS=1200, CIRC=2*Math.PI*35;
+const LOCK_MS=1600, CIRC=2*Math.PI*35;
 
 // Smoothed metrics — được cập nhật mỗi frame
 let sm = { yaw:0, pitch:0, pitchRaw:0, chinNoseRatio:2.2, eyeWOut:0.2 };
@@ -656,7 +650,7 @@ function computeRaw(lm){
   const foreToNose = Math.max(nose.y - fore.y, 0.001);  // khoảng cách trán→mũi
   const noseToChin = Math.max(chin.y - nose.y, 0.001);  // khoảng cách mũi→cằm
   // Tỉ lệ noseToChin/foreToNose: thẳng ~1.0, cúi tăng (cằm xuống thêm), ngước giảm
-  const pitchRaw = (noseToChin / foreToNose - 1.0) * 30; // ~0 khi thẳng
+  const pitchRaw = ( foreToNose/noseToChin  - 1.0) * 30; // ~0 khi thẳng
 
   // ── CHIN-NOSE RATIO (cho DOWN delta) ──
   // Khi cúi: chin.y tăng nhiều hơn nose.y → ratio tăng
@@ -664,7 +658,7 @@ function computeRaw(lm){
   // Đây là lý do cần dùng DELTA thay vì giá trị tuyệt đối
   const noseRelToEye  = Math.max(nose.y - eyeMy, 0.005);
   const chinRelToEye  = chin.y - eyeMy;
-  const chinNoseRatio = chinRelToEye / noseRelToEye;
+  const chinNoseRatio =  noseRelToEye / chinRelToEye;
 
   // ── ZONE CHECK ──
   const noseMirX = 1 - nose.x;
@@ -711,12 +705,12 @@ function updateConfBars(){
   } else if(target.id==='up'){
     yawConf   = Math.max(0,100 - Math.abs(sm.yaw)*4);
     pitchConf = sm.pitch<-8 ? Math.min(100,(Math.abs(sm.pitch)-8)*8) : 0;
-  } else if(target.id==='down'){
-    yawConf   = Math.max(0,100 - Math.abs(sm.yaw)*3);
-    const deltaCNR = sm.chinNoseRatio - CAL.chinNoseRatio; // need >0.22 to trigger
-    const deltaP   = sm.pitchRaw      - CAL.pitchRaw;      // need >4 to trigger
-    pitchConf = Math.round(Math.min(100, Math.max(0, (Math.min(deltaCNR/0.22, deltaP/4)) * 100)));
-  }
+ } else if(target.id==='down'){
+  yawConf   = Math.max(0,100 - Math.abs(sm.yaw)*3);
+  const deltaCNR = CAL.chinNoseRatio - sm.chinNoseRatio;  
+  const deltaP   = CAL.pitchRaw      - sm.pitchRaw;      
+  pitchConf = Math.round(Math.min(100, Math.max(0, (Math.min(deltaCNR/0.22, deltaP/4)) * 100)));
+}
 
   setBar('cfYaw',   yawConf);
   setBar('cfPitch', target.id==='down'?pitchConf:pitchConf, target.id==='down');
@@ -900,7 +894,7 @@ async function submitRegister(){
     document.getElementById('scSub').textContent=data.message||'Đăng ký thành công!';
     showToast('Đăng ký thành công!','success');
   }catch(e){btn.textContent='✦ Đăng ký nhân viên';btn.disabled=false;showToast('Lỗi: '+e.message,'error');}
-
+}
 // ── Reset ──
 function resetAll(){
   cancelLock();isLocked=false;

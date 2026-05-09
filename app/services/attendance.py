@@ -144,3 +144,17 @@ def _log_to_dict(log: AttendanceLog) -> dict:
         "confidence":  log.confidence,
         "status":      log.note,
     }
+
+def update_capture_path(log_id: int, capture_path: str) -> None:
+    """Cập nhật đường dẫn ảnh sau khi capture xong."""
+    db = SessionLocal()
+    try:
+        log = db.query(AttendanceLog).filter_by(id=log_id).first()
+        if log:
+            log.capture_path = capture_path
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"  ✗ update_capture_path lỗi: {e}")
+    finally:
+        db.close()
