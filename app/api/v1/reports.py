@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.security import get_current_user
 from app.models.attendance import AttendanceLog
 from app.services.attendance import get_logs_by_date, get_summary_today
 
