@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -16,11 +17,31 @@ from app.core.security import get_current_user
 from app.models.attendance import AttendanceLog
 from app.services.attendance import get_logs_by_date, get_summary_today
 
+
 router = APIRouter(prefix="/api", tags=["reports"])
+
+_bearer_opt = HTTPBearer(auto_error=False)
+
+
+def _optional_user(
+    creds: HTTPAuthorizationCredentials = Depends(_bearer_opt),
+    db: Session = Depends(get_db),
+):
+    """Dependency tuỳ chọn: trả về user nếu có token, None nếu không có."""
+    if creds is None:
+        return None
+    try:
+        from app.core.security import decode_access_token
+        from app.models.user import User
+        payload = decode_access_token(creds.credentials)
+        return db.query(User).filter_by(id=int(payload["sub"]), is_active=True).first()
+    except Exception:
+        return None
 
 
 @router.get("/attendance")
-def get_attendance(date: str = None, emp_code: str = None, days: int = 1, current_user=Depends(get_current_user)):
+def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
+                   current_user=Depends(_optional_user)):
     if date:
         logs = get_logs_by_date(date, emp_code)
     else:

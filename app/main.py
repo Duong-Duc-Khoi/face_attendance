@@ -98,6 +98,10 @@ async def login_page(request: Request):
 async def kiosk_page(request: Request):
     return templates.TemplateResponse("kiosk.html", {"request": request})
 
+@app.get("/me")
+async def me_page(request: Request):
+    return templates.TemplateResponse("me.html", {"request": request})
+
 @app.get("/register")
 async def register_page_face(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
@@ -163,6 +167,18 @@ def api_camera_status():
 
 
 # ── Misc ─────────────────────────────────────────────────────────
+# ── Leave request ────────────────────────────────────────────────
+@app.post("/api/leave-request")
+async def submit_leave_request(payload: dict, request: Request):
+    """Nhân viên gửi đơn xin nghỉ — ghi log và gửi email thông báo cho quản lý."""
+    from app.services.notify import notify_leave_request_async
+    try:
+        await notify_leave_request_async(payload)
+    except Exception as e:
+        print(f"[leave-request] notify lỗi: {e}")
+    return {"success": True, "message": "Đơn xin nghỉ đã được ghi nhận"}
+
+
 @app.get("/api/health")
 def health_check():
     cam = get_camera()

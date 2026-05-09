@@ -270,7 +270,11 @@ async function doVerifyOTP(){
     clearTimer();
     // Redirect theo role
     const role = data.user?.role;
-    window.location.href = (role==='admin'||role==='manager') ? '/dashboard' : '/';
+    if (role === 'admin' || role === 'manager') {
+      window.location.href = '/dashboard';
+    } else {
+      window.location.href = '/me';
+    }
   }catch(e){
     // Shake OTP boxes
     for(let i=0;i<6;i++) document.getElementById('o'+i).classList.add('err');
@@ -289,7 +293,7 @@ async function doVerifyOTP(){
     // Thử verify token — nếu còn hợp lệ thì redirect
     fetch('/auth/me', {headers:{Authorization:'Bearer '+token}})
       .then(r=>r.json())
-      .then(d=>{ if(d.user){ const role=d.user.role; window.location.href=(role==='admin'||role==='manager')?'/dashboard':'/'; } })
+      .then(d=>{ if(d.user){ const role=d.user.role; window.location.href=(role==='admin'||role==='manager')?'/dashboard':'/me'; } })
       .catch(()=>{});
   }
 })();
