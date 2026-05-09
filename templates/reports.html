@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/static/css/components.css">
 <link rel="stylesheet" href="/static/css/reports.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="/static/js/auth-guard.js"></script>
 </head>
 <body>
 <header>
@@ -19,12 +20,13 @@
     </div>
     <span class="brand-name">FaceAttend</span>
   </div>
-  <div class="nav-links">
-    <a href="/" class="nav-link">Chấm công</a>
-    <a href="/register" class="nav-link">Đăng ký</a>
+  <div class="nav-links" id="mainNav">
     <a href="/dashboard" class="nav-link">Quản lý</a>
     <a href="/report" class="nav-link active">Báo cáo</a>
-  </div>
+    <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
+    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
+</div>
 </header>
 
 <div class="page">
@@ -143,8 +145,8 @@ async function loadReport(){
   document.getElementById('reportBody').innerHTML='<tr><td colspan="8" class="empty"><div class="spinner" style="margin:0 auto"></div></td></tr>';
   try{
     const [summRes,logRes]=await Promise.all([
-      fetch('/api/summary/range?from_date='+from+'&to_date='+to),
-      fetch('/api/attendance?date='+from+'&days='+daysBetween(from,to))
+      authFetch('/api/summary/range?from_date='+from+'&to_date='+to),
+      authFetch('/api/attendance?date='+from+'&days='+daysBetween(from,to))
     ]);
     const summ=await summRes.json();
     const logs=await logRes.json();

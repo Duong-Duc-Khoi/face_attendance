@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trang cá nhân — FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<script src="/static/js/auth-guard.js"></script>
+<style>
+html,body{min-height:100vh}
+
+.page{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:28px 20px;display:grid;
+  grid-template-columns:340px 1fr;gap:20px;align-items:start}
+
+/* ── Profile card ── */
+.profile-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.profile-top{padding:28px 24px;text-align:center;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(0,212,170,.04) 0%,transparent 100%)}
+.avatar-ring{width:88px;height:88px;border-radius:50%;border:2.5px solid var(--teal);
+  background:var(--teal-glow);display:grid;place-items:center;margin:0 auto 14px;
+  font-size:32px;overflow:hidden;position:relative}
+.avatar-ring img{width:100%;height:100%;object-fit:cover}
+.pname{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px}
+.pemp{font-family:var(--font-mono);font-size:12px;color:var(--teal);letter-spacing:.08em}
+.pdept{font-size:12px;color:var(--muted);margin-top:4px}
+.role-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+  border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  margin-top:10px;border:1px solid var(--border)}
+.role-badge.staff  {border-color:rgba(58,143,255,.4);background:rgba(58,143,255,.08);color:var(--blue)}
+.role-badge.manager{border-color:rgba(0,212,170,.4);background:var(--teal-glow);color:var(--teal)}
+.role-badge.admin  {border-color:rgba(246,201,14,.4);background:rgba(246,201,14,.08);color:#f6c90e}
+
+.profile-info{padding:20px 24px}
+.info-row{display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;border-bottom:1px solid var(--border);gap:12px}
+.info-row:last-child{border-bottom:none}
+.info-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
+.info-val{font-size:13px;color:var(--text);text-align:right;word-break:break-word}
+.info-val.mono{font-family:var(--font-mono)}
+
+/* ── Right column ── */
+.right-col{display:flex;flex-direction:column;gap:18px}
+
+/* ── Today stats ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;text-align:center}
+.stat-num{font-family:var(--font-mono);font-size:26px;font-weight:700;line-height:1}
+.stat-num.teal{color:var(--teal)}.stat-num.blue{color:var(--blue)}.stat-num.yellow{color:#f6c90e}
+.stat-lbl{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:5px}
+
+/* ── Panel ── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.panel-header{padding:13px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.panel-header .dot{width:5px;height:5px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal);flex-shrink:0}
+.ph-left{display:flex;align-items:center;gap:8px}
+.panel-body{padding:16px}
+
+/* ── Attendance table ── */
+.att-table{width:100%;border-collapse:collapse;font-size:12px}
+.att-table th{text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);
+  letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.att-table td{padding:9px 12px;border-bottom:1px solid rgba(26,47,80,.5);color:var(--text)}
+.att-table tr:last-child td{border-bottom:none}
+.att-table tr:hover td{background:rgba(255,255,255,.02)}
+.badge-in {display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;
+  font-family:var(--font-mono);font-size:10px;font-weight:700;
+  background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
+.badge-out{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;
+  font-family:var(--font-mono);font-size:10px;font-weight:700;
+  background:rgba(58,143,255,.1);border:1px solid rgba(58,143,255,.3);color:var(--blue)}
+.empty-msg{text-align:center;padding:32px;color:var(--muted);font-size:12px}
+
+/* ── Leave request ── */
+.leave-form{display:grid;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fl{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.fi{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-sans);font-size:13px;padding:9px 13px;border-radius:8px;
+  transition:border-color .2s;outline:none;resize:vertical}
+.fi:focus{border-color:var(--teal)}.fi::placeholder{color:var(--muted)}
+select.fi option{background:var(--panel);color:var(--text)}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-submit{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 20px;border-radius:8px;background:var(--teal);color:#000;
+  font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;
+  border:none;width:100%;transition:all .2s;letter-spacing:.03em;margin-top:4px}
+.btn-submit:hover:not(:disabled){background:#00f0c0;transform:translateY(-1px)}
+.btn-submit:disabled{background:var(--teal-dim);cursor:not-allowed}
+
+/* Leave history badges */
+.leave-status{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:4px;
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ls-pending{background:rgba(246,201,14,.1);border:1px solid rgba(246,201,14,.3);color:#f6c90e}
+.ls-approved{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
+.ls-rejected{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--red)}
+
+/* ── Date filter ── */
+.date-filter{display:flex;gap:8px;align-items:center}
+.date-filter input{background:var(--panel);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-sans);font-size:11px;padding:5px 10px;border-radius:6px;outline:none}
+.date-filter input:focus{border-color:var(--teal)}
+.btn-sm{padding:5px 12px;border-radius:6px;background:var(--teal);color:#000;
+  font-size:11px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-sm:hover{background:#00f0c0}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--panel);
+  border:1px solid var(--border);padding:10px 16px;border-radius:9px;font-size:12px;
+  max-width:300px;transform:translateY(14px);opacity:0;transition:all .3s;
+  display:flex;align-items:center;gap:8px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{border-color:var(--teal)}#toast.error{border-color:var(--red)}
+
+/* ── Spinner ── */
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);
+  border-top-color:var(--teal);animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .page{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:1fr 1fr 1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2.2" stroke-linecap="round">
+        <path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/>
+        <path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/>
+        <path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+    </div>
+    <span class="brand-name">FaceAttend</span>
+  </div>
+  <div class="nav-links" id="mainNav">
+    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
+    <!-- Manager/admin có thêm link quản lý -->
+    <a href="/dashboard" class="nav-link" id="navDashboard" style="display:none">Quản lý</a>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
+  </div>
+</header>
+
+<div class="page">
+  <!-- ══ LEFT: Profile ══ -->
+  <div>
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="avatar-ring" id="avatarEl">👤</div>
+        <div class="pname" id="profileName">—</div>
+        <div class="pemp" id="profileCode">—</div>
+        <div class="pdept" id="profileDept">—</div>
+        <div class="role-badge staff" id="roleBadge">nhân viên</div>
+      </div>
+      <div class="profile-info">
+        <div class="info-row">
+          <span class="info-label">Email</span>
+          <span class="info-val" id="profileEmail">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Điện thoại</span>
+          <span class="info-val mono" id="profilePhone">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Chức vụ</span>
+          <span class="info-val" id="profilePosition">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Ngày vào làm</span>
+          <span class="info-val mono" id="profileJoined">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Đăng nhập lần cuối</span>
+          <span class="info-val mono" id="profileLastLogin">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Trạng thái</span>
+          <span class="info-val" id="profileStatus">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT: Attendance + Leave ══ -->
+  <div class="right-col">
+
+    <!-- Thống kê hôm nay -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-num teal" id="statTodayIn">—</div>
+        <div class="stat-lbl">Vào hôm nay</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num blue" id="statTodayOut">—</div>
+        <div class="stat-lbl">Ra hôm nay</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num yellow" id="statMonthDays">—</div>
+        <div class="stat-lbl">Ngày công tháng</div>
+      </div>
+    </div>
+
+    <!-- Lịch sử chấm công -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="ph-left"><span class="dot"></span> Lịch sử chấm công của tôi</div>
+        <div class="date-filter">
+          <input type="date" id="filterFrom" title="Từ ngày">
+          <input type="date" id="filterTo" title="Đến ngày">
+          <button class="btn-sm" onclick="loadMyAttendance()">Xem</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:360px;overflow-y:auto">
+        <table class="att-table">
+          <thead><tr>
+            <th>Ngày</th><th>Giờ vào</th><th>Giờ ra</th><th>Loại</th>
+          </tr></thead>
+          <tbody id="attTableBody">
+            <tr><td colspan="4" class="empty-msg">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Xin nghỉ -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="ph-left"><span class="dot"></span> Báo xin nghỉ</div>
+      </div>
+      <div class="panel-body">
+        <div class="leave-form">
+          <div class="fr2">
+            <div class="fg">
+              <label class="fl">Từ ngày *</label>
+              <input class="fi" type="date" id="leaveFrom">
+            </div>
+            <div class="fg">
+              <label class="fl">Đến ngày *</label>
+              <input class="fi" type="date" id="leaveTo">
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">Loại nghỉ *</label>
+            <select class="fi" id="leaveType">
+              <option value="">— Chọn loại —</option>
+              <option value="annual">Nghỉ phép năm</option>
+              <option value="sick">Nghỉ ốm</option>
+              <option value="unpaid">Nghỉ không lương</option>
+              <option value="personal">Việc cá nhân</option>
+              <option value="other">Lý do khác</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">Lý do / ghi chú</label>
+            <textarea class="fi" id="leaveReason" rows="3" placeholder="Mô tả lý do xin nghỉ..."></textarea>
+          </div>
+          <button class="btn-submit" id="btnLeave" onclick="submitLeave()">
+            ✉ Gửi đơn xin nghỉ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lịch sử đơn nghỉ -->
+    <div class="panel" id="leaveHistoryPanel" style="display:none">
+      <div class="panel-header">
+        <div class="ph-left"><span class="dot"></span> Đơn nghỉ đã gửi</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="att-table">
+          <thead><tr>
+            <th>Ngày gửi</th><th>Từ</th><th>Đến</th><th>Loại</th><th>Trạng thái</th>
+          </tr></thead>
+          <tbody id="leaveTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══ Helpers ══
+let currentEmpCode = '';
+
+function today() { return new Date().toISOString().slice(0,10); }
+
+function fmtDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  return d.toLocaleDateString('vi-VN');
+}
+
+function fmtTime(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  return d.toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+}
+
+let toastTmr;
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  const col = type==='success'?'var(--teal)':type==='error'?'var(--red)':'var(--blue)';
+  const icon = type==='success'?'✓':type==='error'?'✕':'ℹ';
+  t.innerHTML = `<span style="color:${col}">${icon}</span> ${msg}`;
+  t.className = 'show '+type;
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => { t.className = ''; }, 4500);
+}
+
+// ══ Load profile ══
+async function loadProfile() {
+  try {
+    const res  = await authFetch('/auth/me');
+    const data = await res.json();
+    const user = data.user;
+    if (!user) return;
+
+    // Lưu user vào localStorage để auth-guard dùng
+    localStorage.setItem('user', JSON.stringify(user));
+
+    document.getElementById('profileEmail').textContent = user.email || '—';
+    document.getElementById('profileLastLogin').textContent = user.last_login || '—';
+    document.getElementById('profileStatus').innerHTML = user.is_active
+      ? '<span style="color:var(--teal)">● Đang hoạt động</span>'
+      : '<span style="color:var(--red)">● Tài khoản khóa</span>';
+
+    // Role badge
+    const badge = document.getElementById('roleBadge');
+    const roleMap = {staff:'Nhân viên',manager:'Quản lý',admin:'Admin'};
+    badge.textContent = roleMap[user.role] || user.role;
+    badge.className = 'role-badge ' + (user.role || 'staff');
+
+    // Hiển thị link dashboard nếu manager/admin
+    if (user.role === 'manager' || user.role === 'admin') {
+      document.getElementById('navDashboard').style.display = '';
+    }
+    document.getElementById('navUserName').textContent = user.full_name || user.email;
+
+    // Load employee profile bằng email
+    loadEmployeeProfile(user.email);
+  } catch(e) {
+    console.warn('Load profile lỗi:', e);
+  }
+}
+
+async function loadEmployeeProfile(email) {
+  try {
+    // Tìm nhân viên theo email
+    const res  = await authFetch(`/api/employees?active_only=false`);
+    const emps = await res.json();
+    const emp  = emps.find(e => e.email && e.email.toLowerCase() === email.toLowerCase());
+    if (!emp) {
+      document.getElementById('profileName').textContent = email.split('@')[0];
+      document.getElementById('profileCode').textContent = 'Chưa liên kết';
+      return;
+    }
+
+    currentEmpCode = emp.emp_code;
+
+    document.getElementById('profileName').textContent    = emp.name || '—';
+    document.getElementById('profileCode').textContent    = emp.emp_code || '—';
+    document.getElementById('profileDept').textContent    = emp.department || '—';
+    document.getElementById('profilePhone').textContent   = emp.phone || '—';
+    document.getElementById('profilePosition').textContent= emp.position || '—';
+    document.getElementById('profileJoined').textContent  = emp.created_at || '—';
+
+    if (emp.avatar_url) {
+      document.getElementById('avatarEl').innerHTML = `<img src="${emp.avatar_url}" alt="avatar">`;
+    } else {
+      document.getElementById('avatarEl').textContent = emp.name ? emp.name[0].toUpperCase() : '👤';
+    }
+
+    loadMyAttendance();
+    loadMonthStats();
+  } catch(e) {
+    console.warn('Load employee lỗi:', e);
+  }
+}
+
+// ══ Load attendance ══
+async function loadMyAttendance() {
+  const from = document.getElementById('filterFrom').value || today();
+  const to   = document.getElementById('filterTo').value   || today();
+  const tbody = document.getElementById('attTableBody');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty-msg"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+
+  try {
+    const url = `/api/attendance?date=${from}&days=1${currentEmpCode ? '&emp_code='+currentEmpCode : ''}`;
+    let allLogs = [];
+
+    if (from === to) {
+      const res  = await authFetch(url);
+      const data = await res.json();
+      allLogs = (data.logs ?? data) || [];
+    } else {
+      // Load range day by day (max 31 days)
+      const start = new Date(from), end = new Date(to);
+      const diffDays = Math.min(31, Math.round((end-start)/(1000*60*60*24))+1);
+      for (let i = 0; i < diffDays; i++) {
+        const d = new Date(start); d.setDate(d.getDate()+i);
+        const ds = d.toISOString().slice(0,10);
+        const r = await authFetch(`/api/attendance?date=${ds}${currentEmpCode ? '&emp_code='+currentEmpCode : ''}`);
+        const j = await r.json();
+        allLogs.push(...((j.logs ?? j) || []));
+      }
+    }
+
+    // Filter by emp_code client-side if needed
+    const logs = currentEmpCode
+      ? allLogs.filter(l => l.emp_code === currentEmpCode)
+      : allLogs;
+
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Chưa có dữ liệu chấm công trong khoảng thời gian này</td></tr>';
+      document.getElementById('statTodayIn').textContent  = '0';
+      document.getElementById('statTodayOut').textContent = '0';
+      return;
+    }
+
+    // Count today
+    const todayStr = today();
+    const todayIn  = logs.filter(l => l.check_type==='check_in'  && (l.timestamp||l.time||'').slice(0,10)===todayStr).length;
+    const todayOut = logs.filter(l => l.check_type==='check_out' && (l.timestamp||l.time||'').slice(0,10)===todayStr).length;
+    document.getElementById('statTodayIn').textContent  = todayIn;
+    document.getElementById('statTodayOut').textContent = todayOut;
+
+    tbody.innerHTML = logs.slice(0,200).map(l => {
+      const ts = l.timestamp || l.time || '';
+      const isIn = l.check_type === 'check_in';
+      return `<tr>
+        <td>${fmtDate(ts)}</td>
+        <td>${isIn  ? fmtTime(ts) : '—'}</td>
+        <td>${!isIn ? fmtTime(ts) : '—'}</td>
+        <td><span class="${isIn?'badge-in':'badge-out'}">${isIn?'▲ VÀO':'▼ RA'}</span></td>
+      </tr>`;
+    }).join('');
+
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Không tải được dữ liệu</td></tr>';
+  }
+}
+
+async function loadMonthStats() {
+  if (!currentEmpCode) return;
+  try {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+    const lastDay  = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10);
+
+    let allLogs = [];
+    const start = new Date(firstDay), end = new Date(lastDay);
+    const diffDays = Math.round((end-start)/(1000*60*60*24))+1;
+    for (let i = 0; i < diffDays; i++) {
+      const d = new Date(start); d.setDate(d.getDate()+i);
+      const ds = d.toISOString().slice(0,10);
+      if (ds > today()) break;
+      const r = await authFetch(`/api/attendance?date=${ds}&emp_code=${currentEmpCode}`);
+      const j = await r.json();
+      allLogs.push(...((j.logs ?? j) || []).filter(l => l.emp_code === currentEmpCode));
+    }
+
+    // Count unique days with check_in
+    const workDays = new Set(allLogs.filter(l=>l.check_type==='check_in').map(l=>(l.timestamp||'').slice(0,10)));
+    document.getElementById('statMonthDays').textContent = workDays.size || '0';
+  } catch {}
+}
+
+// ══ Leave request ══
+const LEAVE_KEY = 'my_leave_requests';
+
+function saveLeave(req) {
+  const all = getLeaves();
+  all.unshift(req);
+  localStorage.setItem(LEAVE_KEY, JSON.stringify(all.slice(0,50)));
+}
+
+function getLeaves() {
+  try { return JSON.parse(localStorage.getItem(LEAVE_KEY) || '[]'); } catch { return []; }
+}
+
+async function submitLeave() {
+  const from   = document.getElementById('leaveFrom').value;
+  const to     = document.getElementById('leaveTo').value;
+  const type   = document.getElementById('leaveType').value;
+  const reason = document.getElementById('leaveReason').value.trim();
+
+  if (!from || !to)   { showToast('Vui lòng chọn ngày nghỉ', 'error'); return; }
+  if (from > to)      { showToast('Ngày bắt đầu phải trước ngày kết thúc', 'error'); return; }
+  if (!type)          { showToast('Vui lòng chọn loại nghỉ', 'error'); return; }
+
+  const btn = document.getElementById('btnLeave');
+  btn.innerHTML = '<div class="spinner"></div> Đang gửi...';
+  btn.disabled = true;
+
+  try {
+    // Gửi email thông báo qua API notify (nếu có), hoặc lưu local + hiện thông báo
+    const typeLabel = {annual:'Nghỉ phép năm',sick:'Nghỉ ốm',unpaid:'Nghỉ không lương',
+      personal:'Việc cá nhân',other:'Lý do khác'}[type] || type;
+
+    const user = getUser ? getUser() : null;
+    const empName = document.getElementById('profileName').textContent;
+    const empCode = currentEmpCode || '—';
+
+    // Cố gắng gọi API notify nếu backend có
+    try {
+      await authFetch('/api/leave-request', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ emp_code: empCode, name: empName, from_date: from, to_date: to,
+          leave_type: type, reason, email: user?.email })
+      });
+    } catch {
+      // API không tồn tại — OK, lưu local
+    }
+
+    const req = {
+      id: Date.now(),
+      submitted: new Date().toISOString(),
+      from, to, type: typeLabel, reason,
+      status: 'pending'
+    };
+    saveLeave(req);
+    renderLeaveHistory();
+
+    // Reset form
+    document.getElementById('leaveFrom').value = '';
+    document.getElementById('leaveTo').value   = '';
+    document.getElementById('leaveType').value = '';
+    document.getElementById('leaveReason').value = '';
+    showToast('Đã gửi đơn xin nghỉ! Quản lý sẽ xem xét sớm.', 'success');
+  } finally {
+    btn.innerHTML = '✉ Gửi đơn xin nghỉ';
+    btn.disabled = false;
+  }
+}
+
+function renderLeaveHistory() {
+  const leaves = getLeaves();
+  const panel = document.getElementById('leaveHistoryPanel');
+  if (!leaves.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const statusMap = {
+    pending:  '<span class="leave-status ls-pending">⏳ Chờ duyệt</span>',
+    approved: '<span class="leave-status ls-approved">✓ Đã duyệt</span>',
+    rejected: '<span class="leave-status ls-rejected">✕ Từ chối</span>',
+  };
+
+  document.getElementById('leaveTableBody').innerHTML = leaves.map(l => `
+    <tr>
+      <td>${fmtDate(l.submitted)}</td>
+      <td>${fmtDate(l.from)}</td>
+      <td>${fmtDate(l.to)}</td>
+      <td>${l.type}</td>
+      <td>${statusMap[l.status] || l.status}</td>
+    </tr>
+  `).join('');
+}
+
+// ══ Init ══
+const defaultFrom = new Date(); defaultFrom.setDate(defaultFrom.getDate() - 6);
+document.getElementById('filterFrom').value = defaultFrom.toISOString().slice(0,10);
+document.getElementById('filterTo').value   = today();
+
+// Set default leave dates
+const tmrw = new Date(); tmrw.setDate(tmrw.getDate()+1);
+document.getElementById('leaveFrom').value = tmrw.toISOString().slice(0,10);
+document.getElementById('leaveTo').value   = tmrw.toISOString().slice(0,10);
+
+loadProfile();
+renderLeaveHistory();
+</script>
+</body>
+</html>

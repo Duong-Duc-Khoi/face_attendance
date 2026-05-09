@@ -32,6 +32,7 @@ from app.services.attendance import get_summary_today
 from app.services.notify import notify_daily_report_async
 from app.api.v1 import employees, reports
 from app.api.v1.auth import router as auth_router
+from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
 
 scheduler = AsyncIOScheduler()
@@ -82,6 +83,7 @@ templates = Jinja2Templates(directory="templates")
 
 # Routers
 app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(employees.router)
 app.include_router(reports.router)
 
@@ -91,15 +93,14 @@ app.include_router(reports.router)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-@app.get("/auth/register-page")
-async def register_page(request: Request):
-    return templates.TemplateResponse("user_register.html", {"request": request})
-
-
 # ── HTML pages ───────────────────────────────────────────────────
 @app.get("/")
 async def kiosk_page(request: Request):
     return templates.TemplateResponse("kiosk.html", {"request": request})
+
+@app.get("/me")
+async def me_page(request: Request):
+    return templates.TemplateResponse("me.html", {"request": request})
 
 @app.get("/register")
 async def register_page_face(request: Request):
@@ -114,6 +115,9 @@ async def dashboard_page(request: Request):
 async def report_page(request: Request):
     return templates.TemplateResponse("reports.html", {"request": request})
 
+@app.get("/users")
+async def users_page(request: Request):
+    return templates.TemplateResponse("users.html", {"request": request})
 
 # ── Camera stream ────────────────────────────────────────────────
 def _placeholder_mjpeg():
@@ -163,6 +167,18 @@ def api_camera_status():
 
 
 # ── Misc ─────────────────────────────────────────────────────────
+# ── Leave request ────────────────────────────────────────────────
+@app.post("/api/leave-request")
+async def submit_leave_request(payload: dict, request: Request):
+    """Nhân viên gửi đơn xin nghỉ — ghi log và gửi email thông báo cho quản lý."""
+    from app.services.notify import notify_leave_request_async
+    try:
+        await notify_leave_request_async(payload)
+    except Exception as e:
+        print(f"[leave-request] notify lỗi: {e}")
+    return {"success": True, "message": "Đơn xin nghỉ đã được ghi nhận"}
+
+
 @app.get("/api/health")
 def health_check():
     cam = get_camera()

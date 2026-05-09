@@ -19,8 +19,9 @@ class User(Base):
     full_name         = Column(String(100), default="")
     hashed_password   = Column(String(255), nullable=False)
     role              = Column(String(20),  default="staff")   # staff | manager | admin
-    is_active         = Column(Boolean, default=False)         # False cho đến khi được duyệt
+    is_active         = Column(Boolean, default=False)         # False cho đến khi xác minh email
     is_email_verified = Column(Boolean, default=False)
+    is_approved       = Column(Boolean, default=False)         # Admin/manager duyệt tài khoản
     created_at        = Column(DateTime, default=datetime.now)
     last_login        = Column(DateTime, nullable=True)
 

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý tài khoản — FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<style>
+/* ── Tab bar ── */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: fit-content;
+  margin-bottom: 20px;
+}
+.tab-btn {
+  padding: 7px 18px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--surface); color: var(--teal); border: 1px solid var(--border); }
+.tab-badge {
+  background: var(--red);
+  color: #fff;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+}
+.tab-badge.zero { background: var(--border); color: var(--muted); }
+
+/* ── Status badges thêm ── */
+.badge-pending   { background: rgba(246,201,14,.12); color: var(--yellow); }
+.badge-approved  { background: rgba(0,212,170,.12);  color: var(--teal);   }
+.badge-rejected  { background: rgba(255,77,106,.12); color: var(--red);    }
+.badge-unverified{ background: rgba(90,122,154,.12); color: var(--muted);  }
+
+/* ── Role badge ── */
+.role-badge {
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.role-admin   { background: rgba(255,77,106,.12);  color: var(--red);    border: 1px solid rgba(255,77,106,.3); }
+.role-manager { background: rgba(58,143,255,.12);  color: var(--blue);   border: 1px solid rgba(58,143,255,.3); }
+.role-staff   { background: rgba(0,212,170,.08);   color: var(--muted);  border: 1px solid var(--border); }
+
+/* ── Action group ── */
+.actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.btn-approve {
+  background: rgba(0,212,170,.15); color: var(--teal);
+  border: 1px solid rgba(0,212,170,.3);
+}
+.btn-approve:hover { background: rgba(0,212,170,.3); }
+.btn-reject {
+  background: rgba(255,77,106,.1); color: var(--red);
+  border: 1px solid rgba(255,77,106,.25);
+}
+.btn-reject:hover { background: rgba(255,77,106,.2); }
+
+/* ── Stats nhỏ ── */
+.mini-stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.mini-stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 20px;
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 140px;
+}
+.mini-stat-val { font-family: var(--font-mono); font-size: 26px; font-weight: 700; }
+.mini-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+
+/* ── Empty state ── */
+.empty-state { padding: 60px 20px; text-align: center; color: var(--muted); }
+.empty-state svg { opacity: .25; margin-bottom: 14px; }
+.empty-state p { font-size: 13px; }
+
+/* ── Modal select ── */
+select.form-input option { background: var(--surface); }
+
+/* ── Confirm badge nhanh ── */
+.pending-row td { background: rgba(246,201,14,.025); }
+</style>
+<script src="/static/js/auth-guard.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <span class="brand-name">FaceAttend</span>
+  </div>
+  <div class="nav-links" id="mainNav">
+    <a href="/dashboard" class="nav-link">Quản lý</a>
+    <a href="/report" class="nav-link">Báo cáo</a>
+    <a href="/users" class="nav-link active">Tài khoản</a>
+    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
+</div>
+</header>
+
+<div class="page">
+
+  <!-- Mini stats -->
+  <div class="mini-stats">
+    <div class="mini-stat">
+      <div>
+        <div class="mini-stat-val" id="statTotal">—</div>
+        <div class="mini-stat-label">Tổng tài khoản</div>
+      </div>
+    </div>
+    <div class="mini-stat">
+      <div>
+        <div class="mini-stat-val" style="color:var(--yellow)" id="statPending">—</div>
+        <div class="mini-stat-label">Chờ duyệt</div>
+      </div>
+    </div>
+    <div class="mini-stat">
+      <div>
+        <div class="mini-stat-val" style="color:var(--teal)" id="statApproved">—</div>
+        <div class="mini-stat-label">Đã duyệt</div>
+      </div>
+    </div>
+    <div class="mini-stat">
+      <div>
+        <div class="mini-stat-val" style="color:var(--muted)" id="statUnverified">—</div>
+        <div class="mini-stat-label">Chưa xác minh email</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('pending')" id="tabPending">
+      Chờ duyệt <span class="tab-badge" id="badgePending">0</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('all')" id="tabAll">
+      Tất cả tài khoản
+    </button>
+  </div>
+
+  <!-- Panel chính -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-header-left">
+        <span class="dot"></span>
+        <span id="panelTitle">Tài khoản chờ duyệt</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="filter-input" id="searchUser" placeholder="Tìm email, họ tên..." oninput="filterUsers()" style="width:200px">
+        <select class="filter-input" id="filterRole" onchange="filterUsers()" style="display:none">
+          <option value="">Tất cả role</option>
+          <option value="staff">Staff</option>
+          <option value="manager">Manager</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button class="btn btn-outline" onclick="loadUsers()" style="padding:7px 12px" title="Làm mới">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr>
+          <th>Tài khoản</th>
+          <th>Role</th>
+          <th>Trạng thái</th>
+          <th>Email</th>
+          <th>Ngày đăng ký</th>
+          <th>Đăng nhập cuối</th>
+          <th style="text-align:right">Thao tác</th>
+        </tr></thead>
+        <tbody id="userTableBody">
+          <tr><td colspan="7" class="empty">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: Đổi role -->
+<div class="modal-overlay" id="roleModal" onclick="if(event.target===this)closeRoleModal()">
+  <div class="modal" style="min-width:360px;max-width:400px">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Đổi role tài khoản
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px" id="roleModalDesc"></p>
+    <div class="form-group">
+      <label class="form-label">Role mới</label>
+      <select class="form-input" id="roleSelect">
+        <option value="staff">Staff</option>
+        <option value="manager">Manager</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-outline" onclick="closeRoleModal()">Hủy</button>
+      <button class="btn" style="background:var(--blue);color:#fff" onclick="saveRole()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let allUsers = [];
+let currentTab = 'pending';
+let editingRoleUserId = null;
+
+// ── Init ──────────────────────────────────────────────────────────
+(async function init() {
+  await loadUsers();
+})();
+
+// ── Load ─────────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const token = getToken();
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const r = await authFetch('/api/users?pending_only=false', { headers });
+    if (r.status === 401) { window.location = '/login'; return; }
+    if (r.status === 403) {
+      document.getElementById('userTableBody').innerHTML =
+        '<tr><td colspan="7" class="empty" style="color:var(--red)">Bạn không có quyền truy cập trang này</td></tr>';
+      return;
+    }
+    const d = await r.json();
+    allUsers = d.users || [];
+    updateStats();
+    renderCurrentTab();
+  } catch (e) {
+    showToast('Lỗi tải danh sách tài khoản', 'error');
+  }
+}
+
+function getToken() {
+  return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
+}
+
+// ── Stats ─────────────────────────────────────────────────────────
+function updateStats() {
+  const total      = allUsers.length;
+  const pending    = allUsers.filter(u => u.is_email_verified && !u.is_approved && u.is_active).length;
+  const approved   = allUsers.filter(u => u.is_approved).length;
+  const unverified = allUsers.filter(u => !u.is_email_verified).length;
+
+  document.getElementById('statTotal').textContent      = total;
+  document.getElementById('statPending').textContent    = pending;
+  document.getElementById('statApproved').textContent   = approved;
+  document.getElementById('statUnverified').textContent = unverified;
+
+  const badge = document.getElementById('badgePending');
+  badge.textContent = pending;
+  badge.className   = 'tab-badge' + (pending === 0 ? ' zero' : '');
+}
+
+// ── Tab ───────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabPending').className = 'tab-btn' + (tab === 'pending' ? ' active' : '');
+  document.getElementById('tabAll').className     = 'tab-btn' + (tab === 'all'     ? ' active' : '');
+  document.getElementById('filterRole').style.display = tab === 'all' ? '' : 'none';
+  document.getElementById('panelTitle').textContent   =
+    tab === 'pending' ? 'Tài khoản chờ duyệt' : 'Tất cả tài khoản';
+  document.getElementById('searchUser').value = '';
+  renderCurrentTab();
+}
+
+function renderCurrentTab() {
+  let list = allUsers;
+  if (currentTab === 'pending') {
+    list = list.filter(u => u.is_email_verified && !u.is_approved && u.is_active);
+  }
+  renderTable(list);
+}
+
+// ── Filter ────────────────────────────────────────────────────────
+function filterUsers() {
+  const q    = document.getElementById('searchUser').value.toLowerCase();
+  const role = document.getElementById('filterRole').value;
+  let list   = allUsers;
+
+  if (currentTab === 'pending') {
+    list = list.filter(u => u.is_email_verified && !u.is_approved && u.is_active);
+  }
+  if (q)    list = list.filter(u => u.email.toLowerCase().includes(q) || u.full_name.toLowerCase().includes(q));
+  if (role) list = list.filter(u => u.role === role);
+  renderTable(list);
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function renderTable(list) {
+  const tbody = document.getElementById('userTableBody');
+
+  if (!list.length) {
+    tbody.innerHTML = `
+      <tr><td colspan="7">
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block;margin:0 auto"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <p style="margin-top:10px">${currentTab === 'pending' ? 'Không có tài khoản nào đang chờ duyệt' : 'Không có tài khoản nào'}</p>
+        </div>
+      </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(u => {
+    const statusBadge = !u.is_email_verified
+      ? `<span class="badge badge-unverified">Chưa xác minh</span>`
+      : !u.is_approved
+      ? `<span class="badge badge-pending">⏳ Chờ duyệt</span>`
+      : !u.is_active
+      ? `<span class="badge badge-rejected">🔒 Đã khóa</span>`
+      : `<span class="badge badge-approved">✓ Đã duyệt</span>`;
+
+    const roleBadge = `<span class="role-badge role-${u.role}">${u.role}</span>`;
+
+    // Nút hành động tùy trạng thái
+    let actionBtns = '';
+    if (u.is_email_verified && !u.is_approved && u.is_active) {
+      actionBtns += `<button class="btn btn-approve" onclick="approveUser(${u.id},'${escHtml(u.email)}')" style="padding:5px 12px">✓ Duyệt</button>`;
+    }
+    if (u.is_approved) {
+      actionBtns += `<button class="btn btn-reject" onclick="rejectUser(${u.id},'${escHtml(u.email)}')" style="padding:5px 12px">Thu hồi</button>`;
+    }
+    if (u.is_active) {
+      actionBtns += `<button class="btn btn-outline" onclick="setActive(${u.id},false,'${escHtml(u.email)}')" style="padding:5px 10px" title="Khóa tài khoản">🔒</button>`;
+    } else {
+      actionBtns += `<button class="btn btn-outline" onclick="setActive(${u.id},true,'${escHtml(u.email)}')" style="padding:5px 10px" title="Mở khóa">🔓</button>`;
+    }
+    actionBtns += `<button class="btn btn-outline" onclick="openRoleModal(${u.id},'${escHtml(u.full_name)}','${u.role}')" style="padding:5px 10px" title="Đổi role">⚙</button>`;
+
+    const rowClass = (u.is_email_verified && !u.is_approved && u.is_active) ? ' class="pending-row"' : '';
+
+    return `<tr${rowClass}>
+      <td>
+        <div class="emp-cell">
+          <div class="emp-avatar">${(u.full_name || u.email || '?')[0].toUpperCase()}</div>
+          <div>
+            <div style="font-weight:600;font-size:13px">${escHtml(u.full_name)}</div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">${escHtml(u.email)}</div>
+          </div>
+        </div>
+      </td>
+      <td>${roleBadge}</td>
+      <td>${statusBadge}</td>
+      <td>
+        ${u.is_email_verified
+          ? '<span style="color:var(--teal);font-size:12px">✓ Đã xác minh</span>'
+          : '<span style="color:var(--muted);font-size:12px">✗ Chưa xác minh</span>'}
+      </td>
+      <td style="color:var(--muted);font-size:12px">${u.created_at || '—'}</td>
+      <td style="color:var(--muted);font-size:12px">${u.last_login || '—'}</td>
+      <td><div class="actions">${actionBtns}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Approve ───────────────────────────────────────────────────────
+async function approveUser(id, email) {
+  if (!confirm(`Duyệt tài khoản "${email}"?\nUser sẽ nhận email thông báo và có thể đăng nhập ngay.`)) return;
+  await callAction(`/api/users/${id}/approve`, 'POST', `Đã duyệt tài khoản ${email}`);
+}
+
+async function rejectUser(id, email) {
+  if (!confirm(`Thu hồi duyệt tài khoản "${email}"?\nUser sẽ không thể đăng nhập cho đến khi được duyệt lại.`)) return;
+  await callAction(`/api/users/${id}/reject`, 'POST', `Đã thu hồi duyệt ${email}`);
+}
+
+async function setActive(id, active, email) {
+  const action = active ? 'mở khóa' : 'khóa';
+  if (!confirm(`Xác nhận ${action} tài khoản "${email}"?`)) return;
+  await callAction(`/api/users/${id}/active`, 'PUT', `Đã ${action} tài khoản ${email}`, { is_active: active });
+}
+
+async function callAction(url, method, successMsg, body) {
+  try {
+    const token = getToken();
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await authFetch(url, opts);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Lỗi thao tác');
+    showToast(successMsg, 'success');
+    await loadUsers();
+  } catch (e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  }
+}
+
+// ── Role Modal ────────────────────────────────────────────────────
+function openRoleModal(id, name, currentRole) {
+  editingRoleUserId = id;
+  document.getElementById('roleModalDesc').textContent = `Thay đổi role cho "${name}"`;
+  document.getElementById('roleSelect').value = currentRole;
+  document.getElementById('roleModal').classList.add('open');
+}
+function closeRoleModal() {
+  document.getElementById('roleModal').classList.remove('open');
+  editingRoleUserId = null;
+}
+async function saveRole() {
+  const role = document.getElementById('roleSelect').value;
+  if (!editingRoleUserId) return;
+  await callAction(`/api/users/${editingRoleUserId}/role`, 'PUT', `Đã cập nhật role`, { role });
+  closeRoleModal();
+}
+
+// ── Util ──────────────────────────────────────────────────────────
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+<script src="/static/js/toast.js"></script>
+</body>
+</html>
