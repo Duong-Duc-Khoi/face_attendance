@@ -116,7 +116,7 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
     if not user:
         return HTMLResponse(_verify_html("error", "Tài khoản không tồn tại", ""), 400)
     user.is_email_verified = True
-    user.is_active         = True  # Được phép login sau khi admin/manager approve
+    # is_active vẫn giữ False — chờ admin/manager phê duyệt
     consume_token(et, db)
     db.commit()
     return HTMLResponse(_verify_html("success", "Xác minh thành công!",

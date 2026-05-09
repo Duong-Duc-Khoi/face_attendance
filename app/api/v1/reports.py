@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["reports"])
 
 
 @router.get("/attendance")
-def get_attendance(date: str = None, emp_code: str = None, days: int = 1):
+def get_attendance(date: str = None, emp_code: str = None, days: int = 1, current_user=Depends(get_current_user)):
     if date:
         logs = get_logs_by_date(date, emp_code)
     else:
@@ -31,12 +31,12 @@ def get_attendance(date: str = None, emp_code: str = None, days: int = 1):
 
 
 @router.get("/summary")
-def summary_today():
+def summary_today(current_user=Depends(get_current_user)):
     return get_summary_today()
 
 
 @router.get("/summary/range")
-def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db)):
+def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     start = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0,  minute=0)
     end   = datetime.strptime(to_date,   "%Y-%m-%d").replace(hour=23, minute=59)
     logs  = db.query(AttendanceLog).filter(
@@ -69,7 +69,7 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db)):
 
 
 @router.get("/reports/export")
-def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db)):
+def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side

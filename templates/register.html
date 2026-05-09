@@ -145,6 +145,9 @@ html,body{min-height:100vh}
 .conf-label{font-size:9px;font-family:var(--font-mono);color:var(--muted);width:36px;flex-shrink:0}
 .conf-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
 .conf-fill{height:100%;border-radius:2px;transition:width .15s ease,background .2s}
+.hint{font-size:11px;margin-top:3px;min-height:15px}
+.hint.ok{color:var(--teal)}
+.hint.err{color:var(--red)}
 </style>
 </head>
 <body>
@@ -269,10 +272,27 @@ html,body{min-height:100vh}
             <input class="fi" id="empPosition" placeholder="VD: Lập trình viên"></div>
         </div>
         <div class="fr">
-          <div class="fg"><label class="fl">Email</label>
+          <div class="fg"><label class="fl">Email *</label>
             <input class="fi" id="empEmail" type="email" placeholder="email@company.com"></div>
           <div class="fg"><label class="fl">Điện thoại</label>
             <input class="fi" id="empPhone" placeholder="0901234567"></div>
+        </div>
+
+        <div class="fr">
+          <div class="fg"><label class="fl">Mật khẩu *</label>
+            <div class="fi-icon">
+              <input class="fi" id="empPassword" type="password" placeholder="Tối thiểu 8 ký tớ, có số" oninput="checkRegPwd()">
+              <span class="eye" id="eyePwd" onclick="togglePwd('empPassword','eyePwd')">&#128065;</span>
+            </div>
+            <div class="hint" id="pwdHint"></div>
+          </div>
+          <div class="fg"><label class="fl">Xác nhận mật khẩu *</label>
+            <div class="fi-icon">
+              <input class="fi" id="empConfirmPwd" type="password" placeholder="Nhập lại mật khẩu" oninput="checkRegConfirm()">
+              <span class="eye" id="eyeConfirm" onclick="togglePwd('empConfirmPwd','eyeConfirm')">&#128065;</span>
+            </div>
+            <div class="hint" id="confirmHint"></div>
+          </div>
         </div>
 
         <div class="tipbox">
@@ -295,13 +315,18 @@ html,body{min-height:100vh}
       </div>
 
       <div class="sc" id="successCard">
-        <div class="sc-icon">✓</div>
+        <div class="sc-icon">✉</div>
         <div class="sc-name" id="scName">—</div>
-        <div class="sc-sub"  id="scSub">Đã đăng ký thành công</div>
-        <div style="display:flex;gap:9px;justify-content:center;margin-top:20px;flex-wrap:wrap">
+        <div class="sc-sub" id="scSub" style="line-height:1.7;max-width:320px;margin:0 auto">Đăng ký thành công!</div>
+        <div style="margin-top:16px;padding:14px 18px;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:9px;font-size:12px;color:var(--muted);line-height:1.8;max-width:320px;margin-left:auto;margin-right:auto">
+          <div style="font-weight:700;color:var(--teal);margin-bottom:6px">Điều gì xảy ra tiếp theo?</div>
+          <div>1️⃣ Kiểm tra email — click link xác minh</div>
+          <div>2️⃣ Chờ admin/manager phê duyệt</div>
+          <div>3️⃣ Đăng nhập được sau khi được duyệt</div>
+        </div>
+        <div style="display:flex;gap:9px;justify-content:center;margin-top:18px;flex-wrap:wrap">
           <button class="btn btn-t" onclick="resetAll()">Đăng ký tiếp</button>
           <a href="/" class="btn btn-o">Về kiosk</a>
-          <a href="/dashboard" class="btn btn-o">Dashboard</a>
         </div>
       </div>
     </div>
@@ -818,23 +843,55 @@ function setStep(n){
 }
 
 // ── Submit ──
+function togglePwd(id, eyeId) {
+  const f = document.getElementById(id);
+  f.type = f.type === 'password' ? 'text' : 'password';
+  document.getElementById(eyeId).textContent = f.type === 'password' ? '👁' : '🙈';
+}
+
+function checkRegPwd() {
+  const v = document.getElementById('empPassword').value;
+  const hint = document.getElementById('pwdHint');
+  const hasLen = v.length >= 8, hasNum = /\d/.test(v);
+  if (!v) { hint.textContent = ''; hint.className = 'hint'; return; }
+  if (hasLen && hasNum) { hint.className = 'hint ok'; hint.textContent = '✓ Mật khẩu hợp lệ'; }
+  else { hint.className = 'hint err'; hint.textContent = '⚠ Cần ít nhất 8 ký tự và 1 chữ số'; }
+  checkRegConfirm();
+}
+
+function checkRegConfirm() {
+  const p = document.getElementById('empPassword').value;
+  const c = document.getElementById('empConfirmPwd').value;
+  const hint = document.getElementById('confirmHint');
+  if (!c) { hint.textContent = ''; hint.className = 'hint'; return; }
+  if (p === c) { hint.className = 'hint ok'; hint.textContent = '✓ Mật khẩu khớp'; }
+  else { hint.className = 'hint err'; hint.textContent = '⚠ Chưa khớp'; }
+}
+
 async function submitRegister(){
   const empCode=document.getElementById('empCode').value.trim();
   const empName=document.getElementById('empName').value.trim();
+  const empEmail=document.getElementById('empEmail').value.trim();
+  const empPassword=document.getElementById('empPassword').value;
+  const empConfirmPwd=document.getElementById('empConfirmPwd').value;
   if(!empCode||!empName){showToast('Vui lòng nhập mã NV và họ tên','error');return;}
+  if(!empEmail){showToast('Vui lòng nhập email','error');return;}
+  if(!empPassword||empPassword.length<8||!/\d/.test(empPassword)){showToast('Mật khẩu cần ít nhất 8 ký tự và 1 chữ số','error');return;}
+  if(empPassword!==empConfirmPwd){showToast('Mật khẩu xác nhận không khớp','error');return;}
   const frames=Object.values(captured);
   if(frames.length<3){showToast('Cần chụp ít nhất 3 góc','error');return;}
   const btn=document.getElementById('btnSubmit');
   btn.innerHTML='<div class="spinner"></div> Đang xử lý...';btn.disabled=true;
   try{
-    const res=await fetch('/api/employees/register-from-camera',{
+    const res=await fetch('/api/employees/self-register',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         emp_code:empCode,name:empName,
         department:document.getElementById('empDept').value.trim(),
         position:document.getElementById('empPosition').value.trim(),
-        email:document.getElementById('empEmail').value.trim(),
+        email:empEmail,
         phone:document.getElementById('empPhone').value.trim(),
+        password:empPassword,
         frames
       })
     });
@@ -845,10 +902,9 @@ async function submitRegister(){
     document.getElementById('formBody').style.display='none';
     document.getElementById('successCard').style.display='block';
     document.getElementById('scName').textContent=empName;
-    document.getElementById('scSub').textContent=`Mã: ${empCode} — ${frames.length} góc — ${data.message||'Thành công'}`;
+    document.getElementById('scSub').textContent=data.message||'Đăng ký thành công!';
     showToast('Đăng ký thành công!','success');
   }catch(e){btn.textContent='✦ Đăng ký nhân viên';btn.disabled=false;showToast('Lỗi: '+e.message,'error');}
-}
 
 // ── Reset ──
 function resetAll(){
@@ -873,7 +929,7 @@ function resetAll(){
   mctx.clearRect(0,0,meshCanvas.width,meshCanvas.height);
   zctx.clearRect(0,0,zoneCanvas.width,zoneCanvas.height);
   setArrows([]);
-  ['empCode','empName','empDept','empPosition','empEmail','empPhone'].forEach(id=>document.getElementById(id).value='');
+  ['empCode','empName','empDept','empPosition','empEmail','empPhone','empPassword','empConfirmPwd'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('formBody').style.display='';document.getElementById('successCard').style.display='none';
   buildCards();setStep(1);
 }

@@ -32,6 +32,7 @@ from app.services.attendance import get_summary_today
 from app.services.notify import notify_daily_report_async
 from app.api.v1 import employees, reports
 from app.api.v1.auth import router as auth_router
+from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
 
 scheduler = AsyncIOScheduler()
@@ -82,6 +83,7 @@ templates = Jinja2Templates(directory="templates")
 
 # Routers
 app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(employees.router)
 app.include_router(reports.router)
 
@@ -90,11 +92,6 @@ app.include_router(reports.router)
 @app.get("/auth/login-page")
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
-
-@app.get("/auth/register-page")
-async def register_page(request: Request):
-    return templates.TemplateResponse("user_register.html", {"request": request})
-
 
 # ── HTML pages ───────────────────────────────────────────────────
 @app.get("/")
@@ -114,6 +111,9 @@ async def dashboard_page(request: Request):
 async def report_page(request: Request):
     return templates.TemplateResponse("reports.html", {"request": request})
 
+@app.get("/users")
+async def users_page(request: Request):
+    return templates.TemplateResponse("users.html", {"request": request})
 
 # ── Camera stream ────────────────────────────────────────────────
 def _placeholder_mjpeg():

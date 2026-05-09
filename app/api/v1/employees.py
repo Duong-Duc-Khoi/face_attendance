@@ -16,7 +16,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.employee import Employee
+from app.models.user import User
 from app.services.face_engine import face_engine
+from app.core.security import hash_password, get_current_user
+from app.services.auth_service import create_verify_token, send_verification_email
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
@@ -39,7 +42,11 @@ def _emp_dict(e: Employee) -> dict:
 
 # ── GET /api/employees ───────────────────────────────────────────
 @router.get("")
-def list_employees(active_only: bool = True, db: Session = Depends(get_db)):
+def list_employees(
+    active_only: bool = True,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     q = db.query(Employee)
     if active_only:
         q = q.filter_by(is_active=True)
@@ -48,7 +55,11 @@ def list_employees(active_only: bool = True, db: Session = Depends(get_db)):
 
 # ── GET /api/employees/{id} ──────────────────────────────────────
 @router.get("/{emp_id}")
-def get_employee(emp_id: int, db: Session = Depends(get_db)):
+def get_employee(
+    emp_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     emp = db.query(Employee).filter_by(id=emp_id).first()
     if not emp:
         raise HTTPException(404, "Nhân viên không tồn tại")
@@ -66,6 +77,7 @@ async def create_employee(
     phone:      str              = Form(""),
     images:     list[UploadFile] = File(...),
     db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     if db.query(Employee).filter_by(emp_code=emp_code).first():
         raise HTTPException(400, f"Mã nhân viên '{emp_code}' đã tồn tại")
@@ -97,7 +109,7 @@ async def create_employee(
 
 # ── POST /api/employees/register-from-camera ─────────────────────
 @router.post("/register-from-camera")
-async def register_from_camera(payload: dict, db: Session = Depends(get_db)):
+async def register_from_camera(payload: dict, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     emp_code = payload.get("emp_code", "").strip()
     name     = payload.get("name", "").strip()
     frames   = payload.get("frames", [])
@@ -137,9 +149,93 @@ async def register_from_camera(payload: dict, db: Session = Depends(get_db)):
     return {"success": True, "employee": _emp_dict(emp), "message": result["message"]}
 
 
-# ── PUT /api/employees/{id} ──────────────────────────────────────
+# ── POST /api/employees/self-register ────────────────────────────
+# NV tự đăng ký: điền form + chụp mặt → tạo Employee + User → gửi xác minh email
+@router.post("/self-register")
+async def self_register(payload: dict, db: Session = Depends(get_db)):
+    emp_code = payload.get("emp_code", "").strip()
+    name     = payload.get("name", "").strip()
+    email    = payload.get("email", "").strip()
+    password = payload.get("password", "")
+    frames   = payload.get("frames", [])
+
+    # ── Validate ──────────────────────────────────────────────────
+    if not emp_code or not name:
+        raise HTTPException(400, "Thiếu mã nhân viên hoặc tên")
+    if not email:
+        raise HTTPException(400, "Email là bắt buộc để tạo tài khoản")
+    if not password or len(password) < 8:
+        raise HTTPException(400, "Mật khẩu cần ít nhất 8 ký tự")
+    if not any(c.isdigit() for c in password):
+        raise HTTPException(400, "Mật khẩu cần có ít nhất 1 chữ số")
+    if not frames:
+        raise HTTPException(400, "Không có ảnh khuôn mặt nào")
+
+    # ── Kiểm tra trùng lặp ───────────────────────────────────────
+    if db.query(Employee).filter_by(emp_code=emp_code).first():
+        raise HTTPException(400, f"Mã nhân viên '{emp_code}' đã tồn tại")
+    if db.query(User).filter_by(email=email).first():
+        raise HTTPException(400, "Email này đã được đăng ký")
+
+    # ── Xử lý ảnh khuôn mặt ─────────────────────────────────────
+    import base64
+    cv_images = []
+    for b64 in frames:
+        try:
+            img_bytes = base64.b64decode(b64.split(",")[-1])
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is not None:
+                cv_images.append(img)
+        except Exception:
+            continue
+
+    if not cv_images:
+        raise HTTPException(400, "Không có ảnh hợp lệ")
+
+    # ── Đăng ký face vector ───────────────────────────────────────
+    result = face_engine.register(emp_code, cv_images)
+    if not result["success"]:
+        raise HTTPException(400, result["message"])
+
+    # ── Tạo Employee ──────────────────────────────────────────────
+    emp = Employee(
+        emp_code   = emp_code,
+        name       = name,
+        department = payload.get("department", ""),
+        position   = payload.get("position", ""),
+        email      = email,
+        phone      = payload.get("phone", ""),
+        face_path  = f"data/faces/{emp_code}",
+        avatar_url = f"/data/faces/{emp_code}/0.jpg",
+    )
+    db.add(emp)
+
+    # ── Tạo User (chưa active, chưa duyệt) ───────────────────────
+    user = User(
+        email             = email,
+        full_name         = name,
+        hashed_password   = hash_password(password),
+        role              = "staff",
+        is_active         = False,
+        is_email_verified = False,
+        is_approved       = False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # ── Gửi email xác minh ────────────────────────────────────────
+    token = create_verify_token(user.id, db)
+    send_verification_email(user.email, user.full_name, token)
+
+    return {
+        "success": True,
+        "message": "Đăng ký thành công! Kiểm tra email để xác minh tài khoản. Sau khi xác minh, tài khoản sẽ chờ admin/manager phê duyệt.",
+        "employee": _emp_dict(emp),
+    }
 @router.put("/{emp_id}")
-def update_employee(emp_id: int, data: dict, db: Session = Depends(get_db)):
+def update_employee(emp_id: int, data: dict, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     emp = db.query(Employee).filter_by(id=emp_id).first()
     if not emp:
         raise HTTPException(404, "Nhân viên không tồn tại")
@@ -153,7 +249,7 @@ def update_employee(emp_id: int, data: dict, db: Session = Depends(get_db)):
 
 # ── DELETE /api/employees/{id} ───────────────────────────────────
 @router.delete("/{emp_id}")
-def delete_employee(emp_id: int, hard: bool = False, db: Session = Depends(get_db)):
+def delete_employee(emp_id: int, hard: bool = False, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     emp = db.query(Employee).filter_by(id=emp_id).first()
     if not emp:
         raise HTTPException(404, "Nhân viên không tồn tại")
