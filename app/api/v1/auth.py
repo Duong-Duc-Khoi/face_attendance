@@ -98,11 +98,19 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(user); db.commit(); db.refresh(user)
     token = create_verify_token(user.id, db)
-    send_verification_email(user.email, user.full_name, token)
+    email_sent = send_verification_email(user.email, user.full_name, token)
+    if not email_sent:
+        db.query(EmailToken).filter_by(user_id=user.id).delete()
+        db.delete(user)
+        db.commit()
+        raise HTTPException(
+            status_code=500,
+            detail="Không thể gửi email xác minh. Vui lòng kiểm tra cấu hình SMTP hoặc thử lại sau.",
+         )
     return {
         "success": True,
         "message": "Đăng ký thành công! Kiểm tra email để xác minh tài khoản.",
-    }
+     }
 
 
 # ── GET /auth/verify-email ───────────────────────────────────────

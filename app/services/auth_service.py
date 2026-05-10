@@ -103,7 +103,7 @@ def _send_email(to: str, subject: str, html: str) -> bool:
         return False
 
 
-def send_verification_email(to: str, full_name: str, token: str):
+def send_verification_email(to: str, full_name: str, token: str)-> bool:
     link = f"{settings.BASE_URL}/auth/verify-email?token={token}"
     name = full_name or to
     html = f"""
@@ -131,7 +131,7 @@ def send_verification_email(to: str, full_name: str, token: str):
         </p>
       </div>
     </div>"""
-    _send_email(to, f"[{settings.APP_NAME}] Xác minh email tài khoản", html)
+    return _send_email(to, f"[{settings.APP_NAME}] Xác minh email tài khoản", html)
 
 
 def send_login_otp_email(to: str, full_name: str, otp: str):
