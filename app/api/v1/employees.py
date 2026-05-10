@@ -43,15 +43,23 @@ def _emp_dict(e: Employee) -> dict:
 # ── GET /api/employees ───────────────────────────────────────────
 @router.get("")
 def list_employees(
-    active_only: bool = True,
+    active_only: bool = False,
+    inactive_only: bool = False,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    """
+    Lấy danh sách nhân viên.
+    - active_only=true:   chỉ nhân viên đang làm việc (is_active=True)
+    - inactive_only=true: chỉ nhân viên đã nghỉ (is_active=False)
+    - không truyền gì:    tất cả nhân viên
+    """
     q = db.query(Employee)
     if active_only:
         q = q.filter_by(is_active=True)
+    elif inactive_only:
+        q = q.filter_by(is_active=False)
     return [_emp_dict(e) for e in q.order_by(Employee.name).all()]
-
 
 # ── GET /api/employees/{id} ──────────────────────────────────────
 @router.get("/{emp_id}")
@@ -243,6 +251,8 @@ def update_employee(emp_id: int, data: dict, db: Session = Depends(get_db), curr
     for field, val in data.items():
         if field in allowed and val is not None:
             setattr(emp, field, val)
+    if "is_active" in data:
+        emp.deactivated_at = None if data["is_active"] else datetime.now()
     db.commit(); db.refresh(emp)
     return {"success": True, "employee": _emp_dict(emp)}
 

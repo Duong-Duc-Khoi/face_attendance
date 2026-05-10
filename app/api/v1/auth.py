@@ -93,7 +93,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         full_name       = req.full_name,
         hashed_password = hash_password(req.password),
         role            = req.role,
-        is_active       = False,
+        is_active       = True, 
         is_email_verified = False,
     )
     db.add(user); db.commit(); db.refresh(user)

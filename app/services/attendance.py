@@ -2,7 +2,7 @@
 app/services/attendance.py
 Business logic chấm công: xử lý sự kiện, tính trạng thái, query helpers.
 """
-
+from sqlalchemy import or_
 from datetime import datetime, timedelta
 
 from app.core.config import settings
@@ -118,13 +118,19 @@ def get_summary_today() -> dict:
         logs  = db.query(AttendanceLog).filter(AttendanceLog.timestamp >= start).all()
         checked_in  = {l.emp_code for l in logs if l.check_type == "check_in"}
         checked_out = {l.emp_code for l in logs if l.check_type == "check_out"}
-        total_emp   = db.query(Employee).filter_by(is_active=True).count()
+        total_emp = db.query(Employee).filter(
+            or_(
+                Employee.is_active == True,
+                Employee.deactivated_at >= today_start,
+            )
+        ).count()
+
         return {
             "date":        now.strftime("%d/%m/%Y"),
             "total_emp":   total_emp,
             "checked_in":  len(checked_in),
             "checked_out": len(checked_out),
-            "absent":      total_emp - len(checked_in),
+            "absent":      max(0, total_emp - len(checked_in)),
             "total_logs":  len(logs),
         }
     finally:
