@@ -11,6 +11,53 @@
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
 .panel-body{padding:0}
+.dash-tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
+.dash-tab{flex:1;position:relative;padding:9px 12px;border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.05em;cursor:pointer;border-radius:7px;transition:all .2s;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px}
+.dash-tab.active{background:var(--teal);color:#000}
+.dash-tab:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
+.tab-badge{background:#ff4d6a;color:#fff;border-radius:999px;font-size:9px;font-weight:700;padding:1px 5px;line-height:14px;min-width:14px;text-align:center;display:none}
+.tab-badge.show{display:inline-block}
+.dash-tab-content{display:none}.dash-tab-content.active{display:block}
+/* Leave panel */
+.lv-table{width:100%;border-collapse:collapse;font-size:12px}
+.lv-table th{text-align:left;padding:8px 12px;font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.lv-table td{padding:9px 12px;border-bottom:1px solid rgba(26,47,80,.4);color:var(--text)}
+.lv-table tr:last-child td{border-bottom:none}
+.lv-table tr:hover td{background:rgba(255,255,255,.02)}
+.lv-status{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.ls-pending{background:rgba(246,201,14,.1);border:1px solid rgba(246,201,14,.3);color:#f6c90e}
+.ls-approved{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
+.ls-rejected{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--red)}
+.ls-cancelled{background:rgba(90,122,154,.1);border:1px solid rgba(90,122,154,.2);color:var(--muted)}
+/* Calendar mgmt */
+.cal-grid-m{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:10px}
+.cal-dow-m{text-align:center;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:4px 0}
+.cal-day-m{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:11px;cursor:pointer;transition:all .15s;border:1px solid transparent;user-select:none;gap:1px}
+.cal-day-m:hover{border-color:var(--teal);background:rgba(0,212,170,.06)}
+.cal-day-m.today{border-color:var(--teal)!important}
+.cal-day-m.dt-full{color:var(--teal)}.cal-day-m.dt-half_am,.cal-day-m.dt-half_pm{color:var(--blue)}
+.cal-day-m.dt-off{color:rgba(90,122,154,.4)}.cal-day-m.dt-holiday{color:#f6c90e;background:rgba(246,201,14,.06)}
+.cal-day-m.dt-overtime{color:#a78bfa;background:rgba(167,139,250,.06)}
+.cal-day-m .day-lbl{font-size:7px;text-align:center;line-height:1.1;opacity:.8}
+.cal-day-m.empty-slot{opacity:0;pointer-events:none}
+/* Day type picker */
+.dtype-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dtype-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font-sans);background:none;color:var(--muted);transition:all .15s}
+.dtype-btn:hover{border-color:var(--teal);color:var(--teal)}
+.dtype-btn.active{background:var(--teal);color:#000;border-color:var(--teal);font-weight:700}
+/* Config form */
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cfg-group{display:flex;flex-direction:column;gap:4px}
+.cfg-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase}
+.cfg-input{background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:12px;padding:8px 12px;border-radius:7px;outline:none;transition:border-color .2s}
+.cfg-input:focus{border-color:var(--teal)}
+.btn-save{padding:8px 20px;border-radius:7px;background:var(--teal);color:#000;font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em}
+.btn-save:hover{background:#00f0c0}
+/* Emp stats modal */
+.stat-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.sdg-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.sdg-num{font-family:var(--font-mono);font-size:20px;font-weight:700}
+.sdg-lbl{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
 </style>
 <script src="/static/js/auth-guard.js"></script>
 </head>
@@ -32,6 +79,18 @@
 </header>
 
 <div class="page">
+  <!-- Dashboard Tabs -->
+  <div class="dash-tabs">
+    <button class="dash-tab active" onclick="switchDashTab('tab-overview',this)">📊 Tổng quan</button>
+    <button class="dash-tab" onclick="switchDashTab('tab-leave',this)">
+      ✉ Duyệt nghỉ phép
+      <span class="tab-badge" id="leaveBadge">0</span>
+    </button>
+    <button class="dash-tab" onclick="switchDashTab('tab-calendar',this)">📅 Lịch làm việc</button>
+  </div>
+
+  <!-- TAB: Overview -->
+  <div class="dash-tab-content active" id="tab-overview">
   <!-- Stats -->
   <div class="stats-row" id="statsRow">
     <div class="stat-card">
@@ -107,6 +166,138 @@
   </div>
 </div>
 
+  </div><!-- /tab-overview -->
+
+  <!-- TAB: Duyệt nghỉ phép -->
+  <div class="dash-tab-content" id="tab-leave">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Đơn chờ duyệt</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="lvFilterType" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
+            <option value="">Tất cả loại</option>
+            <option value="leave">Nghỉ phép</option>
+            <option value="remote">Remote</option>
+          </select>
+          <select id="lvFilterStatus" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
+            <option value="pending">Chờ duyệt</option>
+            <option value="">Tất cả</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="rejected">Từ chối</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="lv-table">
+          <thead><tr>
+            <th>Nhân viên</th><th>Loại</th><th>Ngày</th><th>Tổng</th>
+            <th>Lý do</th><th>Gửi lúc</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th>
+          </tr></thead>
+          <tbody id="leaveTableBody"><tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Quản lý lịch làm việc -->
+  <div class="dash-tab-content" id="tab-calendar">
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
+      <!-- Calendar view -->
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">
+          <button onclick="calMgmtNav(-1)" style="background:none;border:1px solid var(--border);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:grid;place-items:center">&#8249;</button>
+          <span id="calMgmtLabel" style="font-size:13px;font-weight:700;color:var(--text)">—</span>
+          <button onclick="calMgmtNav(1)" style="background:none;border:1px solid var(--border);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:grid;place-items:center">&#8250;</button>
+        </div>
+        <div id="calMgmtBody"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;padding:6px 14px 12px;font-size:10px;color:var(--muted)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--teal);display:inline-block"></span>Cả ngày</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block"></span>Nửa ngày</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f6c90e;display:inline-block"></span>Ngày lễ</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block"></span>Tăng ca</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:rgba(90,122,154,.4);display:inline-block"></span>Nghỉ</span>
+        </div>
+      </div>
+
+      <!-- Right: Day editor + Config -->
+      <div>
+        <!-- Edit day panel -->
+        <div class="panel" id="editDayPanel">
+          <div class="panel-header"><div class="panel-header-left"><span class="dot"></span> <span id="editDayTitle">Chọn ngày để chỉnh sửa</span></div></div>
+          <div style="padding:14px">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px">Loại ngày</div>
+            <div class="dtype-picker">
+              <button class="dtype-btn active" data-dt="full" onclick="selectDayType(this,'full')">Cả ngày</button>
+              <button class="dtype-btn" data-dt="half_am" onclick="selectDayType(this,'half_am')">Buổi sáng</button>
+              <button class="dtype-btn" data-dt="half_pm" onclick="selectDayType(this,'half_pm')">Buổi chiều</button>
+              <button class="dtype-btn" data-dt="off" onclick="selectDayType(this,'off')">Nghỉ</button>
+              <button class="dtype-btn" data-dt="holiday" onclick="selectDayType(this,'holiday')">Ngày lễ</button>
+              <button class="dtype-btn" data-dt="overtime" onclick="selectDayType(this,'overtime')">Tăng ca</button>
+            </div>
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div class="cfg-group">
+                <label class="cfg-label">Giờ vào (override)</label>
+                <input class="cfg-input" id="editDayStart" type="time" placeholder="08:00">
+              </div>
+              <div class="cfg-group">
+                <label class="cfg-label">Giờ tan (override)</label>
+                <input class="cfg-input" id="editDayEnd" type="time" placeholder="17:00">
+              </div>
+            </div>
+            <div class="cfg-group" style="margin-top:10px">
+              <label class="cfg-label">Nhãn hiển thị</label>
+              <input class="cfg-input" id="editDayLabel" placeholder="VD: Tết Nguyên Đán, Làm bù...">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn-save" id="btnSaveDay" onclick="saveDayOverride()" style="flex:1">Lưu ngày này</button>
+              <button onclick="deleteDayOverride()" style="flex:1;padding:8px;border-radius:7px;background:none;border:1px solid rgba(255,77,106,.3);color:var(--red);font-size:12px;font-weight:700;cursor:pointer">Xóa override</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Default config -->
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-header"><div class="panel-header-left"><span class="dot"></span> Cấu hình mặc định</div></div>
+          <div style="padding:14px">
+            <div class="cfg-grid">
+              <div class="cfg-group" style="grid-column:1/-1">
+                <label class="cfg-label">Ngày làm việc trong tuần</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="workDaysPicker">
+                  <button class="dtype-btn" data-wd="1" onclick="toggleWorkDay(this)">T2</button>
+                  <button class="dtype-btn" data-wd="2" onclick="toggleWorkDay(this)">T3</button>
+                  <button class="dtype-btn" data-wd="3" onclick="toggleWorkDay(this)">T4</button>
+                  <button class="dtype-btn" data-wd="4" onclick="toggleWorkDay(this)">T5</button>
+                  <button class="dtype-btn" data-wd="5" onclick="toggleWorkDay(this)">T6</button>
+                  <button class="dtype-btn" data-wd="6" onclick="toggleWorkDay(this)">T7</button>
+                  <button class="dtype-btn" data-wd="7" onclick="toggleWorkDay(this)">CN</button>
+                </div>
+              </div>
+              <div class="cfg-group">
+                <label class="cfg-label">Giờ vào làm</label>
+                <input class="cfg-input" id="cfgStart" type="time">
+              </div>
+              <div class="cfg-group">
+                <label class="cfg-label">Giờ tan làm</label>
+                <input class="cfg-input" id="cfgEnd" type="time">
+              </div>
+              <div class="cfg-group">
+                <label class="cfg-label">Ngưỡng đi muộn (phút)</label>
+                <input class="cfg-input" id="cfgLate" type="number" min="0" max="60">
+              </div>
+              <div class="cfg-group">
+                <label class="cfg-label">Mốc sáng/chiều</label>
+                <input class="cfg-input" id="cfgHalfCutoff" type="time">
+              </div>
+            </div>
+            <div style="margin-top:14px;display:flex;justify-content:flex-end">
+              <button class="btn-save" onclick="saveConfig()">Lưu cấu hình</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <!-- Modal: Add/Edit employee -->
 <div class="modal-overlay" id="empModal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
@@ -160,6 +351,7 @@
   </div>
 </div>
 
+</div><!-- /page -->
 <div id="toast"></div>
 
 <script>
@@ -354,6 +546,277 @@ async function deleteEmployee(id,name){
 
 // Auto reload summary every 30s
 setInterval(loadSummary,30000);
+// ── Dashboard tabs ──
+function switchDashTab(id, btn) {
+  document.querySelectorAll('.dash-tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'tab-leave') loadLeaveRequests();
+  if (id === 'tab-calendar') { loadConfig(); renderCalMgmt(); }
+}
+
+// ── Leave management ──
+let leaveRequests = [];
+async function loadLeaveRequests() {
+  const status = document.getElementById('lvFilterStatus').value;
+  const rtype  = document.getElementById('lvFilterType').value;
+  const url = `/api/leave?status=${status}&request_type=${rtype}`;
+  try {
+    const r = await authFetch(url);
+    leaveRequests = await r.json();
+    renderLeaveTable();
+    // Update badge
+    const pendingCount = leaveRequests.filter(l => l.status === 'pending').length;
+    const badge = document.getElementById('leaveBadge');
+    badge.textContent = pendingCount;
+    badge.classList.toggle('show', pendingCount > 0);
+  } catch(e) { showToast('Lỗi tải đơn nghỉ', 'error'); }
+}
+
+function renderLeaveTable() {
+  const tbody = document.getElementById('leaveTableBody');
+  if (!leaveRequests.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Không có đơn nào</td></tr>';
+    return;
+  }
+  const smap = { pending:'ls-pending|⏳ Chờ duyệt', approved:'ls-approved|✓ Đã duyệt',
+    rejected:'ls-rejected|✕ Từ chối', cancelled:'ls-cancelled|— Đã hủy' };
+  const rtypeLabel = { leave:'📅 Nghỉ phép', remote:'🏠 Remote' };
+
+  tbody.innerHTML = leaveRequests.map(l => {
+    const [scls, stxt] = (smap[l.status] || 'ls-cancelled|?').split('|');
+    const dates = l.dates.map(d => {
+      let s = d.date; if (d.half === 'am') s += '(S)'; else if (d.half === 'pm') s += '(C)'; return s;
+    }).join(', ');
+    const isPending = l.status === 'pending';
+    return `<tr>
+      <td><div style="font-weight:600;font-size:12px">${l.emp_name}<br><span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.emp_code}</span></div></td>
+      <td>${rtypeLabel[l.request_type] || l.request_type}</td>
+      <td style="font-family:var(--font-mono);font-size:10px">${dates}</td>
+      <td style="text-align:center;font-family:var(--font-mono)">${l.total_days}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:140px">${l.reason || '—'}</td>
+      <td style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.submitted_at ? l.submitted_at.slice(0,16).replace('T',' ') : '—'}</td>
+      <td><span class="lv-status ${scls}">${stxt}</span></td>
+      <td style="text-align:right">
+        ${isPending ? `
+          <div style="display:flex;gap:5px;justify-content:flex-end">
+            <button onclick="approveLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">✓ Duyệt</button>
+            <button onclick="rejectLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.3);color:var(--red);font-size:11px;cursor:pointer;font-weight:700">✕ Từ chối</button>
+          </div>` : (l.note ? `<span style="font-size:10px;color:var(--muted)">${l.note}</span>` : '—')}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function approveLeave(id) {
+  const note = prompt('Ghi chú khi duyệt (có thể để trống):') || '';
+  try {
+    const r = await authFetch(`/api/leave/${id}/approve`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ note })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
+    showToast('Đã duyệt đơn', 'success');
+    await loadLeaveRequests();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+async function rejectLeave(id) {
+  const note = prompt('Lý do từ chối *:');
+  if (!note || !note.trim()) { showToast('Vui lòng nhập lý do từ chối', 'error'); return; }
+  try {
+    const r = await authFetch(`/api/leave/${id}/reject`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ note })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
+    showToast('Đã từ chối đơn', 'success');
+    await loadLeaveRequests();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+// Poll pending count every 60s
+setInterval(async () => {
+  try {
+    const r = await authFetch('/api/leave/pending-count');
+    const d = await r.json();
+    const badge = document.getElementById('leaveBadge');
+    if (d.count > 0) { badge.textContent = d.count; badge.classList.add('show'); }
+    else badge.classList.remove('show');
+  } catch {}
+}, 60000);
+
+// ── Calendar management ──
+let calMgmtYear = new Date().getFullYear();
+let calMgmtMonth = new Date().getMonth() + 1;
+let calMgmtCache = {};
+let editingDate = null;
+let editingDayType = 'full';
+const mnN = ['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+
+function calMgmtNav(dir) {
+  calMgmtMonth += dir;
+  if (calMgmtMonth > 12) { calMgmtMonth = 1; calMgmtYear++; }
+  if (calMgmtMonth < 1)  { calMgmtMonth = 12; calMgmtYear--; }
+  renderCalMgmt();
+}
+
+async function renderCalMgmt() {
+  document.getElementById('calMgmtLabel').textContent = `${mnN[calMgmtMonth]} ${calMgmtYear}`;
+  const body = document.getElementById('calMgmtBody');
+  body.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:12px"><div class="spinner" style="margin:0 auto;width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--teal);animation:spin .7s linear infinite"></div></div>';
+  try {
+    const key = `${calMgmtYear}-${calMgmtMonth}`;
+    delete calMgmtCache[key]; // always fresh
+    const r = await authFetch(`/api/calendar?year=${calMgmtYear}&month=${calMgmtMonth}`);
+    const d = await r.json();
+    calMgmtCache[key] = d.days || [];
+    renderCalMgmtGrid(calMgmtCache[key]);
+  } catch { body.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">Lỗi tải lịch</div>'; }
+}
+
+function renderCalMgmtGrid(calDays) {
+  const body = document.getElementById('calMgmtBody');
+  const firstDay = new Date(calMgmtYear, calMgmtMonth-1, 1).getDay();
+  const daysInMonth = new Date(calMgmtYear, calMgmtMonth, 0).getDate();
+  const todayStr = new Date().toISOString().slice(0,10);
+  const dtCol = { full:'var(--teal)', half_am:'var(--blue)', half_pm:'var(--blue)',
+    off:'rgba(90,122,154,.4)', holiday:'#f6c90e', overtime:'#a78bfa' };
+
+  let html = `<div class="cal-grid-m">
+    <div class="cal-dow-m">CN</div><div class="cal-dow-m">T2</div><div class="cal-dow-m">T3</div>
+    <div class="cal-dow-m">T4</div><div class="cal-dow-m">T5</div><div class="cal-dow-m">T6</div>
+    <div class="cal-dow-m">T7</div>`;
+
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day-m empty-slot"></div>';
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = `${calMgmtYear}-${String(calMgmtMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const cal = calDays.find(c => c.date === ds) || { day_type: 'full', label: '' };
+    const col = dtCol[cal.day_type] || 'var(--muted)';
+    const isToday = ds === todayStr;
+    const isEditing = ds === editingDate;
+    const tip = cal.label ? `title="${cal.label}"` : '';
+    html += `<div class="cal-day-m dt-${cal.day_type}${isToday?' today':''}${isEditing?' today':''}"
+      style="border-color:${isEditing?'var(--teal)':'transparent'};background:${isEditing?'rgba(0,212,170,.1)':''}"
+      onclick="selectDay('${ds}','${cal.day_type}','${cal.work_start||''}','${cal.work_end||''}','${(cal.label||'').replace(/'/g,'')}')" ${tip}>
+      <span style="color:${col}">${day}</span>
+      ${cal.label ? `<span class="day-lbl" style="color:${col}">${cal.label.slice(0,8)}</span>` : ''}
+      ${cal.is_override ? '<span style="position:absolute;top:1px;right:2px;width:4px;height:4px;border-radius:50%;background:var(--teal)"></span>' : ''}
+    </div>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+function selectDay(ds, dtype, wstart, wend, label) {
+  editingDate = ds;
+  editingDayType = dtype;
+  const d = new Date(ds);
+  document.getElementById('editDayTitle').textContent =
+    `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+  document.getElementById('editDayStart').value = wstart || '';
+  document.getElementById('editDayEnd').value   = wend   || '';
+  document.getElementById('editDayLabel').value  = label  || '';
+  document.querySelectorAll('.dtype-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dt === dtype);
+  });
+  // Re-render to highlight selected day
+  const key = `${calMgmtYear}-${calMgmtMonth}`;
+  if (calMgmtCache[key]) renderCalMgmtGrid(calMgmtCache[key]);
+}
+
+function selectDayType(btn, dtype) {
+  editingDayType = dtype;
+  document.querySelectorAll('.dtype-btn[data-dt]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function saveDayOverride() {
+  if (!editingDate) { showToast('Chọn ngày trước', 'error'); return; }
+  const payload = {
+    date:       editingDate,
+    day_type:   editingDayType,
+    work_start: document.getElementById('editDayStart').value || null,
+    work_end:   document.getElementById('editDayEnd').value   || null,
+    label:      document.getElementById('editDayLabel').value,
+  };
+  try {
+    const r = await authFetch('/api/calendar/day', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
+    showToast('Đã lưu lịch ngày ' + editingDate, 'success');
+    renderCalMgmt();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+async function deleteDayOverride() {
+  if (!editingDate) { showToast('Chọn ngày trước', 'error'); return; }
+  if (!confirm(`Xóa cài đặt đặc biệt ngày ${editingDate}?`)) return;
+  try {
+    const r = await authFetch(`/api/calendar/day/${editingDate}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
+    showToast('Đã xóa override, về mặc định', 'success');
+    renderCalMgmt();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+// ── Config ──
+async function loadConfig() {
+  try {
+    const r = await authFetch('/api/calendar/config');
+    const d = await r.json();
+    document.getElementById('cfgStart').value       = d.work_start || '08:00';
+    document.getElementById('cfgEnd').value         = d.work_end   || '17:00';
+    document.getElementById('cfgLate').value        = d.late_threshold_minutes || 15;
+    document.getElementById('cfgHalfCutoff').value  = d.half_day_cutoff || '12:00';
+    // Work days picker
+    const days = (d.work_days || '1,2,3,4,5').split(',').map(Number);
+    document.querySelectorAll('#workDaysPicker .dtype-btn').forEach(b => {
+      b.classList.toggle('active', days.includes(Number(b.dataset.wd)));
+    });
+  } catch {}
+}
+
+function toggleWorkDay(btn) {
+  btn.classList.toggle('active');
+}
+
+async function saveConfig() {
+  const days = [...document.querySelectorAll('#workDaysPicker .dtype-btn.active')]
+    .map(b => b.dataset.wd).join(',');
+  const payload = {
+    work_days:              days || '1,2,3,4,5',
+    work_start:             document.getElementById('cfgStart').value,
+    work_end:               document.getElementById('cfgEnd').value,
+    late_threshold_minutes: parseInt(document.getElementById('cfgLate').value) || 15,
+    half_day_cutoff:        document.getElementById('cfgHalfCutoff').value,
+  };
+  try {
+    const r = await authFetch('/api/calendar/config', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
+    showToast('Đã lưu cấu hình', 'success');
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+// Load pending count on page load
+(async () => {
+  try {
+    const r = await authFetch('/api/leave/pending-count');
+    const d = await r.json();
+    if (d.count > 0) {
+      const badge = document.getElementById('leaveBadge');
+      badge.textContent = d.count; badge.classList.add('show');
+    }
+  } catch {}
+})();
+
 </script>
 <script src="/static/js/toast.js"></script>
 </body>
