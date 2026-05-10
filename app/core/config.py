@@ -52,9 +52,13 @@ class Settings:
 
     # ── Chấm công ──────────────────────────────────────
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))
-    WORK_START:       str = os.getenv("WORK_START", "08:30")
-    WORK_END:         str = os.getenv("WORK_END",   "17:30")
-    LATE_THRESHOLD:   int = 15  # phút — trễ hơn N phút = đi muộn
+    WORK_START:             str  = os.getenv("WORK_START", "08:30")
+    WORK_END:               str  = os.getenv("WORK_END",   "17:30")
+    LATE_THRESHOLD:         int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
+    LATE_THRESHOLD_MINUTES: int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
+    WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5")
+    HALF_DAY_CUTOFF:        str  = os.getenv("HALF_DAY_CUTOFF", "12:00")
+    NOTIFY_LEAVE_CANCEL:    bool = os.getenv("NOTIFY_LEAVE_CANCEL", "true").lower() == "true"
 
     # ── Paths ──────────────────────────────────────────
     DATA_DIR:          Path = Path("data")

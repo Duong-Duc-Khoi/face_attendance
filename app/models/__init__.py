@@ -7,5 +7,11 @@ from app.models.base import Base
 from app.models.employee import Employee
 from app.models.attendance import AttendanceLog
 from app.models.user import User, EmailToken, RefreshToken
+from app.models.leave import LeaveRequest
+from app.models.calendar import WorkCalendar
 
-__all__ = ["Base", "Employee", "AttendanceLog", "User", "EmailToken", "RefreshToken"]
+__all__ = [
+    "Base", "Employee", "AttendanceLog",
+    "User", "EmailToken", "RefreshToken",
+    "LeaveRequest", "WorkCalendar",
+]

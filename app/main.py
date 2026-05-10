@@ -34,6 +34,8 @@ from app.api.v1 import employees, reports
 from app.api.v1.auth import router as auth_router
 from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
+from app.api.v1.leave import router as leave_router
+from app.api.v1.calendar import router as calendar_router
 
 scheduler = AsyncIOScheduler()
 
@@ -86,6 +88,8 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(employees.router)
 app.include_router(reports.router)
+app.include_router(leave_router)
+app.include_router(calendar_router)
 
 
 # ── Auth pages ───────────────────────────────────────────────────
@@ -167,17 +171,6 @@ def api_camera_status():
 
 
 # ── Misc ─────────────────────────────────────────────────────────
-# ── Leave request ────────────────────────────────────────────────
-@app.post("/api/leave-request")
-async def submit_leave_request(payload: dict, request: Request):
-    """Nhân viên gửi đơn xin nghỉ — ghi log và gửi email thông báo cho quản lý."""
-    from app.services.notify import notify_leave_request_async
-    try:
-        await notify_leave_request_async(payload)
-    except Exception as e:
-        print(f"[leave-request] notify lỗi: {e}")
-    return {"success": True, "message": "Đơn xin nghỉ đã được ghi nhận"}
-
 
 @app.get("/api/health")
 def health_check():

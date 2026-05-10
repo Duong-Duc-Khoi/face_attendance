@@ -153,3 +153,23 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename=f"BaoCaoChamCong_{from_date}_{to_date}.xlsx",
     )
+
+
+# ── GET /api/reports/employee/{emp_code}/stats ───────────────────
+
+@router.get("/reports/employee/{emp_code}/stats")
+def employee_stats(
+    emp_code: str,
+    year: int = 0,
+    month: int = 0,
+    db: Session = Depends(get_db),
+    current_user=Depends(_optional_user),
+):
+    from app.services.work_calendar import get_employee_stats, get_employee_stats_month
+    from datetime import date as _date
+    y = year  or _date.today().year
+    m = month or 0
+
+    if m:
+        return get_employee_stats_month(emp_code, y, m, db)
+    return get_employee_stats(emp_code, y, db)
