@@ -121,7 +121,7 @@ def get_summary_today() -> dict:
         total_emp = db.query(Employee).filter(
             or_(
                 Employee.is_active == True,
-                Employee.deactivated_at >= today_start,
+                Employee.deactivated_at >= start,
             )
         ).count()
 
@@ -162,5 +162,58 @@ def update_capture_path(log_id: int, capture_path: str) -> None:
     except Exception as e:
         db.rollback()
         print(f"  ✗ update_capture_path lỗi: {e}")
+    finally:
+        db.close()
+def auto_checkout_missing(auto_time: datetime = None) -> int:
+    """
+    Quét tất cả nhân viên có log lẻ (check_in chưa có check_out) trong ngày.
+    Tự tạo log check_out với note = "Tự động - không check out".
+    Trả về số lượng log được tạo.
+    """
+    db = SessionLocal()
+    try:
+        now         = auto_time or datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Lấy tất cả emp_code có log hôm nay
+        emp_codes = (
+            db.query(AttendanceLog.emp_code)
+              .filter(AttendanceLog.timestamp >= today_start)
+              .distinct()
+              .all()
+        )
+
+        count = 0
+        for (emp_code,) in emp_codes:
+            today_logs = (
+                db.query(AttendanceLog)
+                  .filter_by(emp_code=emp_code)
+                  .filter(AttendanceLog.timestamp >= today_start)
+                  .order_by(AttendanceLog.timestamp.asc())
+                  .all()
+            )
+            # Số log lẻ → có check_in chưa có check_out
+            if len(today_logs) % 2 == 1:
+                emp = db.query(Employee).filter_by(emp_code=emp_code).first()
+                log = AttendanceLog(
+                    employee_id  = emp.id if emp else today_logs[-1].employee_id,
+                    emp_code     = emp_code,
+                    emp_name     = today_logs[-1].emp_name,
+                    department   = today_logs[-1].department,
+                    check_type   = "check_out",
+                    timestamp    = now,
+                    confidence   = 0.0,
+                    capture_path = "",
+                    note         = "Tự động - không check out",
+                )
+                db.add(log)
+                count += 1
+
+        db.commit()
+        return count
+    except Exception as e:
+        db.rollback()
+        print(f"  ✗ auto_checkout_missing lỗi: {e}")
+        return 0
     finally:
         db.close()

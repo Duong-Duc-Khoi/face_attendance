@@ -36,7 +36,7 @@ from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
 from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
-
+from app.services.attendance import get_summary_today, auto_checkout_missing
 scheduler = AsyncIOScheduler()
 
 
@@ -53,15 +53,22 @@ async def lifespan(app: FastAPI):
         summary = get_summary_today()
         await notify_daily_report_async(summary)
 
+    async def _auto_checkout():
+        count = auto_checkout_missing()
+        print(f"  ✓ Auto checkout: {count} nhân viên chưa check out")
+
     scheduler.add_job(_daily_report, CronTrigger(hour=18, minute=0),
                       id="daily_report", replace_existing=True)
+    scheduler.add_job(_auto_checkout, CronTrigger(hour=23, minute=59),
+                      id="auto_checkout", replace_existing=True)
     scheduler.start()
-    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00")
+    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00, auto checkout lúc 23:59")
     yield
     scheduler.shutdown(wait=False)
     release_camera()
     print("  FaceAttend — Đã tắt")
 
+    
 
 # ── App ──────────────────────────────────────────────────────────
 app = FastAPI(
