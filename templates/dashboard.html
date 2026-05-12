@@ -352,6 +352,46 @@
 </div>
 
 </div><!-- /page -->
+
+<!-- Modal: Duyệt đơn nghỉ phép -->
+<div class="modal-overlay" id="approveLeaveModal" onclick="if(event.target===this)closeApproveModal()">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      <span>Xác nhận duyệt đơn</span>
+    </div>
+    <div id="approveLeaveInfo" style="background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text);line-height:1.7"></div>
+    <div class="form-group">
+      <label class="form-label">Ghi chú (không bắt buộc)</label>
+      <textarea class="form-input" id="approveLeaveNote" rows="2" placeholder="VD: Đồng ý, chúc nghỉ vui vẻ..." style="resize:none"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-outline" onclick="closeApproveModal()">Hủy</button>
+      <button class="btn btn-teal" id="approveLeaveBtn" onclick="submitApproveLeave()">✓ Duyệt</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Từ chối đơn nghỉ phép -->
+<div class="modal-overlay" id="rejectLeaveModal" onclick="if(event.target===this)closeRejectModal()">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <span>Từ chối đơn nghỉ phép</span>
+    </div>
+    <div id="rejectLeaveInfo" style="background:rgba(255,77,106,.06);border:1px solid rgba(255,77,106,.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text);line-height:1.7"></div>
+    <div class="form-group">
+      <label class="form-label">Lý do từ chối <span style="color:var(--red)">*</span></label>
+      <textarea class="form-input" id="rejectLeaveNote" rows="2" placeholder="VD: Nhân sự đang thiếu trong giai đoạn này..." style="resize:none"></textarea>
+      <span id="rejectLeaveNoteErr" style="color:var(--red);font-size:11px;display:none">Vui lòng nhập lý do từ chối</span>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-outline" onclick="closeRejectModal()">Hủy</button>
+      <button class="btn" id="rejectLeaveBtn" onclick="submitRejectLeave()" style="background:rgba(255,77,106,.15);border:1px solid rgba(255,77,106,.4);color:var(--red);font-weight:700">✕ Từ chối</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -609,31 +649,88 @@ function renderLeaveTable() {
   }).join('');
 }
 
-async function approveLeave(id) {
-  const note = prompt('Ghi chú khi duyệt (có thể để trống):') || '';
+let _leaveActionId = null;
+
+function _leaveInfoHtml(id) {
+  const l = leaveRequests.find(x => x.id === id);
+  if (!l) return '';
+  const rtypeLabel = { leave: '📅 Nghỉ phép', remote: '🏠 Remote' };
+  const dates = (l.dates || []).map(d => d.date + (d.half ? ` (${d.half === 'am' ? 'Sáng' : 'Chiều'})` : '')).join(', ');
+  return `<b>${l.emp_name}</b> — ${l.department || ''}<br>Loại: ${rtypeLabel[l.request_type] || l.request_type}<br>Ngày: ${dates}<br>${l.reason ? 'Lý do: ' + l.reason : ''}`;
+}
+
+function approveLeave(id) {
+  _leaveActionId = id;
+  document.getElementById('approveLeaveInfo').innerHTML = _leaveInfoHtml(id);
+  document.getElementById('approveLeaveNote').value = '';
+  document.getElementById('approveLeaveModal').classList.add('open');
+  setTimeout(() => document.getElementById('approveLeaveNote').focus(), 100);
+}
+
+function closeApproveModal() {
+  document.getElementById('approveLeaveModal').classList.remove('open');
+  _leaveActionId = null;
+}
+
+async function submitApproveLeave() {
+  const id = _leaveActionId;
+  if (!id) return;
+  const note = document.getElementById('approveLeaveNote').value.trim();
+  const btn = document.getElementById('approveLeaveBtn');
+  btn.disabled = true; btn.textContent = 'Đang duyệt...';
   try {
     const r = await authFetch(`/api/leave/${id}/approve`, {
       method: 'PUT', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ note })
     });
     if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
-    showToast('Đã duyệt đơn', 'success');
+    closeApproveModal();
+    showToast('Đã duyệt đơn thành công', 'success');
     await loadLeaveRequests();
-  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ Duyệt';
+  }
 }
 
-async function rejectLeave(id) {
-  const note = prompt('Lý do từ chối *:');
-  if (!note || !note.trim()) { showToast('Vui lòng nhập lý do từ chối', 'error'); return; }
+function rejectLeave(id) {
+  _leaveActionId = id;
+  document.getElementById('rejectLeaveInfo').innerHTML = _leaveInfoHtml(id);
+  document.getElementById('rejectLeaveNote').value = '';
+  document.getElementById('rejectLeaveNoteErr').style.display = 'none';
+  document.getElementById('rejectLeaveModal').classList.add('open');
+  setTimeout(() => document.getElementById('rejectLeaveNote').focus(), 100);
+}
+
+function closeRejectModal() {
+  document.getElementById('rejectLeaveModal').classList.remove('open');
+  _leaveActionId = null;
+}
+
+async function submitRejectLeave() {
+  const id = _leaveActionId;
+  if (!id) return;
+  const note = document.getElementById('rejectLeaveNote').value.trim();
+  const errEl = document.getElementById('rejectLeaveNoteErr');
+  if (!note) { errEl.style.display = ''; return; }
+  errEl.style.display = 'none';
+  const btn = document.getElementById('rejectLeaveBtn');
+  btn.disabled = true; btn.textContent = 'Đang gửi...';
   try {
     const r = await authFetch(`/api/leave/${id}/reject`, {
       method: 'PUT', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ note })
     });
     if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
+    closeRejectModal();
     showToast('Đã từ chối đơn', 'success');
     await loadLeaveRequests();
-  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '✕ Từ chối';
+  }
 }
 
 // Poll pending count every 60s

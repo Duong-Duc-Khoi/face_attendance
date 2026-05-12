@@ -151,6 +151,146 @@ def _log_to_dict(log: AttendanceLog) -> dict:
         "status":      log.note,
     }
 
+def get_log_by_id(log_id: int) -> dict | None:
+    """Lấy thông tin 1 log theo ID."""
+    db = SessionLocal()
+    try:
+        log = db.query(AttendanceLog).filter_by(id=log_id).first()
+        return _log_to_dict(log) if log else None
+    finally:
+        db.close()
+
+
+def update_attendance_log(
+    log_id: int,
+    check_type: str | None = None,
+    timestamp_str: str | None = None,
+    note: str | None = None,
+    updated_by: str = "",
+) -> dict | None:
+    """
+    Chỉnh sửa 1 bản ghi điểm danh (dùng cho quản lý).
+    - check_type: 'check_in' | 'check_out'
+    - timestamp_str: ISO format hoặc 'YYYY-MM-DD HH:MM:SS'
+    - note: ghi chú mới
+    Trả về dict đã cập nhật, hoặc None nếu không tìm thấy log.
+    """
+    db = SessionLocal()
+    try:
+        log = db.query(AttendanceLog).filter_by(id=log_id).first()
+        if not log:
+            return None
+
+        changes = []
+        if check_type and check_type in ("check_in", "check_out"):
+            changes.append(f"check_type: {log.check_type}→{check_type}")
+            log.check_type = check_type
+
+        if timestamp_str:
+            try:
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"):
+                    try:
+                        new_ts = datetime.strptime(timestamp_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    raise ValueError(f"Không nhận dạng được định dạng thời gian: {timestamp_str}")
+                changes.append(f"timestamp: {log.timestamp.strftime('%H:%M %d/%m/%Y')}→{new_ts.strftime('%H:%M %d/%m/%Y')}")
+                log.timestamp = new_ts
+                # Tính lại status nếu là check_in
+                if log.check_type == "check_in":
+                    log.note = _calc_status(new_ts, "check_in")
+            except ValueError as e:
+                raise ValueError(str(e))
+
+        if note is not None:
+            log.note = note
+
+        # Thêm vết chỉnh sửa vào note
+        edit_trail = f"[Sửa bởi {updated_by} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
+        if changes:
+            log.note = (log.note or "") + f" {edit_trail}"
+
+        db.commit()
+        return _log_to_dict(log)
+
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
+
+
+def delete_attendance_log(log_id: int) -> bool:
+    """Xoá 1 bản ghi điểm danh. Trả về True nếu thành công."""
+    db = SessionLocal()
+    try:
+        log = db.query(AttendanceLog).filter_by(id=log_id).first()
+        if not log:
+            return False
+        db.delete(log)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
+
+
+def create_manual_attendance_log(
+    emp_code: str,
+    check_type: str,
+    timestamp_str: str,
+    note: str = "",
+    created_by: str = "",
+) -> dict | None:
+    """
+    Tạo thủ công 1 bản ghi điểm danh (quản lý thêm bù).
+    Trả về dict nếu thành công, None nếu không tìm thấy nhân viên.
+    """
+    db = SessionLocal()
+    try:
+        emp = db.query(Employee).filter_by(emp_code=emp_code, is_active=True).first()
+        if not emp:
+            return None
+
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"):
+            try:
+                ts = datetime.strptime(timestamp_str, fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            raise ValueError(f"Không nhận dạng được định dạng thời gian: {timestamp_str}")
+
+        auto_note = _calc_status(ts, check_type) if check_type == "check_in" else ""
+        trail = f"[Tạo thủ công bởi {created_by} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
+        final_note = f"{note} {trail}".strip() if note else trail
+
+        log = AttendanceLog(
+            employee_id  = emp.id,
+            emp_code     = emp_code,
+            emp_name     = emp.name,
+            department   = emp.department,
+            check_type   = check_type,
+            timestamp    = ts,
+            confidence   = 0.0,
+            capture_path = "",
+            note         = f"{auto_note} {final_note}".strip(),
+        )
+        db.add(log)
+        db.commit()
+        return _log_to_dict(log)
+
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
+
+
 def update_capture_path(log_id: int, capture_path: str) -> None:
     """Cập nhật đường dẫn ảnh sau khi capture xong."""
     db = SessionLocal()
