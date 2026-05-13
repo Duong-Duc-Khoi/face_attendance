@@ -16,7 +16,7 @@ from typing import Optional
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.attendance import AttendanceLog
+from app.models.attendance import AttendanceEvent, AttendanceLog
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
     get_log_by_id, update_attendance_log,
@@ -194,6 +194,38 @@ class AttendanceCreateRequest(BaseModel):
     check_type: str                       # "check_in" | "check_out"
     timestamp:  str                       # "YYYY-MM-DD HH:MM:SS" hoặc ISO
     note:       Optional[str] = ""
+
+
+# ── GET /api/attendance/sessions/{session_id}/events ─────────────
+
+@router.get("/attendance/sessions/{session_id}/events")
+def get_attendance_session_events(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Lấy các event/bằng chứng ảnh của một phiên làm việc."""
+    rows = (
+        db.query(AttendanceEvent)
+          .filter_by(session_id=session_id)
+          .order_by(AttendanceEvent.event_time.asc())
+          .all()
+    )
+    return {
+        "session_id": session_id,
+        "events": [
+            {
+                "id": e.id,
+                "event_type": e.event_type,
+                "event_time": e.event_time.isoformat() if e.event_time else None,
+                "confidence": e.confidence,
+                "capture_path": e.capture_path,
+                "source": e.source,
+                "note": e.note,
+            }
+            for e in rows
+        ],
+    }
 
 
 # ── GET /api/attendance/{log_id} ─────────────────────────────────

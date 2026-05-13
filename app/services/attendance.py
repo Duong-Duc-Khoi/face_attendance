@@ -8,8 +8,12 @@ from datetime import datetime, timedelta
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.employee import Employee
-from app.models.attendance import AttendanceLog
-
+from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
+from app.services.shift_service import (
+    calc_status_for_shift,
+    find_shift_assignment_for_time,
+    shift_window,
+)
 
 def process_attendance(emp_code: str, confidence: float, capture_path: str = "") -> dict | None:
     """
@@ -34,16 +38,81 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
         if last_log and (now - last_log.timestamp) < timedelta(minutes=settings.COOLDOWN_MINUTES):
             return None
 
-        # check_in / check_out — dựa vào số log chẵn/lẻ trong ngày
+        assignment, shift = find_shift_assignment_for_time(emp_code, now, db)
+        session = None
+        if assignment:
+            session = (
+                db.query(AttendanceSession)
+                  .filter_by(shift_assignment_id=assignment.id)
+                  .first()
+            )
+
+        # Nhà hàng: ưu tiên check-in/check-out theo session của ca được phân công.
+        # Fallback về logic cũ nếu chưa có phân ca để hệ thống vẫn dùng được.
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        today_count = (
-            db.query(AttendanceLog)
-              .filter_by(emp_code=emp_code)
-              .filter(AttendanceLog.timestamp >= today_start)
-              .count()
-        )
-        check_type = "check_out" if (today_count % 2 == 1) else "check_in"
-        status     = _calc_status(now, check_type)
+        if assignment:
+            if session and session.check_in_at and session.check_out_at:
+                return None
+            check_type = "check_out" if session and session.check_in_at else "check_in"
+        else:
+            today_count = (
+                db.query(AttendanceLog)
+                  .filter_by(emp_code=emp_code)
+                  .filter(AttendanceLog.timestamp >= today_start)
+                  .count()
+            )
+            check_type = "check_out" if (today_count % 2 == 1) else "check_in"
+
+        status = ""
+        check_out_status = ""
+        if check_type == "check_in":
+            status = calc_status_for_shift(now, emp_code, db)
+        elif shift and assignment:
+            _start, shift_end, _from, _until = shift_window(assignment.work_date, shift)
+            early_leave = max(0, int((shift_end - now).total_seconds() / 60))
+            overtime = max(0, int((now - shift_end).total_seconds() / 60))
+            if early_leave > 0:
+                check_out_status = "early_leave"
+                status = f"Về sớm {early_leave} phút ({shift.name})"
+            elif overtime > 0:
+                check_out_status = "overtime"
+                status = f"Tăng ca {overtime} phút ({shift.name})"
+            else:
+                check_out_status = "normal"
+
+        if assignment and not session:
+            session = AttendanceSession(
+                employee_id         = emp.id,
+                branch_id           = assignment.branch_id or emp.branch_id,
+                shift_assignment_id = assignment.id,
+                shift_id            = assignment.shift_id,
+                work_date           = assignment.work_date,
+                status              = "open",
+                source              = "face",
+                break_minutes       = shift.break_minutes if shift else 0,
+            )
+            db.add(session)
+            db.flush()
+
+        if session:
+            if check_type == "check_in":
+                session.check_in_at = now
+                session.check_in_status = "late" if status.startswith("Đi muộn") else "on_time"
+                if shift and assignment:
+                    shift_start, _shift_end, _from, _until = shift_window(assignment.work_date, shift)
+                    session.late_minutes = max(0, int((now - shift_start).total_seconds() / 60) - (shift.late_threshold_minutes or 0))
+            else:
+                session.check_out_at = now
+                session.status = "completed"
+                session.check_out_status = check_out_status or "normal"
+                if shift and assignment:
+                    shift_start, shift_end, _from, _until = shift_window(assignment.work_date, shift)
+                    session.early_leave_minutes = max(0, int((shift_end - now).total_seconds() / 60))
+                    session.overtime_minutes = max(0, int((now - shift_end).total_seconds() / 60))
+                if session.check_in_at:
+                    gross_minutes = int((now - session.check_in_at).total_seconds() / 60)
+                    session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+            session.note = status or session.note
 
         log = AttendanceLog(
             employee_id  = emp.id,
@@ -57,10 +126,28 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
             note         = status,
         )
         db.add(log)
+        db.flush()
+
+        event = AttendanceEvent(
+            session_id   = session.id if session else None,
+            employee_id  = emp.id,
+            branch_id    = (session.branch_id if session else emp.branch_id),
+            event_type   = check_type,
+            event_time   = now,
+            confidence   = round(confidence, 4),
+            capture_path = capture_path,
+            source       = "face",
+            note         = status,
+        )
+        db.add(event)
         db.commit()
 
         return {
             "id":         log.id,
+            "session_id": session.id if session else None,
+            "event_id":   event.id,
+            "shift_id":   shift.id if shift else None,
+            "shift_name": shift.name if shift else "",
             "emp_code":   emp_code,
             "name":       emp.name,
             "department": emp.department,
@@ -148,6 +235,7 @@ def _log_to_dict(log: AttendanceLog) -> dict:
         "date":        log.timestamp.strftime("%d/%m/%Y"),
         "timestamp":   log.timestamp.isoformat(),
         "confidence":  log.confidence,
+        "capture_path": log.capture_path,
         "status":      log.note,
     }
 
@@ -291,13 +379,24 @@ def create_manual_attendance_log(
         db.close()
 
 
-def update_capture_path(log_id: int, capture_path: str) -> None:
+def update_capture_path(log_id: int, capture_path: str, event_id: int | None = None) -> None:
     """Cập nhật đường dẫn ảnh sau khi capture xong."""
     db = SessionLocal()
     try:
         log = db.query(AttendanceLog).filter_by(id=log_id).first()
         if log:
             log.capture_path = capture_path
+            if event_id:
+                event = db.query(AttendanceEvent).filter_by(id=event_id).first()
+            else:
+                event = (
+                    db.query(AttendanceEvent)
+                      .filter_by(employee_id=log.employee_id, event_type=log.check_type)
+                      .order_by(AttendanceEvent.event_time.desc())
+                      .first()
+                )
+            if event and not event.capture_path:
+                event.capture_path = capture_path
             db.commit()
     except Exception as e:
         db.rollback()
@@ -349,8 +448,36 @@ def auto_checkout_missing(auto_time: datetime = None) -> int:
                 db.add(log)
                 count += 1
 
+        open_sessions = (
+            db.query(AttendanceSession)
+              .filter(
+                  AttendanceSession.status == "open",
+                  AttendanceSession.check_in_at.isnot(None),
+                  AttendanceSession.check_out_at.is_(None),
+                  AttendanceSession.work_date <= now.date(),
+              )
+              .all()
+        )
+        for session in open_sessions:
+            session.status = "missing_checkout"
+            session.check_out_at = now
+            session.check_out_status = "auto"
+            if session.check_in_at:
+                gross_minutes = int((now - session.check_in_at).total_seconds() / 60)
+                session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+            db.add(AttendanceEvent(
+                session_id=session.id,
+                employee_id=session.employee_id,
+                branch_id=session.branch_id,
+                event_type="auto_checkout",
+                event_time=now,
+                confidence=0.0,
+                source="auto",
+                note="Tự động - không check out",
+            ))
+
         db.commit()
-        return count
+        return count + len(open_sessions)
     except Exception as e:
         db.rollback()
         print(f"  ✗ auto_checkout_missing lỗi: {e}")
