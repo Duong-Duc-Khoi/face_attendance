@@ -374,8 +374,8 @@ const POSES = [
   },
   {
     id:'up', label:'Lên', icon:'⬆️', arrows:['U'],
-    enter:(m)=> m.pitch < -10 && Math.abs(m.yaw)<22 && m.inZoneSoft,
-    exit: (m)=> m.pitch > -6 || Math.abs(m.yaw)>28,
+    enter:(m)=> m.pitch < -15 && Math.abs(m.yaw)<25 && m.inZoneSoft,
+    exit: (m)=> m.pitch > -10 || Math.abs(m.yaw)>30,
     instr:'Ngước đầu lên nhẹ',
     sub:'Nhìn phía trên ống kính ~10°+'
   },

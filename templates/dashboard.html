@@ -18,7 +18,6 @@
 .tab-badge{background:#ff4d6a;color:#fff;border-radius:999px;font-size:9px;font-weight:700;padding:1px 5px;line-height:14px;min-width:14px;text-align:center;display:none}
 .tab-badge.show{display:inline-block}
 .dash-tab-content{display:none}.dash-tab-content.active{display:block}
-/* Leave panel */
 .lv-table{width:100%;border-collapse:collapse;font-size:12px}
 .lv-table th{text-align:left;padding:8px 12px;font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border)}
 .lv-table td{padding:9px 12px;border-bottom:1px solid rgba(26,47,80,.4);color:var(--text)}
@@ -29,7 +28,6 @@
 .ls-approved{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
 .ls-rejected{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--red)}
 .ls-cancelled{background:rgba(90,122,154,.1);border:1px solid rgba(90,122,154,.2);color:var(--muted)}
-/* Calendar mgmt */
 .cal-grid-m{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:10px}
 .cal-dow-m{text-align:center;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:4px 0}
 .cal-day-m{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:11px;cursor:pointer;transition:all .15s;border:1px solid transparent;user-select:none;gap:1px}
@@ -40,12 +38,10 @@
 .cal-day-m.dt-overtime{color:#a78bfa;background:rgba(167,139,250,.06)}
 .cal-day-m .day-lbl{font-size:7px;text-align:center;line-height:1.1;opacity:.8}
 .cal-day-m.empty-slot{opacity:0;pointer-events:none}
-/* Day type picker */
 .dtype-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .dtype-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font-sans);background:none;color:var(--muted);transition:all .15s}
 .dtype-btn:hover{border-color:var(--teal);color:var(--teal)}
 .dtype-btn.active{background:var(--teal);color:#000;border-color:var(--teal);font-weight:700}
-/* Config form */
 .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .cfg-group{display:flex;flex-direction:column;gap:4px}
 .cfg-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase}
@@ -53,11 +49,38 @@
 .cfg-input:focus{border-color:var(--teal)}
 .btn-save{padding:8px 20px;border-radius:7px;background:var(--teal);color:#000;font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em}
 .btn-save:hover{background:#00f0c0}
-/* Emp stats modal */
 .stat-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .sdg-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
 .sdg-num{font-family:var(--font-mono);font-size:20px;font-weight:700}
 .sdg-lbl{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
+
+/* ── Attendance modals ── */
+.atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.atd-ovl.open{display:flex}
+.atd-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:460px;padding:26px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.6);animation:atdUp .2s ease}
+@keyframes atdUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+.atd-ttl{font-size:14px;font-weight:700;letter-spacing:.04em;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.atd-x{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:17px;padding:4px 7px;border-radius:6px;line-height:1;transition:color .15s}
+.atd-x:hover{color:var(--text)}
+.atd-info{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 12px;margin-bottom:14px}
+.atd-lbl{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.atd-inp{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:7px;font-size:13px;font-family:var(--font-sans);outline:none;transition:border-color .15s}
+.atd-inp:focus{border-color:var(--teal)}
+.atd-sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a7a9a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.atd-row{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.atd-row.full{grid-template-columns:1fr}
+.atd-foot{display:flex;gap:9px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+.atd-warn{background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.25);border-radius:9px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.65}
+.atd-warn strong{color:var(--red)}
+/* Table extras */
+.log-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.log-btn:hover{border-color:var(--teal);color:var(--teal)}
+.log-btn.del:hover{border-color:var(--red);color:var(--red)}
+.col-act{display:none}
+.mgr .col-act{display:table-cell}
+.btn-add-log{display:none!important}
+.mgr-show{display:none}
+.atd-sp{width:12px;height:12px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
 </style>
 <script src="/static/js/auth-guard.js"></script>
 </head>
@@ -75,11 +98,10 @@
     <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
     <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
     <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
-</div>
+  </div>
 </header>
 
 <div class="page">
-  <!-- Dashboard Tabs -->
   <div class="dash-tabs">
     <button class="dash-tab active" onclick="switchDashTab('tab-overview',this)">📊 Tổng quan</button>
     <button class="dash-tab" onclick="switchDashTab('tab-leave',this)">
@@ -91,32 +113,14 @@
 
   <!-- TAB: Overview -->
   <div class="dash-tab-content active" id="tab-overview">
-  <!-- Stats -->
   <div class="stats-row" id="statsRow">
-    <div class="stat-card">
-      <div class="stat-label">Tổng nhân viên</div>
-      <div class="stat-value" id="statTotal">—</div>
-      <div class="stat-sub">đang hoạt động</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Đã vào làm hôm nay</div>
-      <div class="stat-value teal" id="statIn">—</div>
-      <div class="stat-sub">check-in hôm nay</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Đã ra về</div>
-      <div class="stat-value blue" id="statOut">—</div>
-      <div class="stat-sub">check-out hôm nay</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Vắng mặt</div>
-      <div class="stat-value red" id="statAbsent">—</div>
-      <div class="stat-sub" id="statDate">hôm nay</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">Tổng nhân viên</div><div class="stat-value" id="statTotal">—</div><div class="stat-sub">đang hoạt động</div></div>
+    <div class="stat-card"><div class="stat-label">Đã vào làm hôm nay</div><div class="stat-value teal" id="statIn">—</div><div class="stat-sub">check-in hôm nay</div></div>
+    <div class="stat-card"><div class="stat-label">Đã ra về</div><div class="stat-value blue" id="statOut">—</div><div class="stat-sub">check-out hôm nay</div></div>
+    <div class="stat-card"><div class="stat-label">Vắng mặt</div><div class="stat-value red" id="statAbsent">—</div><div class="stat-sub" id="statDate">hôm nay</div></div>
   </div>
 
   <div class="grid-2">
-    <!-- Employee table -->
     <div class="panel" style="grid-column:1/-1">
       <div class="panel-header">
         <div class="panel-header-left"><span class="dot"></span> Danh sách nhân viên</div>
@@ -124,9 +128,7 @@
       </div>
       <div class="filter-bar">
         <input class="filter-input" id="searchEmp" placeholder="Tìm theo tên, mã NV..." oninput="filterEmployees()" style="flex:1">
-        <select class="filter-input" id="filterDept" onchange="filterEmployees()">
-          <option value="">Tất cả phòng ban</option>
-        </select>
+        <select class="filter-input" id="filterDept" onchange="filterEmployees()"><option value="">Tất cả phòng ban</option></select>
         <select class="filter-input" id="filterStatus" onchange="filterEmployees()">
           <option value="true">Đang làm việc</option>
           <option value="">Tất cả</option>
@@ -145,45 +147,44 @@
     </div>
   </div>
 
-  <!-- Attendance log -->
-  <div class="panel">
+  <!-- Lịch sử chấm công -->
+  <div class="panel" id="logPanel">
     <div class="panel-header">
       <div class="panel-header-left"><span class="dot"></span> Lịch sử chấm công</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="date" class="filter-input" id="logDate" onchange="loadLogs()" style="font-size:12px">
         <input class="filter-input" id="logSearch" placeholder="Tìm mã NV..." oninput="filterLogs()" style="width:130px">
+        <button id="btnAddLog" onclick="openAtdAdd()"
+          style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#000;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Thêm bù
+        </button>
       </div>
     </div>
     <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
-      <table class="data-table">
+      <table class="data-table" id="logTable">
         <thead><tr>
           <th>Nhân viên</th><th>Loại</th><th>Thời gian</th>
           <th>Phòng ban</th><th>Trạng thái</th><th>Độ chính xác</th>
+          <th class="col-act" style="text-align:right">Thao tác</th>
         </tr></thead>
-        <tbody id="logTableBody"><tr><td colspan="6" class="empty">Đang tải...</td></tr></tbody>
+        <tbody id="logTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
       </table>
     </div>
   </div>
-</div>
-
   </div><!-- /tab-overview -->
 
-  <!-- TAB: Duyệt nghỉ phép -->
+  <!-- TAB: Nghỉ phép -->
   <div class="dash-tab-content" id="tab-leave">
     <div class="panel">
       <div class="panel-header">
         <div class="panel-header-left"><span class="dot"></span> Đơn chờ duyệt</div>
         <div style="display:flex;gap:8px;align-items:center">
           <select id="lvFilterType" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
-            <option value="">Tất cả loại</option>
-            <option value="leave">Nghỉ phép</option>
-            <option value="remote">Remote</option>
+            <option value="">Tất cả loại</option><option value="leave">Nghỉ phép</option><option value="remote">Remote</option>
           </select>
           <select id="lvFilterStatus" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
-            <option value="pending">Chờ duyệt</option>
-            <option value="">Tất cả</option>
-            <option value="approved">Đã duyệt</option>
-            <option value="rejected">Từ chối</option>
+            <option value="pending">Chờ duyệt</option><option value="">Tất cả</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option>
           </select>
         </div>
       </div>
@@ -199,10 +200,9 @@
     </div>
   </div>
 
-  <!-- TAB: Quản lý lịch làm việc -->
+  <!-- TAB: Lịch làm việc -->
   <div class="dash-tab-content" id="tab-calendar">
     <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
-      <!-- Calendar view -->
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">
           <button onclick="calMgmtNav(-1)" style="background:none;border:1px solid var(--border);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:grid;place-items:center">&#8249;</button>
@@ -218,12 +218,9 @@
           <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:rgba(90,122,154,.4);display:inline-block"></span>Nghỉ</span>
         </div>
       </div>
-
-      <!-- Right: Day editor + Config -->
       <div>
-        <!-- Edit day panel -->
         <div class="panel" id="editDayPanel">
-          <div class="panel-header"><div class="panel-header-left"><span class="dot"></span> <span id="editDayTitle">Chọn ngày để chỉnh sửa</span></div></div>
+          <div class="panel-header"><div class="panel-header-left"><span class="dot"></span><span id="editDayTitle">Chọn ngày để chỉnh sửa</span></div></div>
           <div style="padding:14px">
             <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px">Loại ngày</div>
             <div class="dtype-picker">
@@ -235,27 +232,19 @@
               <button class="dtype-btn" data-dt="overtime" onclick="selectDayType(this,'overtime')">Tăng ca</button>
             </div>
             <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <div class="cfg-group">
-                <label class="cfg-label">Giờ vào (override)</label>
-                <input class="cfg-input" id="editDayStart" type="time" placeholder="08:00">
-              </div>
-              <div class="cfg-group">
-                <label class="cfg-label">Giờ tan (override)</label>
-                <input class="cfg-input" id="editDayEnd" type="time" placeholder="17:00">
-              </div>
+              <div class="cfg-group"><label class="cfg-label">Giờ vào (override)</label><input class="cfg-input" id="editDayStart" type="time"></div>
+              <div class="cfg-group"><label class="cfg-label">Giờ tan (override)</label><input class="cfg-input" id="editDayEnd" type="time"></div>
             </div>
             <div class="cfg-group" style="margin-top:10px">
               <label class="cfg-label">Nhãn hiển thị</label>
               <input class="cfg-input" id="editDayLabel" placeholder="VD: Tết Nguyên Đán, Làm bù...">
             </div>
             <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="btn-save" id="btnSaveDay" onclick="saveDayOverride()" style="flex:1">Lưu ngày này</button>
+              <button class="btn-save" onclick="saveDayOverride()" style="flex:1">Lưu ngày này</button>
               <button onclick="deleteDayOverride()" style="flex:1;padding:8px;border-radius:7px;background:none;border:1px solid rgba(255,77,106,.3);color:var(--red);font-size:12px;font-weight:700;cursor:pointer">Xóa override</button>
             </div>
           </div>
         </div>
-
-        <!-- Default config -->
         <div class="panel" style="margin-top:16px">
           <div class="panel-header"><div class="panel-header-left"><span class="dot"></span> Cấu hình mặc định</div></div>
           <div style="padding:14px">
@@ -272,22 +261,10 @@
                   <button class="dtype-btn" data-wd="7" onclick="toggleWorkDay(this)">CN</button>
                 </div>
               </div>
-              <div class="cfg-group">
-                <label class="cfg-label">Giờ vào làm</label>
-                <input class="cfg-input" id="cfgStart" type="time">
-              </div>
-              <div class="cfg-group">
-                <label class="cfg-label">Giờ tan làm</label>
-                <input class="cfg-input" id="cfgEnd" type="time">
-              </div>
-              <div class="cfg-group">
-                <label class="cfg-label">Ngưỡng đi muộn (phút)</label>
-                <input class="cfg-input" id="cfgLate" type="number" min="0" max="60">
-              </div>
-              <div class="cfg-group">
-                <label class="cfg-label">Mốc sáng/chiều</label>
-                <input class="cfg-input" id="cfgHalfCutoff" type="time">
-              </div>
+              <div class="cfg-group"><label class="cfg-label">Giờ vào làm</label><input class="cfg-input" id="cfgStart" type="time"></div>
+              <div class="cfg-group"><label class="cfg-label">Giờ tan làm</label><input class="cfg-input" id="cfgEnd" type="time"></div>
+              <div class="cfg-group"><label class="cfg-label">Ngưỡng đi muộn (phút)</label><input class="cfg-input" id="cfgLate" type="number" min="0" max="60"></div>
+              <div class="cfg-group"><label class="cfg-label">Mốc sáng/chiều</label><input class="cfg-input" id="cfgHalfCutoff" type="time"></div>
             </div>
             <div style="margin-top:14px;display:flex;justify-content:flex-end">
               <button class="btn-save" onclick="saveConfig()">Lưu cấu hình</button>
@@ -307,14 +284,8 @@
     </div>
     <input type="hidden" id="modalEmpId">
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Mã nhân viên *</label>
-        <input class="form-input" id="mEmpCode" placeholder="NV005">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Họ và tên *</label>
-        <input class="form-input" id="mEmpName" placeholder="Nguyễn Văn A">
-      </div>
+      <div class="form-group"><label class="form-label">Mã nhân viên *</label><input class="form-input" id="mEmpCode" placeholder="NV005"></div>
+      <div class="form-group"><label class="form-label">Họ và tên *</label><input class="form-input" id="mEmpName" placeholder="Nguyễn Văn A"></div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -322,27 +293,15 @@
         <input class="form-input" id="mEmpDept" placeholder="Kỹ thuật" list="mDeptList">
         <datalist id="mDeptList"><option value="Kỹ thuật"><option value="Kinh doanh"><option value="Kế toán"><option value="Nhân sự"><option value="Hành chính"></datalist>
       </div>
-      <div class="form-group">
-        <label class="form-label">Chức vụ</label>
-        <input class="form-input" id="mEmpPos" placeholder="Lập trình viên">
-      </div>
+      <div class="form-group"><label class="form-label">Chức vụ</label><input class="form-input" id="mEmpPos" placeholder="Lập trình viên"></div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="form-input" id="mEmpEmail" type="email" placeholder="email@company.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Điện thoại</label>
-        <input class="form-input" id="mEmpPhone" placeholder="0901234567">
-      </div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="mEmpEmail" type="email" placeholder="email@company.com"></div>
+      <div class="form-group"><label class="form-label">Điện thoại</label><input class="form-input" id="mEmpPhone" placeholder="0901234567"></div>
     </div>
     <div id="modalActiveRow" class="form-group" style="display:none">
       <label class="form-label">Trạng thái</label>
-      <select class="form-input" id="mEmpActive">
-        <option value="true">Đang làm việc</option>
-        <option value="false">Đã nghỉ việc</option>
-      </select>
+      <select class="form-input" id="mEmpActive"><option value="true">Đang làm việc</option><option value="false">Đã nghỉ việc</option></select>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
       <button class="btn btn-outline" onclick="closeModal()">Hủy</button>
@@ -353,7 +312,7 @@
 
 </div><!-- /page -->
 
-<!-- Modal: Duyệt đơn nghỉ phép -->
+<!-- Modal: Duyệt đơn -->
 <div class="modal-overlay" id="approveLeaveModal" onclick="if(event.target===this)closeApproveModal()">
   <div class="modal" style="max-width:420px">
     <div class="modal-title">
@@ -372,7 +331,7 @@
   </div>
 </div>
 
-<!-- Modal: Từ chối đơn nghỉ phép -->
+<!-- Modal: Từ chối đơn -->
 <div class="modal-overlay" id="rejectLeaveModal" onclick="if(event.target===this)closeRejectModal()">
   <div class="modal" style="max-width:420px">
     <div class="modal-title">
@@ -392,13 +351,138 @@
   </div>
 </div>
 
+<!-- ══ Modal: Sửa điểm danh ══ -->
+<div class="atd-ovl" id="atdEditOvl">
+  <div class="atd-box">
+    <button class="atd-x" onclick="closeAtd('atdEditOvl')">✕</button>
+    <div class="atd-ttl">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--teal);display:inline-block;flex-shrink:0"></span>
+      Chỉnh sửa bản ghi điểm danh
+    </div>
+    <div class="atd-info">
+      <div style="font-size:13px;font-weight:600" id="atdEditName">—</div>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--font-mono);margin-top:2px" id="atdEditMeta">—</div>
+    </div>
+    <div class="atd-row">
+      <div>
+        <div class="atd-lbl">Loại chấm công</div>
+        <select class="atd-inp atd-sel" id="atdEditType">
+          <option value="check_in">▲ Vào làm</option>
+          <option value="check_out">▼ Ra về</option>
+        </select>
+      </div>
+      <div>
+        <div class="atd-lbl">Thời gian</div>
+        <input type="datetime-local" class="atd-inp" id="atdEditTs">
+      </div>
+    </div>
+    <div class="atd-row full">
+      <div>
+        <div class="atd-lbl">Ghi chú / Lý do sửa</div>
+        <input type="text" class="atd-inp" id="atdEditNote" placeholder="Tuỳ chọn">
+      </div>
+    </div>
+    <div class="atd-foot">
+      <button class="btn btn-outline" onclick="closeAtd('atdEditOvl')">Huỷ</button>
+      <button class="btn btn-teal" id="atdEditBtn" onclick="saveAtdEdit()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Lưu thay đổi
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: Xác nhận xoá ══ -->
+<div class="atd-ovl" id="atdDelOvl">
+  <div class="atd-box" style="max-width:390px">
+    <button class="atd-x" onclick="closeAtd('atdDelOvl')">✕</button>
+    <div class="atd-ttl">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;flex-shrink:0"></span>
+      Xác nhận xoá bản ghi
+    </div>
+    <div class="atd-warn">
+      Bạn sắp xoá bản ghi của <strong id="atdDelName">—</strong><br>
+      <span id="atdDelMeta" style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">—</span>
+      <br><br>Thao tác này <strong>không thể hoàn tác</strong>.
+    </div>
+    <div class="atd-foot">
+      <button class="btn btn-outline" onclick="closeAtd('atdDelOvl')">Huỷ</button>
+      <button class="btn" id="atdDelBtn" onclick="confirmAtdDel()" style="background:var(--red);border-color:var(--red);color:#fff">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+        Xoá bản ghi
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: Thêm bản ghi bù ══ -->
+<div class="atd-ovl" id="atdAddOvl">
+  <div class="atd-box">
+    <button class="atd-x" onclick="closeAtd('atdAddOvl')">✕</button>
+    <div class="atd-ttl">
+      <span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;flex-shrink:0"></span>
+      Thêm bản ghi điểm danh bù
+    </div>
+    <div class="atd-row">
+      <div>
+        <div class="atd-lbl">Nhân viên</div>
+        <select class="atd-inp atd-sel" id="atdAddEmp"><option value="">— Chọn nhân viên —</option></select>
+      </div>
+      <div>
+        <div class="atd-lbl">Loại chấm công</div>
+        <select class="atd-inp atd-sel" id="atdAddType">
+          <option value="check_in">▲ Vào làm</option>
+          <option value="check_out">▼ Ra về</option>
+        </select>
+      </div>
+    </div>
+    <div class="atd-row full">
+      <div>
+        <div class="atd-lbl">Thời gian chấm công</div>
+        <input type="datetime-local" class="atd-inp" id="atdAddTs">
+      </div>
+    </div>
+    <div class="atd-row full">
+      <div>
+        <div class="atd-lbl">Lý do / Ghi chú</div>
+        <input type="text" class="atd-inp" id="atdAddNote" placeholder="VD: Quên chấm, hệ thống lỗi...">
+      </div>
+    </div>
+    <div class="atd-foot">
+      <button class="btn btn-outline" onclick="closeAtd('atdAddOvl')">Huỷ</button>
+      <button class="btn" id="atdAddBtn" onclick="saveAtdAdd()" style="background:#a78bfa;border-color:#a78bfa;color:#000;font-weight:700">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Thêm bản ghi
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
 let employees=[],allLogs=[],editingId=null;
+let _isMgr=false,_isAdmin=false;
+let _atdEditId=null,_atdDelId=null;
 
 // ── Init ──
 (async function init(){
+  const user=window.getUser?window.getUser():null;
+  if(user&&(user.role==='admin'||user.role==='manager')){
+    _isMgr=true;
+    // Show manager UI elements
+    document.getElementById('logTable').classList.add('mgr');
+    document.getElementById('btnAddLog').style.display='inline-flex';
+  }
+  _isAdmin=!!(user&&user.role==='admin');
+
+  // Close atd overlays on backdrop click
+  ['atdEditOvl','atdDelOvl','atdAddOvl'].forEach(id=>{
+    document.getElementById(id).addEventListener('click',function(e){
+      if(e.target===this)this.classList.remove('open');
+    });
+  });
+
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('logDate').value=today;
   await Promise.all([loadSummary(),loadEmployees(),loadLogs()]);
@@ -406,8 +490,7 @@ let employees=[],allLogs=[],editingId=null;
 
 async function loadSummary(){
   try{
-    const r=await authFetch('/api/summary');
-    const d=await r.json();
+    const r=await authFetch('/api/summary');const d=await r.json();
     document.getElementById('statTotal').textContent=d.total_emp||0;
     document.getElementById('statIn').textContent=d.checked_in||0;
     document.getElementById('statOut').textContent=d.checked_out||0;
@@ -419,19 +502,15 @@ async function loadSummary(){
 async function loadEmployees(){
   try{
     const status=document.getElementById('filterStatus').value;
-    const active=status===''?false:status==='true';
-    const url='/api/employees'+(status===''?'?active_only=false':status==='false'?'?active_only=false':'');
-    const r=await authFetch(url);
-    employees=await r.json();
-    populateDeptFilter();
-    renderEmployees(employees);
+    const url='/api/employees'+(status===''||status==='false'?'?active_only=false':'');
+    const r=await authFetch(url);employees=await r.json();
+    populateDeptFilter();renderEmployees(employees);
   }catch(e){showToast('Lỗi tải danh sách nhân viên','error');}
 }
 
 function populateDeptFilter(){
   const depts=[...new Set(employees.map(e=>e.department).filter(Boolean))].sort();
-  const sel=document.getElementById('filterDept');
-  const curr=sel.value;
+  const sel=document.getElementById('filterDept');const curr=sel.value;
   sel.innerHTML='<option value="">Tất cả phòng ban</option>';
   depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
   sel.value=curr;
@@ -444,55 +523,45 @@ function renderEmployees(list){
   let filtered=list;
   if(deptFilter)filtered=filtered.filter(e=>e.department===deptFilter);
   if(statusFilter!=='')filtered=filtered.filter(e=>String(e.is_active)===statusFilter);
-
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="7" class="empty">Không có nhân viên nào</td></tr>';return;}
   tbody.innerHTML=filtered.map(e=>`
     <tr>
       <td><div class="emp-cell">
         <div class="emp-avatar">${e.avatar_url?`<img src="${e.avatar_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${(e.name||'?')[0]}'">`:((e.name||'?')[0])}</div>
-        <div>
-          <div style="font-weight:600;font-size:13px">${e.name}</div>
-          <div style="font-size:11px;color:var(--muted)">${e.email||''}</div>
-        </div>
+        <div><div style="font-weight:600;font-size:13px">${e.name}</div><div style="font-size:11px;color:var(--muted)">${e.email||''}</div></div>
       </div></td>
       <td><span style="font-family:var(--font-mono);font-size:12px">${e.emp_code}</span></td>
-      <td>${e.department||'—'}</td>
-      <td>${e.position||'—'}</td>
+      <td>${e.department||'—'}</td><td>${e.position||'—'}</td>
       <td><span class="badge ${e.is_active?'badge-active':'badge-inactive'}">${e.is_active?'● Đang làm':'○ Đã nghỉ'}</span></td>
       <td style="color:var(--muted);font-size:12px">${e.created_at||''}</td>
-      <td style="text-align:right">
-        <div style="display:flex;gap:6px;justify-content:flex-end">
-          <button class="btn btn-outline" onclick="openEditModal(${e.id})" style="padding:5px 10px">Sửa</button>
-          <button class="btn btn-red" onclick="deleteEmployee(${e.id},'${e.name}')" style="padding:5px 10px">Xóa</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+      <td style="text-align:right"><div style="display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="openEditModal(${e.id})" style="padding:5px 10px">Sửa</button>
+        <button class="btn btn-red" onclick="deleteEmployee(${e.id},'${e.name}')" style="padding:5px 10px">Xóa</button>
+      </div></td>
+    </tr>`).join('');
 }
 
 function filterEmployees(){
   const q=document.getElementById('searchEmp').value.toLowerCase();
-  const filtered=q?employees.filter(e=>
-    e.name.toLowerCase().includes(q)||e.emp_code.toLowerCase().includes(q)
-  ):employees;
-  renderEmployees(filtered);
+  const f=q?employees.filter(e=>e.name.toLowerCase().includes(q)||e.emp_code.toLowerCase().includes(q)):employees;
+  renderEmployees(f);
 }
 
 // ── Logs ──
 async function loadLogs(){
   const date=document.getElementById('logDate').value;
   try{
-    const r=await authFetch('/api/attendance?date='+date);
-    const d=await r.json();
+    const r=await authFetch('/api/attendance?date='+date);const d=await r.json();
     allLogs=d.logs||[];renderLogs(allLogs);
   }catch(e){showToast('Lỗi tải lịch sử','error');}
 }
 
 function renderLogs(list){
   const tbody=document.getElementById('logTableBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">Không có dữ liệu chấm công</td></tr>';return;}
+  const cols=_isMgr?7:6;
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="${cols}" class="empty">Không có dữ liệu chấm công</td></tr>`;return;}
   tbody.innerHTML=list.map(l=>`
-    <tr>
+    <tr id="lr-${l.id}">
       <td><div class="emp-cell">
         <div style="font-weight:600">${l.name||'—'}</div>
         <div style="font-size:11px;color:var(--muted)">${l.emp_code}</div>
@@ -502,17 +571,25 @@ function renderLogs(list){
       <td>${l.department||'—'}</td>
       <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
       <td style="font-family:var(--font-mono);font-size:12px">${l.confidence?(l.confidence*100).toFixed(0)+'%':'—'}</td>
-    </tr>
-  `).join('');
+      <td class="col-act" style="text-align:right">
+        <div style="display:flex;gap:5px;justify-content:flex-end">
+          <button class="log-btn" onclick="openAtdEdit(${l.id})">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Sửa
+          </button>
+          ${_isAdmin?`<button class="log-btn del" onclick="openAtdDel(${l.id})">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>Xoá
+          </button>`:''}
+        </div>
+      </td>
+    </tr>`).join('');
 }
 
 function filterLogs(){
   const q=document.getElementById('logSearch').value.toLowerCase();
-  const filtered=q?allLogs.filter(l=>l.emp_code.toLowerCase().includes(q)||l.name.toLowerCase().includes(q)):allLogs;
-  renderLogs(filtered);
+  renderLogs(q?allLogs.filter(l=>l.emp_code.toLowerCase().includes(q)||l.name.toLowerCase().includes(q)):allLogs);
 }
 
-// ── Modal ──
+// ── Emp Modal ──
 function openAddModal(){
   editingId=null;
   document.getElementById('modalTitle').textContent='Thêm nhân viên';
@@ -522,398 +599,268 @@ function openAddModal(){
   document.getElementById('mEmpCode').disabled=false;
   document.getElementById('empModal').classList.add('open');
 }
-
 function openEditModal(id){
-  const emp=employees.find(e=>e.id===id);
-  if(!emp)return;
+  const emp=employees.find(e=>e.id===id);if(!emp)return;
   editingId=id;
   document.getElementById('modalTitle').textContent='Chỉnh sửa — '+emp.name;
   document.getElementById('modalEmpId').value=id;
-  document.getElementById('mEmpCode').value=emp.emp_code;
-  document.getElementById('mEmpCode').disabled=true;
+  document.getElementById('mEmpCode').value=emp.emp_code;document.getElementById('mEmpCode').disabled=true;
   document.getElementById('mEmpName').value=emp.name;
-  document.getElementById('mEmpDept').value=emp.department||'';
-  document.getElementById('mEmpPos').value=emp.position||'';
-  document.getElementById('mEmpEmail').value=emp.email||'';
-  document.getElementById('mEmpPhone').value=emp.phone||'';
+  document.getElementById('mEmpDept').value=emp.department||'';document.getElementById('mEmpPos').value=emp.position||'';
+  document.getElementById('mEmpEmail').value=emp.email||'';document.getElementById('mEmpPhone').value=emp.phone||'';
   document.getElementById('mEmpActive').value=String(emp.is_active);
   document.getElementById('modalActiveRow').style.display='';
   document.getElementById('empModal').classList.add('open');
 }
-
 function closeModal(){document.getElementById('empModal').classList.remove('open');}
-
 async function saveEmployee(){
-  const btn=document.getElementById('modalSaveBtn');
-  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const btn=document.getElementById('modalSaveBtn');btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   try{
     if(editingId){
-      const payload={
-        name:document.getElementById('mEmpName').value.trim(),
-        department:document.getElementById('mEmpDept').value.trim(),
-        position:document.getElementById('mEmpPos').value.trim(),
-        email:document.getElementById('mEmpEmail').value.trim(),
-        phone:document.getElementById('mEmpPhone').value.trim(),
-        is_active:document.getElementById('mEmpActive').value==='true',
-      };
+      const payload={name:document.getElementById('mEmpName').value.trim(),department:document.getElementById('mEmpDept').value.trim(),position:document.getElementById('mEmpPos').value.trim(),email:document.getElementById('mEmpEmail').value.trim(),phone:document.getElementById('mEmpPhone').value.trim(),is_active:document.getElementById('mEmpActive').value==='true'};
       const r=await authFetch('/api/employees/'+editingId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!r.ok)throw new Error((await r.json()).detail||'Lỗi cập nhật');
       showToast('Đã cập nhật nhân viên','success');
-    } else {
-      // New employee — redirect to register page with code prefilled
-      const code=document.getElementById('mEmpCode').value.trim();
-      const name=document.getElementById('mEmpName').value.trim();
-      if(!code||!name){throw new Error('Vui lòng nhập mã NV và họ tên');}
+    }else{
+      const code=document.getElementById('mEmpCode').value.trim(),name=document.getElementById('mEmpName').value.trim();
+      if(!code||!name)throw new Error('Vui lòng nhập mã NV và họ tên');
       showToast('Chuyển sang trang đăng ký khuôn mặt...','success');
       setTimeout(()=>{window.location='/register';},1200);
     }
-    closeModal();
-    await loadEmployees();
-    await loadSummary();
+    closeModal();await loadEmployees();await loadSummary();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
   finally{btn.textContent='Lưu';btn.disabled=false;}
 }
-
 async function deleteEmployee(id,name){
   if(!confirm('Vô hiệu hóa nhân viên "'+name+'"?'))return;
   try{
     const r=await authFetch('/api/employees/'+id,{method:'DELETE'});
     if(!r.ok)throw new Error('Lỗi xóa');
-    showToast('Đã vô hiệu hóa nhân viên','success');
-    await loadEmployees();await loadSummary();
+    showToast('Đã vô hiệu hóa nhân viên','success');await loadEmployees();await loadSummary();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
 }
-
-// Auto reload summary every 30s
 setInterval(loadSummary,30000);
+
 // ── Dashboard tabs ──
-function switchDashTab(id, btn) {
-  document.querySelectorAll('.dash-tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  btn.classList.add('active');
-  if (id === 'tab-leave') loadLeaveRequests();
-  if (id === 'tab-calendar') { loadConfig(); renderCalMgmt(); }
+function switchDashTab(id,btn){
+  document.querySelectorAll('.dash-tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.dash-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');btn.classList.add('active');
+  if(id==='tab-leave')loadLeaveRequests();
+  if(id==='tab-calendar'){loadConfig();renderCalMgmt();}
 }
 
 // ── Leave management ──
-let leaveRequests = [];
-async function loadLeaveRequests() {
-  const status = document.getElementById('lvFilterStatus').value;
-  const rtype  = document.getElementById('lvFilterType').value;
-  const url = `/api/leave?status=${status}&request_type=${rtype}`;
-  try {
-    const r = await authFetch(url);
-    leaveRequests = await r.json();
-    renderLeaveTable();
-    // Update badge
-    const pendingCount = leaveRequests.filter(l => l.status === 'pending').length;
-    const badge = document.getElementById('leaveBadge');
-    badge.textContent = pendingCount;
-    badge.classList.toggle('show', pendingCount > 0);
-  } catch(e) { showToast('Lỗi tải đơn nghỉ', 'error'); }
+let leaveRequests=[];
+async function loadLeaveRequests(){
+  const status=document.getElementById('lvFilterStatus').value;
+  const rtype=document.getElementById('lvFilterType').value;
+  try{
+    const r=await authFetch(`/api/leave?status=${status}&request_type=${rtype}`);
+    leaveRequests=await r.json();renderLeaveTable();
+    const cnt=leaveRequests.filter(l=>l.status==='pending').length;
+    const badge=document.getElementById('leaveBadge');badge.textContent=cnt;badge.classList.toggle('show',cnt>0);
+  }catch(e){showToast('Lỗi tải đơn nghỉ','error');}
 }
-
-function renderLeaveTable() {
-  const tbody = document.getElementById('leaveTableBody');
-  if (!leaveRequests.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Không có đơn nào</td></tr>';
-    return;
-  }
-  const smap = { pending:'ls-pending|⏳ Chờ duyệt', approved:'ls-approved|✓ Đã duyệt',
-    rejected:'ls-rejected|✕ Từ chối', cancelled:'ls-cancelled|— Đã hủy' };
-  const rtypeLabel = { leave:'📅 Nghỉ phép', remote:'🏠 Remote' };
-
-  tbody.innerHTML = leaveRequests.map(l => {
-    const [scls, stxt] = (smap[l.status] || 'ls-cancelled|?').split('|');
-    const dates = l.dates.map(d => {
-      let s = d.date; if (d.half === 'am') s += '(S)'; else if (d.half === 'pm') s += '(C)'; return s;
-    }).join(', ');
-    const isPending = l.status === 'pending';
-    return `<tr>
-      <td><div style="font-weight:600;font-size:12px">${l.emp_name}<br><span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.emp_code}</span></div></td>
-      <td>${rtypeLabel[l.request_type] || l.request_type}</td>
+function renderLeaveTable(){
+  const tbody=document.getElementById('leaveTableBody');
+  if(!leaveRequests.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Không có đơn nào</td></tr>';return;}
+  const smap={pending:'ls-pending|⏳ Chờ duyệt',approved:'ls-approved|✓ Đã duyệt',rejected:'ls-rejected|✕ Từ chối',cancelled:'ls-cancelled|— Đã hủy'};
+  const rtypeLabel={leave:'📅 Nghỉ phép',remote:'🏠 Remote'};
+  tbody.innerHTML=leaveRequests.map(l=>{
+    const [scls,stxt]=(smap[l.status]||'ls-cancelled|?').split('|');
+    const dates=l.dates.map(d=>{let s=d.date;if(d.half==='am')s+='(S)';else if(d.half==='pm')s+='(C)';return s;}).join(', ');
+    const isPending=l.status==='pending';
+    return `<tr><td><div style="font-weight:600;font-size:12px">${l.emp_name}<br><span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.emp_code}</span></div></td>
+      <td>${rtypeLabel[l.request_type]||l.request_type}</td>
       <td style="font-family:var(--font-mono);font-size:10px">${dates}</td>
       <td style="text-align:center;font-family:var(--font-mono)">${l.total_days}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:140px">${l.reason || '—'}</td>
-      <td style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.submitted_at ? l.submitted_at.slice(0,16).replace('T',' ') : '—'}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:140px">${l.reason||'—'}</td>
+      <td style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.submitted_at?l.submitted_at.slice(0,16).replace('T',' '):'—'}</td>
       <td><span class="lv-status ${scls}">${stxt}</span></td>
-      <td style="text-align:right">
-        ${isPending ? `
-          <div style="display:flex;gap:5px;justify-content:flex-end">
-            <button onclick="approveLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">✓ Duyệt</button>
-            <button onclick="rejectLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.3);color:var(--red);font-size:11px;cursor:pointer;font-weight:700">✕ Từ chối</button>
-          </div>` : (l.note ? `<span style="font-size:10px;color:var(--muted)">${l.note}</span>` : '—')}
-      </td>
-    </tr>`;
+      <td style="text-align:right">${isPending?`<div style="display:flex;gap:5px;justify-content:flex-end">
+        <button onclick="approveLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">✓ Duyệt</button>
+        <button onclick="rejectLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.3);color:var(--red);font-size:11px;cursor:pointer;font-weight:700">✕ Từ chối</button>
+      </div>`:(l.note?`<span style="font-size:10px;color:var(--muted)">${l.note}</span>`:'—')}</td></tr>`;
   }).join('');
 }
-
-let _leaveActionId = null;
-
-function _leaveInfoHtml(id) {
-  const l = leaveRequests.find(x => x.id === id);
-  if (!l) return '';
-  const rtypeLabel = { leave: '📅 Nghỉ phép', remote: '🏠 Remote' };
-  const dates = (l.dates || []).map(d => d.date + (d.half ? ` (${d.half === 'am' ? 'Sáng' : 'Chiều'})` : '')).join(', ');
-  return `<b>${l.emp_name}</b> — ${l.department || ''}<br>Loại: ${rtypeLabel[l.request_type] || l.request_type}<br>Ngày: ${dates}<br>${l.reason ? 'Lý do: ' + l.reason : ''}`;
+let _leaveActionId=null;
+function _leaveInfoHtml(id){
+  const l=leaveRequests.find(x=>x.id===id);if(!l)return '';
+  const rtypeLabel={leave:'📅 Nghỉ phép',remote:'🏠 Remote'};
+  const dates=(l.dates||[]).map(d=>d.date+(d.half?` (${d.half==='am'?'Sáng':'Chiều'})`:'')). join(', ');
+  return `<b>${l.emp_name}</b> — ${l.department||''}<br>Loại: ${rtypeLabel[l.request_type]||l.request_type}<br>Ngày: ${dates}<br>${l.reason?'Lý do: '+l.reason:''}`;
 }
-
-function approveLeave(id) {
-  _leaveActionId = id;
-  document.getElementById('approveLeaveInfo').innerHTML = _leaveInfoHtml(id);
-  document.getElementById('approveLeaveNote').value = '';
-  document.getElementById('approveLeaveModal').classList.add('open');
-  setTimeout(() => document.getElementById('approveLeaveNote').focus(), 100);
+function approveLeave(id){_leaveActionId=id;document.getElementById('approveLeaveInfo').innerHTML=_leaveInfoHtml(id);document.getElementById('approveLeaveNote').value='';document.getElementById('approveLeaveModal').classList.add('open');setTimeout(()=>document.getElementById('approveLeaveNote').focus(),100);}
+function closeApproveModal(){document.getElementById('approveLeaveModal').classList.remove('open');_leaveActionId=null;}
+async function submitApproveLeave(){
+  const id=_leaveActionId;if(!id)return;
+  const note=document.getElementById('approveLeaveNote').value.trim();
+  const btn=document.getElementById('approveLeaveBtn');btn.disabled=true;btn.textContent='Đang duyệt...';
+  try{
+    const r=await authFetch(`/api/leave/${id}/approve`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({note})});
+    if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');
+    closeApproveModal();showToast('Đã duyệt đơn thành công','success');await loadLeaveRequests();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='✓ Duyệt';}
 }
-
-function closeApproveModal() {
-  document.getElementById('approveLeaveModal').classList.remove('open');
-  _leaveActionId = null;
+function rejectLeave(id){_leaveActionId=id;document.getElementById('rejectLeaveInfo').innerHTML=_leaveInfoHtml(id);document.getElementById('rejectLeaveNote').value='';document.getElementById('rejectLeaveNoteErr').style.display='none';document.getElementById('rejectLeaveModal').classList.add('open');setTimeout(()=>document.getElementById('rejectLeaveNote').focus(),100);}
+function closeRejectModal(){document.getElementById('rejectLeaveModal').classList.remove('open');_leaveActionId=null;}
+async function submitRejectLeave(){
+  const id=_leaveActionId;if(!id)return;
+  const note=document.getElementById('rejectLeaveNote').value.trim();
+  const errEl=document.getElementById('rejectLeaveNoteErr');
+  if(!note){errEl.style.display='';return;}errEl.style.display='none';
+  const btn=document.getElementById('rejectLeaveBtn');btn.disabled=true;btn.textContent='Đang gửi...';
+  try{
+    const r=await authFetch(`/api/leave/${id}/reject`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({note})});
+    if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');
+    closeRejectModal();showToast('Đã từ chối đơn','success');await loadLeaveRequests();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='✕ Từ chối';}
 }
+setInterval(async()=>{
+  try{const r=await authFetch('/api/leave/pending-count');const d=await r.json();const badge=document.getElementById('leaveBadge');if(d.count>0){badge.textContent=d.count;badge.classList.add('show');}else badge.classList.remove('show');}catch{}
+},60000);
 
-async function submitApproveLeave() {
-  const id = _leaveActionId;
-  if (!id) return;
-  const note = document.getElementById('approveLeaveNote').value.trim();
-  const btn = document.getElementById('approveLeaveBtn');
-  btn.disabled = true; btn.textContent = 'Đang duyệt...';
-  try {
-    const r = await authFetch(`/api/leave/${id}/approve`, {
-      method: 'PUT', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ note })
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
-    closeApproveModal();
-    showToast('Đã duyệt đơn thành công', 'success');
-    await loadLeaveRequests();
-  } catch(e) {
-    showToast('Lỗi: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = '✓ Duyệt';
+// ── Calendar ──
+let calMgmtYear=new Date().getFullYear(),calMgmtMonth=new Date().getMonth()+1,calMgmtCache={},editingDate=null,editingDayType='full';
+const mnN=['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+function calMgmtNav(dir){calMgmtMonth+=dir;if(calMgmtMonth>12){calMgmtMonth=1;calMgmtYear++;}if(calMgmtMonth<1){calMgmtMonth=12;calMgmtYear--;}renderCalMgmt();}
+async function renderCalMgmt(){
+  document.getElementById('calMgmtLabel').textContent=`${mnN[calMgmtMonth]} ${calMgmtYear}`;
+  const body=document.getElementById('calMgmtBody');
+  body.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted);font-size:12px"><div class="spinner" style="margin:0 auto;width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--teal);animation:spin .7s linear infinite"></div></div>';
+  try{
+    const key=`${calMgmtYear}-${calMgmtMonth}`;delete calMgmtCache[key];
+    const r=await authFetch(`/api/calendar?year=${calMgmtYear}&month=${calMgmtMonth}`);
+    const d=await r.json();calMgmtCache[key]=d.days||[];renderCalMgmtGrid(calMgmtCache[key]);
+  }catch{body.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Lỗi tải lịch</div>';}
+}
+function renderCalMgmtGrid(calDays){
+  const body=document.getElementById('calMgmtBody');
+  const firstDay=new Date(calMgmtYear,calMgmtMonth-1,1).getDay();
+  const daysInMonth=new Date(calMgmtYear,calMgmtMonth,0).getDate();
+  const todayStr=new Date().toISOString().slice(0,10);
+  const dtCol={full:'var(--teal)',half_am:'var(--blue)',half_pm:'var(--blue)',off:'rgba(90,122,154,.4)',holiday:'#f6c90e',overtime:'#a78bfa'};
+  let html=`<div class="cal-grid-m"><div class="cal-dow-m">CN</div><div class="cal-dow-m">T2</div><div class="cal-dow-m">T3</div><div class="cal-dow-m">T4</div><div class="cal-dow-m">T5</div><div class="cal-dow-m">T6</div><div class="cal-dow-m">T7</div>`;
+  for(let i=0;i<firstDay;i++)html+='<div class="cal-day-m empty-slot"></div>';
+  for(let day=1;day<=daysInMonth;day++){
+    const ds=`${calMgmtYear}-${String(calMgmtMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const cal=calDays.find(c=>c.date===ds)||{day_type:'full',label:''};
+    const col=dtCol[cal.day_type]||'var(--muted)';
+    const isToday=ds===todayStr,isEditing=ds===editingDate;
+    const tip=cal.label?`title="${cal.label}"`:'';
+    html+=`<div class="cal-day-m dt-${cal.day_type}${isToday?' today':''}${isEditing?' today':''}" style="border-color:${isEditing?'var(--teal)':'transparent'};background:${isEditing?'rgba(0,212,170,.1)':''}" onclick="selectDay('${ds}','${cal.day_type}','${cal.work_start||''}','${cal.work_end||''}','${(cal.label||'').replace(/'/g,'')}')\" ${tip}><span style="color:${col}">${day}</span>${cal.label?`<span class="day-lbl" style="color:${col}">${cal.label.slice(0,8)}</span>`:''}${cal.is_override?'<span style="position:absolute;top:1px;right:2px;width:4px;height:4px;border-radius:50%;background:var(--teal)"></span>':''}</div>`;
   }
+  html+='</div>';body.innerHTML=html;
+}
+function selectDay(ds,dtype,wstart,wend,label){
+  editingDate=ds;editingDayType=dtype;
+  const d=new Date(ds);document.getElementById('editDayTitle').textContent=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+  document.getElementById('editDayStart').value=wstart||'';document.getElementById('editDayEnd').value=wend||'';document.getElementById('editDayLabel').value=label||'';
+  document.querySelectorAll('.dtype-btn').forEach(b=>b.classList.toggle('active',b.dataset.dt===dtype));
+  const key=`${calMgmtYear}-${calMgmtMonth}`;if(calMgmtCache[key])renderCalMgmtGrid(calMgmtCache[key]);
+}
+function selectDayType(btn,dtype){editingDayType=dtype;document.querySelectorAll('.dtype-btn[data-dt]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+async function saveDayOverride(){
+  if(!editingDate){showToast('Chọn ngày trước','error');return;}
+  const payload={date:editingDate,day_type:editingDayType,work_start:document.getElementById('editDayStart').value||null,work_end:document.getElementById('editDayEnd').value||null,label:document.getElementById('editDayLabel').value};
+  try{const r=await authFetch('/api/calendar/day',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');showToast('Đã lưu lịch ngày '+editingDate,'success');renderCalMgmt();}catch(e){showToast('Lỗi: '+e.message,'error');}
+}
+async function deleteDayOverride(){
+  if(!editingDate){showToast('Chọn ngày trước','error');return;}
+  if(!confirm(`Xóa cài đặt đặc biệt ngày ${editingDate}?`))return;
+  try{const r=await authFetch(`/api/calendar/day/${editingDate}`,{method:'DELETE'});if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');showToast('Đã xóa override, về mặc định','success');renderCalMgmt();}catch(e){showToast('Lỗi: '+e.message,'error');}
+}
+async function loadConfig(){
+  try{const r=await authFetch('/api/calendar/config');const d=await r.json();document.getElementById('cfgStart').value=d.work_start||'08:00';document.getElementById('cfgEnd').value=d.work_end||'17:00';document.getElementById('cfgLate').value=d.late_threshold_minutes||15;document.getElementById('cfgHalfCutoff').value=d.half_day_cutoff||'12:00';const days=(d.work_days||'1,2,3,4,5').split(',').map(Number);document.querySelectorAll('#workDaysPicker .dtype-btn').forEach(b=>b.classList.toggle('active',days.includes(Number(b.dataset.wd))));}catch{}
+}
+function toggleWorkDay(btn){btn.classList.toggle('active');}
+async function saveConfig(){
+  const days=[...document.querySelectorAll('#workDaysPicker .dtype-btn.active')].map(b=>b.dataset.wd).join(',');
+  const payload={work_days:days||'1,2,3,4,5',work_start:document.getElementById('cfgStart').value,work_end:document.getElementById('cfgEnd').value,late_threshold_minutes:parseInt(document.getElementById('cfgLate').value)||15,half_day_cutoff:document.getElementById('cfgHalfCutoff').value};
+  try{const r=await authFetch('/api/calendar/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');showToast('Đã lưu cấu hình','success');}catch(e){showToast('Lỗi: '+e.message,'error');}
+}
+(async()=>{try{const r=await authFetch('/api/leave/pending-count');const d=await r.json();if(d.count>0){const badge=document.getElementById('leaveBadge');badge.textContent=d.count;badge.classList.add('show');}}catch{}})();
+
+// ════════════════════════════════════════════════════
+// QUẢN LÝ ĐIỂM DANH (manager / admin)
+// ════════════════════════════════════════════════════
+function _dtLocal(iso){if(!iso)return '';const d=new Date(iso),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+function _tsApi(v){return v.replace('T',' ')+':00';}
+function closeAtd(id){document.getElementById(id).classList.remove('open');}
+
+// Sửa
+function openAtdEdit(logId){
+  const log=allLogs.find(l=>l.id===logId);if(!log)return;
+  _atdEditId=logId;
+  document.getElementById('atdEditName').textContent=log.name||log.emp_code;
+  document.getElementById('atdEditMeta').textContent=`ID #${log.id}  ·  ${log.emp_code}  ·  ${log.department||'—'}`;
+  document.getElementById('atdEditType').value=log.check_type;
+  document.getElementById('atdEditTs').value=_dtLocal(log.timestamp);
+  document.getElementById('atdEditNote').value='';
+  document.getElementById('atdEditOvl').classList.add('open');
+}
+async function saveAtdEdit(){
+  const btn=document.getElementById('atdEditBtn');
+  btn.innerHTML='<span class="atd-sp"></span> Đang lưu...';btn.disabled=true;
+  try{
+    const res=await authFetch('/api/attendance/'+_atdEditId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({check_type:document.getElementById('atdEditType').value,timestamp:_tsApi(document.getElementById('atdEditTs').value),note:document.getElementById('atdEditNote').value||null})});
+    if(!res.ok)throw new Error((await res.json()).detail||'Lỗi cập nhật');
+    const data=await res.json();
+    const idx=allLogs.findIndex(l=>l.id===_atdEditId);if(idx!==-1)allLogs[idx]=data.log;
+    renderLogs(allLogs);closeAtd('atdEditOvl');showToast('Đã cập nhật bản ghi điểm danh','success');
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Lưu thay đổi';btn.disabled=false;}
 }
 
-function rejectLeave(id) {
-  _leaveActionId = id;
-  document.getElementById('rejectLeaveInfo').innerHTML = _leaveInfoHtml(id);
-  document.getElementById('rejectLeaveNote').value = '';
-  document.getElementById('rejectLeaveNoteErr').style.display = 'none';
-  document.getElementById('rejectLeaveModal').classList.add('open');
-  setTimeout(() => document.getElementById('rejectLeaveNote').focus(), 100);
+// Xoá
+function openAtdDel(logId){
+  const log=allLogs.find(l=>l.id===logId);if(!log)return;
+  _atdDelId=logId;
+  document.getElementById('atdDelName').textContent=log.name||log.emp_code;
+  document.getElementById('atdDelMeta').textContent=`${log.check_type==='check_in'?'▲ Vào':'▼ Ra'}  ·  ${log.time}  ${log.date}  ·  ID #${log.id}`;
+  document.getElementById('atdDelOvl').classList.add('open');
+}
+async function confirmAtdDel(){
+  const btn=document.getElementById('atdDelBtn');
+  btn.innerHTML='<span class="atd-sp"></span> Đang xoá...';btn.disabled=true;
+  try{
+    const res=await authFetch('/api/attendance/'+_atdDelId,{method:'DELETE'});
+    if(!res.ok)throw new Error((await res.json()).detail||'Lỗi xoá');
+    allLogs=allLogs.filter(l=>l.id!==_atdDelId);renderLogs(allLogs);
+    closeAtd('atdDelOvl');showToast('Đã xoá bản ghi điểm danh','success');await loadSummary();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg> Xoá bản ghi';btn.disabled=false;}
 }
 
-function closeRejectModal() {
-  document.getElementById('rejectLeaveModal').classList.remove('open');
-  _leaveActionId = null;
+// Thêm bù
+function openAtdAdd(){
+  const logDate=document.getElementById('logDate').value||new Date().toISOString().split('T')[0];
+  const now=new Date(),p=n=>String(n).padStart(2,'0');
+  document.getElementById('atdAddTs').value=`${logDate}T${p(now.getHours())}:${p(now.getMinutes())}`;
+  document.getElementById('atdAddNote').value='';document.getElementById('atdAddType').value='check_in';
+  const sel=document.getElementById('atdAddEmp');
+  sel.innerHTML='<option value="">— Chọn nhân viên —</option>';
+  employees.filter(e=>e.is_active).forEach(e=>{const o=document.createElement('option');o.value=e.emp_code;o.textContent=`${e.name} (${e.emp_code})`;sel.appendChild(o);});
+  document.getElementById('atdAddOvl').classList.add('open');
 }
-
-async function submitRejectLeave() {
-  const id = _leaveActionId;
-  if (!id) return;
-  const note = document.getElementById('rejectLeaveNote').value.trim();
-  const errEl = document.getElementById('rejectLeaveNoteErr');
-  if (!note) { errEl.style.display = ''; return; }
-  errEl.style.display = 'none';
-  const btn = document.getElementById('rejectLeaveBtn');
-  btn.disabled = true; btn.textContent = 'Đang gửi...';
-  try {
-    const r = await authFetch(`/api/leave/${id}/reject`, {
-      method: 'PUT', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ note })
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
-    closeRejectModal();
-    showToast('Đã từ chối đơn', 'success');
-    await loadLeaveRequests();
-  } catch(e) {
-    showToast('Lỗi: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = '✕ Từ chối';
-  }
+async function saveAtdAdd(){
+  const empCode=document.getElementById('atdAddEmp').value;
+  if(!empCode){showToast('Vui lòng chọn nhân viên','error');return;}
+  const tsVal=document.getElementById('atdAddTs').value;
+  if(!tsVal){showToast('Vui lòng chọn thời gian','error');return;}
+  const btn=document.getElementById('atdAddBtn');
+  btn.innerHTML='<span class="atd-sp"></span> Đang thêm...';btn.disabled=true;
+  try{
+    const res=await authFetch('/api/attendance/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emp_code:empCode,check_type:document.getElementById('atdAddType').value,timestamp:_tsApi(tsVal),note:document.getElementById('atdAddNote').value||''})});
+    if(!res.ok)throw new Error((await res.json()).detail||'Lỗi tạo bản ghi');
+    const data=await res.json();allLogs.unshift(data.log);renderLogs(allLogs);
+    closeAtd('atdAddOvl');showToast('Đã thêm bản ghi điểm danh thủ công','success');await loadSummary();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Thêm bản ghi';btn.disabled=false;}
 }
-
-// Poll pending count every 60s
-setInterval(async () => {
-  try {
-    const r = await authFetch('/api/leave/pending-count');
-    const d = await r.json();
-    const badge = document.getElementById('leaveBadge');
-    if (d.count > 0) { badge.textContent = d.count; badge.classList.add('show'); }
-    else badge.classList.remove('show');
-  } catch {}
-}, 60000);
-
-// ── Calendar management ──
-let calMgmtYear = new Date().getFullYear();
-let calMgmtMonth = new Date().getMonth() + 1;
-let calMgmtCache = {};
-let editingDate = null;
-let editingDayType = 'full';
-const mnN = ['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
-
-function calMgmtNav(dir) {
-  calMgmtMonth += dir;
-  if (calMgmtMonth > 12) { calMgmtMonth = 1; calMgmtYear++; }
-  if (calMgmtMonth < 1)  { calMgmtMonth = 12; calMgmtYear--; }
-  renderCalMgmt();
-}
-
-async function renderCalMgmt() {
-  document.getElementById('calMgmtLabel').textContent = `${mnN[calMgmtMonth]} ${calMgmtYear}`;
-  const body = document.getElementById('calMgmtBody');
-  body.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:12px"><div class="spinner" style="margin:0 auto;width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--teal);animation:spin .7s linear infinite"></div></div>';
-  try {
-    const key = `${calMgmtYear}-${calMgmtMonth}`;
-    delete calMgmtCache[key]; // always fresh
-    const r = await authFetch(`/api/calendar?year=${calMgmtYear}&month=${calMgmtMonth}`);
-    const d = await r.json();
-    calMgmtCache[key] = d.days || [];
-    renderCalMgmtGrid(calMgmtCache[key]);
-  } catch { body.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">Lỗi tải lịch</div>'; }
-}
-
-function renderCalMgmtGrid(calDays) {
-  const body = document.getElementById('calMgmtBody');
-  const firstDay = new Date(calMgmtYear, calMgmtMonth-1, 1).getDay();
-  const daysInMonth = new Date(calMgmtYear, calMgmtMonth, 0).getDate();
-  const todayStr = new Date().toISOString().slice(0,10);
-  const dtCol = { full:'var(--teal)', half_am:'var(--blue)', half_pm:'var(--blue)',
-    off:'rgba(90,122,154,.4)', holiday:'#f6c90e', overtime:'#a78bfa' };
-
-  let html = `<div class="cal-grid-m">
-    <div class="cal-dow-m">CN</div><div class="cal-dow-m">T2</div><div class="cal-dow-m">T3</div>
-    <div class="cal-dow-m">T4</div><div class="cal-dow-m">T5</div><div class="cal-dow-m">T6</div>
-    <div class="cal-dow-m">T7</div>`;
-
-  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day-m empty-slot"></div>';
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const ds = `${calMgmtYear}-${String(calMgmtMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const cal = calDays.find(c => c.date === ds) || { day_type: 'full', label: '' };
-    const col = dtCol[cal.day_type] || 'var(--muted)';
-    const isToday = ds === todayStr;
-    const isEditing = ds === editingDate;
-    const tip = cal.label ? `title="${cal.label}"` : '';
-    html += `<div class="cal-day-m dt-${cal.day_type}${isToday?' today':''}${isEditing?' today':''}"
-      style="border-color:${isEditing?'var(--teal)':'transparent'};background:${isEditing?'rgba(0,212,170,.1)':''}"
-      onclick="selectDay('${ds}','${cal.day_type}','${cal.work_start||''}','${cal.work_end||''}','${(cal.label||'').replace(/'/g,'')}')" ${tip}>
-      <span style="color:${col}">${day}</span>
-      ${cal.label ? `<span class="day-lbl" style="color:${col}">${cal.label.slice(0,8)}</span>` : ''}
-      ${cal.is_override ? '<span style="position:absolute;top:1px;right:2px;width:4px;height:4px;border-radius:50%;background:var(--teal)"></span>' : ''}
-    </div>`;
-  }
-  html += '</div>';
-  body.innerHTML = html;
-}
-
-function selectDay(ds, dtype, wstart, wend, label) {
-  editingDate = ds;
-  editingDayType = dtype;
-  const d = new Date(ds);
-  document.getElementById('editDayTitle').textContent =
-    `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
-  document.getElementById('editDayStart').value = wstart || '';
-  document.getElementById('editDayEnd').value   = wend   || '';
-  document.getElementById('editDayLabel').value  = label  || '';
-  document.querySelectorAll('.dtype-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.dt === dtype);
-  });
-  // Re-render to highlight selected day
-  const key = `${calMgmtYear}-${calMgmtMonth}`;
-  if (calMgmtCache[key]) renderCalMgmtGrid(calMgmtCache[key]);
-}
-
-function selectDayType(btn, dtype) {
-  editingDayType = dtype;
-  document.querySelectorAll('.dtype-btn[data-dt]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-async function saveDayOverride() {
-  if (!editingDate) { showToast('Chọn ngày trước', 'error'); return; }
-  const payload = {
-    date:       editingDate,
-    day_type:   editingDayType,
-    work_start: document.getElementById('editDayStart').value || null,
-    work_end:   document.getElementById('editDayEnd').value   || null,
-    label:      document.getElementById('editDayLabel').value,
-  };
-  try {
-    const r = await authFetch('/api/calendar/day', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
-    showToast('Đã lưu lịch ngày ' + editingDate, 'success');
-    renderCalMgmt();
-  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
-}
-
-async function deleteDayOverride() {
-  if (!editingDate) { showToast('Chọn ngày trước', 'error'); return; }
-  if (!confirm(`Xóa cài đặt đặc biệt ngày ${editingDate}?`)) return;
-  try {
-    const r = await authFetch(`/api/calendar/day/${editingDate}`, { method: 'DELETE' });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
-    showToast('Đã xóa override, về mặc định', 'success');
-    renderCalMgmt();
-  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
-}
-
-// ── Config ──
-async function loadConfig() {
-  try {
-    const r = await authFetch('/api/calendar/config');
-    const d = await r.json();
-    document.getElementById('cfgStart').value       = d.work_start || '08:00';
-    document.getElementById('cfgEnd').value         = d.work_end   || '17:00';
-    document.getElementById('cfgLate').value        = d.late_threshold_minutes || 15;
-    document.getElementById('cfgHalfCutoff').value  = d.half_day_cutoff || '12:00';
-    // Work days picker
-    const days = (d.work_days || '1,2,3,4,5').split(',').map(Number);
-    document.querySelectorAll('#workDaysPicker .dtype-btn').forEach(b => {
-      b.classList.toggle('active', days.includes(Number(b.dataset.wd)));
-    });
-  } catch {}
-}
-
-function toggleWorkDay(btn) {
-  btn.classList.toggle('active');
-}
-
-async function saveConfig() {
-  const days = [...document.querySelectorAll('#workDaysPicker .dtype-btn.active')]
-    .map(b => b.dataset.wd).join(',');
-  const payload = {
-    work_days:              days || '1,2,3,4,5',
-    work_start:             document.getElementById('cfgStart').value,
-    work_end:               document.getElementById('cfgEnd').value,
-    late_threshold_minutes: parseInt(document.getElementById('cfgLate').value) || 15,
-    half_day_cutoff:        document.getElementById('cfgHalfCutoff').value,
-  };
-  try {
-    const r = await authFetch('/api/calendar/config', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Lỗi');
-    showToast('Đã lưu cấu hình', 'success');
-  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
-}
-
-// Load pending count on page load
-(async () => {
-  try {
-    const r = await authFetch('/api/leave/pending-count');
-    const d = await r.json();
-    if (d.count > 0) {
-      const badge = document.getElementById('leaveBadge');
-      badge.textContent = d.count; badge.classList.add('show');
-    }
-  } catch {}
-})();
-
 </script>
 <script src="/static/js/toast.js"></script>
 </body>
