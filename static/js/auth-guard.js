@@ -27,6 +27,22 @@
     try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null'); } catch { return null; }
   }
 
+  function getJwtPayload(token) {
+    try {
+      const payload = token.split('.')[1];
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+      return JSON.parse(atob(normalized));
+    } catch {
+      return null;
+    }
+  }
+
+  function isAccessExpired(token, skewSeconds) {
+    const payload = getJwtPayload(token);
+    if (!payload || !payload.exp) return true;
+    return payload.exp * 1000 <= Date.now() + (skewSeconds || 0) * 1000;
+  }
+
   function clearAuth() {
     ['access_token','refresh_token','user'].forEach(k => {
       localStorage.removeItem(k); sessionStorage.removeItem(k);
@@ -36,12 +52,6 @@
   function redirectLogin() {
     clearAuth();
     window.location.href = LOGIN_PAGE + '?next=' + encodeURIComponent(window.location.pathname);
-  }
-
-  // Kiểm tra ngay khi trang load
-  if (!getToken()) {
-    redirectLogin();
-    throw new Error('Redirecting to login');
   }
 
   // Kiểm tra role — staff không được vào trang quản lý
@@ -84,13 +94,31 @@
     return refreshPromise;
   }
 
+  async function ensureFreshAccess() {
+    const token = getToken();
+    if (token && !isAccessExpired(token, 30)) return true;
+    return refreshAuth();
+  }
+
+  // Kiểm tra ngay khi trang load. Nếu chỉ còn refresh token thì giữ trang lại
+  // để authFetch có cơ hội lấy access token mới.
+  if (!getToken() && !getRefreshToken()) {
+    redirectLogin();
+    throw new Error('Redirecting to login');
+  }
+
   window.authHeaders = function (extra) {
     return Object.assign({ 'Authorization': 'Bearer ' + getToken() }, extra || {});
   };
 
-  // Wrapper fetch tự động refresh access token khi hết hạn rồi retry 1 lần
+  // Wrapper fetch tự động refresh access token khi gần hết hạn rồi retry 1 lần nếu vẫn gặp 401
   window.authFetch = async function (url, options) {
     options = options || {};
+    const fresh = await ensureFreshAccess();
+    if (!fresh) {
+      redirectLogin();
+      throw new Error('Unauthorized');
+    }
     options.headers = Object.assign(
       { 'Authorization': 'Bearer ' + getToken() },
       options.headers || {}
