@@ -53,12 +53,13 @@
 .sdg-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
 .sdg-num{font-family:var(--font-mono);font-size:20px;font-weight:700}
 .sdg-lbl{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
-.roster-toolbar{display:grid;grid-template-columns:auto 150px auto minmax(180px,1fr) 180px auto auto;gap:8px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
+.roster-toolbar{display:grid;grid-template-columns:auto 150px auto minmax(180px,1fr) 180px auto auto auto;gap:8px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
 .roster-date-btn{height:34px;width:34px;border-radius:7px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;font-size:17px;display:grid;place-items:center;transition:all .15s}
 .roster-date-btn:hover{border-color:var(--teal);color:var(--teal)}
 .roster-view-toggle{display:flex;align-items:center;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px}
 .roster-view-btn{border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:700;padding:7px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
 .roster-view-btn.active{background:var(--teal);color:#00110d}
+.roster-range-label{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap;padding:0 2px}
 .roster-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
 .roster-metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
 .roster-metric-num{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text)}
@@ -78,6 +79,21 @@
 .roster-person-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .roster-note{font-size:10px;color:var(--muted);max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .roster-no-people{padding:18px 14px;color:var(--muted);font-size:12px;text-align:center}
+.roster-period-wrap{display:none;overflow:auto;padding:16px;max-height:680px}
+.roster-period-table{width:100%;min-width:980px;border-collapse:separate;border-spacing:0;font-size:12px}
+.roster-period-table th{position:sticky;top:0;z-index:2;background:var(--panel);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.07em;text-align:left;padding:10px;border-bottom:1px solid var(--border)}
+.roster-period-table th:first-child,.roster-period-table td:first-child{position:sticky;left:0;z-index:3;background:var(--panel);min-width:190px}
+.roster-period-table td{min-width:118px;padding:8px;border-bottom:1px solid rgba(26,47,80,.45);border-right:1px solid rgba(26,47,80,.28);vertical-align:top;color:var(--text)}
+.period-day{display:flex;flex-direction:column;gap:2px}
+.period-day b{font-size:10px;color:var(--text);letter-spacing:0;text-transform:none}
+.period-day span{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:0;text-transform:none}
+.period-cell{min-height:58px;border-radius:7px;border:1px solid transparent;padding:7px;background:rgba(255,255,255,.018);cursor:pointer}
+.period-cell:hover{border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.055)}
+.period-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;border-radius:999px;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.28);color:var(--teal);font-family:var(--font-mono);font-size:11px;font-weight:800;margin-bottom:5px}
+.period-names{display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--muted);line-height:1.25}
+.period-empty{color:rgba(90,122,154,.72);font-family:var(--font-mono);font-size:11px}
+.period-shift-name{font-weight:800;font-size:12px;color:var(--text)}
+.period-shift-time{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
 .roster-table-wrap{overflow:auto;max-height:620px}
 .shift-roster-table{width:100%;min-width:880px;border-collapse:separate;border-spacing:0;font-size:12px}
 .shift-roster-table th{position:sticky;top:0;z-index:2;background:var(--panel);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.07em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
@@ -104,7 +120,7 @@
 .roster-shift-card.shift-tone-lunch .roster-count-pill{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.28);color:#f6c90e}
 .roster-shift-card.shift-tone-evening .roster-count-pill{background:rgba(77,166,255,.12);border-color:rgba(77,166,255,.28);color:var(--blue)}
 .roster-shift-card.shift-tone-night .roster-count-pill{background:rgba(167,139,250,.13);border-color:rgba(167,139,250,.3);color:#a78bfa}
-@media(max-width:860px){.roster-toolbar{grid-template-columns:auto 1fr auto}.roster-toolbar .roster-search,.roster-toolbar .roster-dept,.roster-toolbar .roster-refresh,.roster-toolbar .roster-view-toggle{grid-column:1/-1;width:100%}.roster-view-btn{flex:1}.roster-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:860px){.roster-toolbar{grid-template-columns:auto 1fr auto}.roster-toolbar .roster-search,.roster-toolbar .roster-dept,.roster-toolbar .roster-refresh,.roster-toolbar .roster-view-toggle,.roster-toolbar .roster-range-label{grid-column:1/-1;width:100%}.roster-view-btn{flex:1}.roster-summary{grid-template-columns:1fr 1fr}}
 
 /* ── Attendance modals ── */
 .atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center}
@@ -267,9 +283,15 @@
         <select class="filter-input roster-dept" id="rosterDept" onchange="renderShiftRosterTable()"><option value="">Tất cả bộ phận</option></select>
         <button class="btn btn-teal roster-refresh" onclick="loadShiftRoster()">Tải lại</button>
         <div class="roster-view-toggle">
+          <button class="roster-view-btn active" id="rosterPeriodDay" onclick="setRosterPeriod('day')">Ngày</button>
+          <button class="roster-view-btn" id="rosterPeriodWeek" onclick="setRosterPeriod('week')">Tuần</button>
+          <button class="roster-view-btn" id="rosterPeriodMonth" onclick="setRosterPeriod('month')">Tháng</button>
+        </div>
+        <div class="roster-view-toggle">
           <button class="roster-view-btn active" id="rosterViewShift" onclick="setRosterView('shift')">Theo ca</button>
           <button class="roster-view-btn" id="rosterViewEmployee" onclick="setRosterView('employee')">Theo nhân viên</button>
         </div>
+        <span class="roster-range-label" id="rosterRangeLabel">—</span>
       </div>
       <div class="roster-summary">
         <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricAssigned">0</div><div class="roster-metric-label">Lượt phân ca</div></div>
@@ -279,6 +301,12 @@
       </div>
       <div class="roster-shift-grid" id="shiftRosterGroups">
         <div class="roster-empty">Đang tải bảng phân ca...</div>
+      </div>
+      <div class="roster-period-wrap" id="shiftRosterPeriod">
+        <table class="roster-period-table">
+          <thead id="shiftRosterPeriodHead"></thead>
+          <tbody id="shiftRosterPeriodBody"><tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr></tbody>
+        </table>
       </div>
       <div class="roster-table-wrap" id="shiftRosterMatrix" style="display:none">
         <table class="shift-roster-table">
@@ -738,8 +766,16 @@ setInterval(async()=>{
 },60000);
 
 // ── Shift roster ──
-let rosterShifts=[],rosterAssignments=[],rosterLoaded=false,rosterViewMode='shift';
-function _todayStr(){return new Date().toISOString().slice(0,10);}
+let rosterShifts=[],rosterAssignments=[],rosterAssignmentsByDate=new Map(),rosterDates=[],rosterLoaded=false,rosterViewMode='shift',rosterPeriod='day';
+function rosterDateStr(d){
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+function rosterParseDate(s){
+  const [y,m,d]=String(s).split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function _todayStr(){return rosterDateStr(new Date());}
 function _rosterDate(){
   const el=document.getElementById('rosterDate');
   if(el&&!el.value)el.value=_todayStr();
@@ -747,10 +783,34 @@ function _rosterDate(){
 }
 function rosterNav(dir){
   const el=document.getElementById('rosterDate');if(!el)return;
-  const d=new Date((el.value||_todayStr())+'T00:00:00');
-  d.setDate(d.getDate()+dir);
-  el.value=d.toISOString().slice(0,10);
+  const d=rosterParseDate(el.value||_todayStr());
+  if(rosterPeriod==='month')d.setFullYear(d.getFullYear(),d.getMonth()+dir,1);
+  else d.setDate(d.getDate()+(rosterPeriod==='week'?7:1)*dir);
+  el.value=rosterDateStr(d);
   loadShiftRoster();
+}
+function rosterPeriodDates(){
+  const base=rosterParseDate(_rosterDate());
+  const dates=[];
+  if(rosterPeriod==='week'){
+    const start=new Date(base);
+    start.setDate(start.getDate()-((start.getDay()+6)%7));
+    for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);dates.push(rosterDateStr(d));}
+    return dates;
+  }
+  if(rosterPeriod==='month'){
+    const start=new Date(base.getFullYear(),base.getMonth(),1);
+    const end=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
+    for(let i=1;i<=end;i++)dates.push(rosterDateStr(new Date(base.getFullYear(),base.getMonth(),i)));
+    return dates;
+  }
+  return [rosterDateStr(base)];
+}
+function rosterRangeLabel(){
+  if(!rosterDates.length)return '—';
+  const fmt=s=>{const d=rosterParseDate(s);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;};
+  if(rosterPeriod==='day')return fmt(rosterDates[0]);
+  return `${fmt(rosterDates[0])} - ${fmt(rosterDates[rosterDates.length-1])}`;
 }
 function rosterSafe(v){
   return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -780,35 +840,61 @@ function setRosterView(mode){
   document.getElementById('rosterViewEmployee')?.classList.toggle('active',rosterViewMode==='employee');
   renderShiftRosterTable();
 }
+function setRosterPeriod(period){
+  rosterPeriod=['day','week','month'].includes(period)?period:'day';
+  document.getElementById('rosterPeriodDay')?.classList.toggle('active',rosterPeriod==='day');
+  document.getElementById('rosterPeriodWeek')?.classList.toggle('active',rosterPeriod==='week');
+  document.getElementById('rosterPeriodMonth')?.classList.toggle('active',rosterPeriod==='month');
+  loadShiftRoster();
+}
 async function loadShiftRoster(){
-  const date=_rosterDate();
+  rosterDates=rosterPeriodDates();
   const tbody=document.getElementById('shiftRosterBody');
   const groups=document.getElementById('shiftRosterGroups');
+  const periodBody=document.getElementById('shiftRosterPeriodBody');
   if(tbody)tbody.innerHTML='<tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr>';
   if(groups)groups.innerHTML='<div class="roster-empty">Đang tải bảng phân ca...</div>';
+  if(periodBody)periodBody.innerHTML='<tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr>';
   try{
     if(!employees.length)await loadEmployees();
-    const [shiftRes,assignmentRes]=await Promise.all([
+    const [shiftRes,...assignmentResList]=await Promise.all([
       authFetch('/api/shifts?active_only=true'),
-      authFetch(`/api/shifts/assignments/date/${date}`)
+      ...rosterDates.map(d=>authFetch(`/api/shifts/assignments/date/${d}`))
     ]);
     if(!shiftRes.ok)throw new Error('Không tải được danh sách ca');
-    if(!assignmentRes.ok)throw new Error('Không tải được phân ca theo ngày');
+    if(assignmentResList.some(r=>!r.ok))throw new Error('Không tải được phân ca theo kỳ');
     rosterShifts=await shiftRes.json();
-    rosterAssignments=await assignmentRes.json();
+    rosterAssignmentsByDate=new Map();
+    const dailyData=await Promise.all(assignmentResList.map(r=>r.json()));
+    rosterAssignments=[];
+    dailyData.forEach((items,idx)=>{
+      const d=rosterDates[idx];
+      const normalized=(items||[]).map(a=>({...a,work_date:a.work_date||d}));
+      rosterAssignmentsByDate.set(d,normalized);
+      rosterAssignments.push(...normalized);
+    });
     rosterLoaded=true;
+    const label=document.getElementById('rosterRangeLabel');if(label)label.textContent=rosterRangeLabel();
     fillRosterDept();
     renderShiftRosterTable();
   }catch(e){
     if(tbody)tbody.innerHTML=`<tr><td class="roster-empty">Lỗi tải bảng phân ca: ${rosterSafe(e.message)}</td></tr>`;
     if(groups)groups.innerHTML=`<div class="roster-empty">Lỗi tải bảng phân ca: ${rosterSafe(e.message)}</div>`;
+    if(periodBody)periodBody.innerHTML=`<tr><td class="roster-empty">Lỗi tải bảng phân ca: ${rosterSafe(e.message)}</td></tr>`;
     showToast('Lỗi tải bảng phân ca','error');
   }
 }
 function renderShiftRosterTable(){
-  const groupEl=document.getElementById('shiftRosterGroups'),matrixEl=document.getElementById('shiftRosterMatrix');
-  if(groupEl)groupEl.style.display=rosterViewMode==='shift'?'grid':'none';
-  if(matrixEl)matrixEl.style.display=rosterViewMode==='employee'?'block':'none';
+  const groupEl=document.getElementById('shiftRosterGroups'),matrixEl=document.getElementById('shiftRosterMatrix'),periodEl=document.getElementById('shiftRosterPeriod');
+  const isDay=rosterPeriod==='day';
+  if(groupEl)groupEl.style.display=isDay&&rosterViewMode==='shift'?'grid':'none';
+  if(matrixEl)matrixEl.style.display=isDay&&rosterViewMode==='employee'?'block':'none';
+  if(periodEl)periodEl.style.display=!isDay?'block':'none';
+  if(!isDay){
+    if(rosterViewMode==='shift')renderRosterPeriodByShift();
+    else renderRosterPeriodByEmployee();
+    return;
+  }
   if(rosterViewMode==='shift')renderRosterByShift();
   else renderRosterMatrix();
 }
@@ -886,6 +972,76 @@ function renderRosterByShift(){
       </div>
       <div class="roster-people-list">${people}</div>
     </section>`;
+  }).join('');
+}
+function rosterDayLabel(ds){
+  const d=rosterParseDate(ds);
+  const w=['CN','T2','T3','T4','T5','T6','T7'][d.getDay()];
+  return `<div class="period-day"><b>${w}</b><span>${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</span></div>`;
+}
+function rosterJumpToDay(ds){
+  const el=document.getElementById('rosterDate');if(el)el.value=ds;
+  setRosterPeriod('day');
+}
+function renderRosterPeriodByShift(){
+  const head=document.getElementById('shiftRosterPeriodHead'),body=document.getElementById('shiftRosterPeriodBody');
+  if(!head||!body)return;
+  if(!rosterLoaded){body.innerHTML='<tr><td class="roster-empty">Chọn tab để tải bảng phân ca</td></tr>';return;}
+  renderRosterStats();
+  if(!rosterShifts.length){
+    body.innerHTML='<tr><td class="roster-empty" colspan="2">Chưa có ca đang mở. Vào trang chia ca để tạo ca trước.</td></tr>';
+    return;
+  }
+  const visibleCodes=new Set(rosterFilteredEmployees().map(e=>e.emp_code));
+  const empMap=rosterEmployeeMap();
+  head.innerHTML=`<tr><th>Ca</th>${rosterDates.map(d=>`<th>${rosterDayLabel(d)}</th>`).join('')}</tr>`;
+  body.innerHTML=rosterShifts.map(shift=>{
+    const cells=rosterDates.map(ds=>{
+      const rows=(rosterAssignmentsByDate.get(ds)||[]).filter(a=>a.shift_id===shift.id&&visibleCodes.has(a.emp_code));
+      const names=rows.slice(0,3).map(a=>`<span>${rosterSafe(empMap.get(a.emp_code)?.name||a.emp_code)}</span>`).join('');
+      const more=rows.length>3?`<span>+${rows.length-3} người</span>`:'';
+      return `<td><div class="period-cell" onclick="rosterJumpToDay('${ds}')">
+        ${rows.length?`<div class="period-count">${rows.length}</div><div class="period-names">${names}${more}</div>`:'<span class="period-empty">—</span>'}
+      </div></td>`;
+    }).join('');
+    return `<tr>
+      <td><div class="period-shift-name">${rosterSafe(shift.name)}</div><div class="period-shift-time">${rosterSafe(rosterTime(shift.work_start))} - ${rosterSafe(rosterTime(shift.work_end))}</div></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+}
+function renderRosterPeriodByEmployee(){
+  const head=document.getElementById('shiftRosterPeriodHead'),body=document.getElementById('shiftRosterPeriodBody');
+  if(!head||!body)return;
+  if(!rosterLoaded){body.innerHTML='<tr><td class="roster-empty">Chọn tab để tải bảng phân ca</td></tr>';return;}
+  renderRosterStats();
+  const visibleEmployees=rosterFilteredEmployees();
+  const shiftMap=new Map(rosterShifts.map(s=>[s.id,s]));
+  head.innerHTML=`<tr><th>Nhân viên</th>${rosterDates.map(d=>`<th>${rosterDayLabel(d)}</th>`).join('')}</tr>`;
+  if(!visibleEmployees.length){
+    body.innerHTML=`<tr><td class="roster-empty" colspan="${rosterDates.length+1}">Không có nhân viên phù hợp bộ lọc</td></tr>`;
+    return;
+  }
+  body.innerHTML=visibleEmployees.map(emp=>{
+    const cells=rosterDates.map(ds=>{
+      const rows=(rosterAssignmentsByDate.get(ds)||[]).filter(a=>a.emp_code===emp.emp_code);
+      const shiftNames=rows.map(a=>shiftMap.get(a.shift_id)?.name||'Ca').map(rosterSafe);
+      return `<td><div class="period-cell" onclick="rosterJumpToDay('${ds}')">
+        ${rows.length?`<div class="period-count">${rows.length}</div><div class="period-names">${shiftNames.map(n=>`<span>${n}</span>`).join('')}</div>`:'<span class="period-empty">—</span>'}
+      </div></td>`;
+    }).join('');
+    return `<tr>
+      <td>
+        <div class="roster-emp">
+          <div class="roster-avatar">${rosterAvatar(emp)}</div>
+          <div>
+            <div style="font-weight:700;font-size:13px">${rosterSafe(emp.name)}</div>
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${rosterSafe(emp.emp_code)} · ${rosterSafe(emp.department||'Chưa có bộ phận')}</div>
+          </div>
+        </div>
+      </td>
+      ${cells}
+    </tr>`;
   }).join('');
 }
 function renderRosterMatrix(){
