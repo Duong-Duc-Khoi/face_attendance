@@ -3,626 +3,798 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quản lý ca làm việc — FaceAttend</title>
+<title>Phân ca nhà hàng - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/nav.css">
 <link rel="stylesheet" href="/static/css/components.css">
+<script src="/static/js/auth-guard.js"></script>
 <style>
-/* ── Layout ── */
-.shifts-layout{display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start}
-@media(max-width:900px){.shifts-layout{grid-template-columns:1fr}}
+:root{
+  --amber:#f6c90e;
+  --green:#00d4aa;
+  --cyan:#3a8fff;
+  --violet:#a78bfa;
+  --ink:#08111f;
+}
 
-/* ── Shift cards ── */
-.shift-list{display:flex;flex-direction:column;gap:8px}
-.shift-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .2s;position:relative}
-.shift-card:hover{border-color:rgba(0,212,170,.4)}
-.shift-card.active{border-color:var(--teal);background:rgba(0,212,170,.05)}
-.sc-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.sc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.sc-name{font-size:13px;font-weight:700;letter-spacing:.03em}
-.sc-code{font-size:10px;color:var(--muted);font-family:var(--font-mono);margin-left:auto}
-.sc-time{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:13px;color:var(--teal)}
-.sc-late{font-size:11px;color:var(--muted);margin-left:auto}
-.sc-actions{position:absolute;top:10px;right:10px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
-.shift-card:hover .sc-actions{opacity:1}
-.sc-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s}
-.sc-btn:hover{border-color:var(--teal);color:var(--teal)}
-.sc-btn.del:hover{border-color:var(--red);color:var(--red)}
-.sc-inactive{opacity:.45}
-.sc-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.05em}
-.sc-badge.on{background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.25);color:var(--teal)}
-.sc-badge.off{background:rgba(90,122,154,.08);border:1px solid var(--border);color:var(--muted)}
+body::after{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 20% 0%,rgba(246,201,14,.08),transparent 28%),
+    radial-gradient(circle at 88% 12%,rgba(58,143,255,.08),transparent 30%);
+}
 
-/* ── Dot colors per shift ── */
-.dot-morning{background:#f6c90e}
-.dot-afternoon{background:#00a8ff}
-.dot-night{background:#a78bfa}
-.dot-office{background:#00d4aa}
-.dot-default{background:#5a7a9a}
+.ops-page{position:relative;z-index:1;max-width:1380px;margin:0 auto;padding:24px}
+.ops-head{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;margin-bottom:18px}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
+.ops-title{font-size:26px;font-weight:700;letter-spacing:0;line-height:1.15}
+.ops-sub{margin-top:7px;font-size:13px;color:var(--muted);max-width:720px;line-height:1.6}
+.head-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 
-/* ── Assign panel ── */
-.panel-tabs{display:flex;gap:4px;margin-bottom:18px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
-.pt{flex:1;padding:8px 12px;border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;border-radius:7px;transition:all .2s;text-transform:uppercase}
-.pt.active{background:var(--teal);color:#000}
-.pt-content{display:none}.pt-content.active{display:block}
+.icon-btn,.chip-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  min-height:34px;padding:0 12px;border-radius:8px;font-family:var(--font-sans);
+  font-size:12px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .18s;
+}
+.icon-btn svg,.chip-btn svg{width:15px;height:15px;flex:0 0 auto}
+.icon-btn:hover,.chip-btn:hover{border-color:var(--cyan);color:#fff;background:#13243e}
+.icon-btn.primary{background:var(--green);border-color:var(--green);color:#00110d}
+.icon-btn.primary:hover{background:#26e8c1;color:#00110d}
+.icon-btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
+.icon-btn.danger:hover{background:rgba(255,77,106,.12);border-color:var(--red)}
+.icon-only{width:34px;padding:0}
 
-/* ── Calendar view ── */
-.cal-header{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
-.cal-dow{text-align:center;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:4px 0}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cal-cell{position:relative;border:1px solid var(--border);border-radius:7px;min-height:58px;padding:4px 6px;font-size:11px;cursor:pointer;transition:all .15s;user-select:none}
-.cal-cell:hover{border-color:var(--teal)}
-.cal-cell.today{border-color:var(--teal)!important;box-shadow:0 0 0 1px rgba(0,212,170,.2)}
-.cal-cell.off{opacity:.4;pointer-events:none}
-.cal-cell.empty{border:none;pointer-events:none}
-.cell-day{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
-.cell-shift{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;margin-top:2px;line-height:1.3}
-.cell-shift.morning{background:rgba(246,201,14,.15);color:#f6c90e}
-.cell-shift.afternoon{background:rgba(0,168,255,.15);color:#00a8ff}
-.cell-shift.night{background:rgba(167,139,250,.15);color:#a78bfa}
-.cell-shift.office{background:rgba(0,212,170,.12);color:var(--teal)}
-.cell-shift.default{background:rgba(90,122,154,.1);color:var(--muted)}
-.cal-emp-filter{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-.cal-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.cal-nav-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:14px}
-.cal-nav-btn:hover{border-color:var(--teal);color:var(--teal)}
-.cal-month{font-size:14px;font-weight:700;flex:1;text-align:center}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.metric{
+  min-height:82px;background:rgba(13,22,38,.82);border:1px solid var(--border);
+  border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between;
+}
+.metric-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.metric-value{font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--text)}
+.metric-value.green{color:var(--green)}.metric-value.amber{color:var(--amber)}.metric-value.cyan{color:var(--cyan)}
 
-/* ── Bulk assign ── */
-.emp-picker{display:flex;flex-wrap:wrap;gap:6px;min-height:40px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
-.emp-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
-.emp-tag button{background:none;border:none;color:inherit;cursor:pointer;padding:0;margin-left:2px;font-size:13px;line-height:1;opacity:.7}
-.emp-tag button:hover{opacity:1}
-.date-range{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.planner-grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:16px}
+.panel.tight .panel-header{padding:12px 14px}
+.panel-title-strong{display:flex;align-items:center;gap:8px;color:var(--text);font-size:12px}
+.panel-title-strong svg{width:15px;height:15px;color:var(--green)}
+.panel-body{padding:14px}
 
-/* ── Form / modal ── */
-.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.field{display:flex;flex-direction:column;gap:6px}
+.field-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.input,.select{
+  width:100%;min-height:36px;background:var(--panel);border:1px solid var(--border);
+  color:var(--text);border-radius:8px;padding:8px 10px;font-family:var(--font-sans);
+  font-size:12px;outline:none;transition:border-color .18s,background .18s;
+}
+.input:focus,.select:focus{border-color:var(--green);background:#102039}
+.select option{background:var(--surface)}
+.check-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text)}
+.check-row input{accent-color:var(--green)}
+
+.shift-list{display:flex;flex-direction:column;gap:8px;max-height:440px;overflow:auto;padding-right:2px}
+.shift-card{
+  border:1px solid var(--border);background:linear-gradient(180deg,rgba(17,30,52,.94),rgba(13,22,38,.94));
+  border-radius:8px;padding:12px;display:grid;gap:10px;transition:all .18s;
+}
+.shift-card:hover{border-color:rgba(58,143,255,.55);transform:translateY(-1px)}
+.shift-card.off{opacity:.52}
+.shift-top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
+.shift-dot{width:10px;height:34px;border-radius:6px;background:var(--muted)}
+.shift-dot.morning{background:var(--amber)}.shift-dot.lunch{background:#ff8a4c}
+.shift-dot.evening{background:var(--cyan)}.shift-dot.night{background:var(--violet)}
+.shift-name{font-size:13px;font-weight:700}
+.shift-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
+.shift-time{font-family:var(--font-mono);font-size:13px;color:var(--green);white-space:nowrap}
+.shift-meta{display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--muted);background:rgba(6,12,23,.35)}
+.pill.active{color:var(--green);border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.08)}
+.pill.warn{color:var(--amber);border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08)}
+.shift-actions{display:flex;gap:6px;justify-content:flex-end}
+
+.roster-tools{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px}
+.employee-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;padding-right:2px}
+.employee-row{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;
+  min-height:42px;border:1px solid var(--border);background:var(--panel);border-radius:8px;
+  padding:8px 10px;cursor:pointer;transition:all .15s;
+}
+.employee-row:hover{border-color:rgba(58,143,255,.5)}
+.employee-row.active{border-color:var(--green);background:rgba(0,212,170,.08)}
+.employee-row input{accent-color:var(--green)}
+.emp-name{font-size:12px;font-weight:700}
+.emp-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
+.emp-dept{font-size:10px;color:var(--muted);text-align:right}
+
+.schedule-toolbar{
+  display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+  padding:14px;border-bottom:1px solid var(--border);background:rgba(17,30,52,.7)
+}
+.month-nav{display:flex;align-items:center;gap:8px}
+.month-label{font-size:15px;font-weight:700;min-width:145px;text-align:center}
+.selected-employee{display:flex;align-items:center;gap:10px;justify-content:center;min-width:0}
+.avatar{
+  width:34px;height:34px;border-radius:8px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);
+  display:grid;place-items:center;font-family:var(--font-mono);font-size:12px;color:var(--green);font-weight:700;
+}
+.selected-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.selected-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.view-actions{display:flex;gap:8px;justify-content:flex-end}
+
+.calendar-wrap{padding:14px}
+.dow-grid,.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.dow{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;text-align:center;padding:4px}
+.dow.weekend{color:var(--amber)}
+.day{
+  position:relative;min-height:116px;border:1px solid var(--border);border-radius:8px;
+  background:rgba(13,22,38,.82);padding:9px;display:flex;flex-direction:column;gap:6px;
+  cursor:pointer;transition:border-color .16s,background .16s;
+}
+.day:hover{border-color:var(--cyan);background:#102039}
+.day.empty{visibility:hidden;pointer-events:none}
+.day.today{border-color:var(--green);box-shadow:0 0 0 1px rgba(0,212,170,.18) inset}
+.day.weekend{background:rgba(17,30,52,.58)}
+.day-num{font-family:var(--font-mono);font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.today-mark{font-size:9px;color:var(--green);font-family:var(--font-sans);font-weight:700}
+.assignment-chip{
+  border-radius:6px;padding:5px 7px;font-size:10px;line-height:1.25;
+  border:1px solid rgba(90,122,154,.3);background:rgba(90,122,154,.08);color:var(--text);
+}
+.assignment-chip.morning{border-color:rgba(246,201,14,.32);background:rgba(246,201,14,.1)}
+.assignment-chip.lunch{border-color:rgba(255,138,76,.32);background:rgba(255,138,76,.1)}
+.assignment-chip.evening{border-color:rgba(58,143,255,.32);background:rgba(58,143,255,.1)}
+.assignment-chip.night{border-color:rgba(167,139,250,.34);background:rgba(167,139,250,.1)}
+.chip-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip-time{font-family:var(--font-mono);color:var(--muted);margin-top:2px}
+.empty-slot{font-size:10px;color:var(--muted);margin-top:auto}
+
+.bulk-panel{display:grid;grid-template-columns:1.2fr .8fr auto;gap:12px;align-items:end}
+.selected-strip{display:flex;gap:6px;flex-wrap:wrap;min-height:36px;padding:8px;border:1px dashed var(--border);border-radius:8px;background:rgba(6,12,23,.25)}
+.selected-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);font-size:11px;color:var(--green);font-weight:700}
+.selected-tag button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:14px;line-height:1}
+
+.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px}
 .modal-overlay.open{display:flex}
-.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:420px;padding:26px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.6);animation:mUp .2s ease}
-@keyframes mUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
-.modal-title{font-size:14px;font-weight:700;letter-spacing:.04em;margin-bottom:18px;display:flex;align-items:center;gap:8px}
-.modal-x{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:17px;padding:4px 8px;border-radius:6px;line-height:1;transition:color .15s}
-.modal-x:hover{color:var(--text)}
-.form-row{margin-bottom:13px}
-.form-row.dual{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.form-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
-.form-input,.form-select{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:13px;padding:8px 11px;border-radius:7px;outline:none;transition:border-color .2s;box-sizing:border-box}
-.form-input:focus,.form-select:focus{border-color:var(--teal)}
-.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a7a9a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
-.modal-foot{display:flex;gap:9px;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:1px solid var(--border)}
+.modal-box{width:min(560px,100%);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;animation:modalIn .18s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);background:var(--panel)}
+.modal-title{font-size:14px;font-weight:700}
+.modal-body{padding:18px;display:grid;gap:13px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--border)}
+.assigned-list{display:flex;flex-direction:column;gap:8px}
+.assigned-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
+.assigned-title{font-size:12px;font-weight:700}.assigned-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
 
-/* ── Quick stats ── */
-.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
-.stat-num{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--teal)}
-.stat-lbl{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
+@media(max-width:1120px){
+  .planner-grid{grid-template-columns:1fr}
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bulk-panel{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .ops-page{padding:16px}
+  .ops-head{grid-template-columns:1fr}
+  .head-actions{justify-content:flex-start}
+  .schedule-toolbar{grid-template-columns:1fr}
+  .selected-employee{justify-content:flex-start}
+  .view-actions{justify-content:flex-start}
+  .dow-grid,.cal-grid{gap:4px}
+  .day{min-height:92px;padding:7px}
+  .metric-grid{grid-template-columns:1fr}
+  .field-row{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
-
-<!-- NAV — copy từ nav.html include hoặc paste nav hiện có của dự án -->
-<nav class="navbar" id="navbar"></nav>
-
-<div class="page-wrapper">
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Ca làm việc</h1>
-    <p class="page-sub">Quản lý ca, phân công nhân viên theo ngày</p>
-  </div>
-  <button class="btn btn-primary" onclick="openCreateModal()">＋ Tạo ca mới</button>
-</div>
-
-<!-- Quick stats -->
-<div class="stat-row" id="statsRow">
-  <div class="stat-box"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Ca đang hoạt động</div></div>
-  <div class="stat-box"><div class="stat-num" id="statToday">—</div><div class="stat-lbl">Phân công hôm nay</div></div>
-  <div class="stat-box"><div class="stat-num" id="statMonth">—</div><div class="stat-lbl">Tổng phân công tháng</div></div>
-</div>
-
-<div class="shifts-layout">
-
-  <!-- LEFT: Danh sách ca -->
-  <div>
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">Danh sách ca</span>
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer">
-          <input type="checkbox" id="showInactive" onchange="loadShifts()"> Hiện ca đã tắt
-        </label>
-      </div>
-      <div class="panel-body" style="padding:12px">
-        <div class="shift-list" id="shiftList">
-          <div class="muted" style="text-align:center;padding:20px;font-size:12px">Đang tải...</div>
-        </div>
-      </div>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
     </div>
+    <span class="brand-name">FaceAttend</span>
   </div>
+  <div class="nav-links" id="mainNav">
+    <a href="/dashboard" class="nav-link">Quản lý</a>
+    <a href="/shifts" class="nav-link active">Ca làm</a>
+    <a href="/report" class="nav-link">Báo cáo</a>
+    <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
+    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">Đăng xuất</button>
+  </div>
+</header>
 
-  <!-- RIGHT: Phân công -->
-  <div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title">Phân công ca</span></div>
-      <div class="panel-body" style="padding:14px 16px">
+<main class="ops-page">
+  <section class="ops-head">
+    <div>
+      <div class="eyebrow">Restaurant Shift Planner</div>
+      <h1 class="ops-title">Phân ca nhà hàng</h1>
+      <p class="ops-sub">Theo dõi ca sáng, trưa, tối, ca đêm và phân công nhân sự theo từng ngày trong tháng.</p>
+    </div>
+    <div class="head-actions">
+      <button class="icon-btn" onclick="loadAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        Làm mới
+      </button>
+      <button class="icon-btn primary" onclick="openShiftModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Tạo ca
+      </button>
+    </div>
+  </section>
 
-        <div class="panel-tabs">
-          <button class="pt active" onclick="switchTab('calendar')">📅 Lịch tháng</button>
-          <button class="pt" onclick="switchTab('bulk')">⚡ Phân công hàng loạt</button>
+  <section class="metric-grid">
+    <div class="metric"><div class="metric-label">Ca hoạt động</div><div class="metric-value green" id="statActive">0</div></div>
+    <div class="metric"><div class="metric-label">Phân công hôm nay</div><div class="metric-value amber" id="statToday">0</div></div>
+    <div class="metric"><div class="metric-label">Nhân viên</div><div class="metric-value cyan" id="statEmployees">0</div></div>
+    <div class="metric"><div class="metric-label">Đang chọn</div><div class="metric-value" id="statSelected">0</div></div>
+  </section>
+
+  <section class="planner-grid">
+    <aside class="stack">
+      <div class="panel tight">
+        <div class="panel-header">
+          <div class="panel-title-strong">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+            Bộ ca
+          </div>
+          <label class="check-row"><input type="checkbox" id="showInactive" onchange="loadShifts()"> Ca tắt</label>
         </div>
+        <div class="panel-body">
+          <div class="shift-list" id="shiftList"></div>
+        </div>
+      </div>
 
-        <!-- Tab: Calendar view -->
-        <div class="pt-content active" id="tab-calendar">
-          <div class="cal-emp-filter">
-            <div class="form-label" style="margin:0">Nhân viên:</div>
-            <select class="form-select" id="calEmpSelect" style="width:200px" onchange="loadCalendar()">
-              <option value="">— Chọn nhân viên —</option>
-            </select>
+      <div class="panel tight">
+        <div class="panel-header">
+          <div class="panel-title-strong">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Nhân sự
           </div>
-          <div class="cal-nav">
-            <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
-            <div class="cal-month" id="calMonthLabel">—</div>
-            <button class="cal-nav-btn" onclick="nextMonth()">›</button>
+          <button class="chip-btn" onclick="clearSelectedEmployees()">Bỏ chọn</button>
+        </div>
+        <div class="panel-body">
+          <div class="roster-tools">
+            <input class="input" id="employeeSearch" placeholder="Tìm tên, mã, bộ phận" oninput="renderEmployees()">
+            <button class="icon-btn icon-only" onclick="selectVisibleEmployees()" title="Chọn danh sách đang lọc">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+            </button>
           </div>
-          <div class="cal-header">
-            <div class="cal-dow">T2</div><div class="cal-dow">T3</div><div class="cal-dow">T4</div>
-            <div class="cal-dow">T5</div><div class="cal-dow">T6</div>
-            <div class="cal-dow" style="color:var(--blue)">T7</div>
-            <div class="cal-dow" style="color:var(--red)">CN</div>
+          <div class="employee-list" id="employeeList"></div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="stack">
+      <div class="panel">
+        <div class="schedule-toolbar">
+          <div class="month-nav">
+            <button class="icon-btn icon-only" onclick="moveMonth(-1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div class="month-label" id="monthLabel"></div>
+            <button class="icon-btn icon-only" onclick="moveMonth(1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
           </div>
-          <div class="cal-grid" id="calGrid">
-            <div class="muted" style="grid-column:1/-1;text-align:center;padding:20px;font-size:12px">Chọn nhân viên để xem lịch ca</div>
-          </div>
-          <div style="margin-top:10px;font-size:11px;color:var(--muted)">
-            Click vào ô ngày để gán/đổi ca cho nhân viên đó.
+          <div class="selected-employee" id="selectedEmployeeBox"></div>
+          <div class="view-actions">
+            <button class="chip-btn" onclick="goToday()">Tháng này</button>
           </div>
         </div>
+        <div class="calendar-wrap">
+          <div class="dow-grid">
+            <div class="dow">T2</div><div class="dow">T3</div><div class="dow">T4</div><div class="dow">T5</div><div class="dow">T6</div><div class="dow weekend">T7</div><div class="dow weekend">CN</div>
+          </div>
+          <div class="cal-grid" id="calendarGrid"></div>
+        </div>
+      </div>
 
-        <!-- Tab: Bulk assign -->
-        <div class="pt-content" id="tab-bulk">
-          <div class="form-row">
-            <div class="form-label">Chọn nhân viên</div>
-            <select class="form-select" id="bulkEmpSelect" onchange="addEmpTag()">
-              <option value="">— Thêm nhân viên —</option>
-            </select>
-            <div class="emp-picker" id="empPicker" style="margin-top:8px">
-              <span class="muted" style="font-size:11px;align-self:center" id="emptyPickerHint">Chưa chọn nhân viên nào</span>
+      <div class="panel tight">
+        <div class="panel-header">
+          <div class="panel-title-strong">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+            Phân công hàng loạt
+          </div>
+          <span style="font-size:11px;color:var(--muted)" id="bulkCount">0 nhân viên</span>
+        </div>
+        <div class="panel-body bulk-panel">
+          <div>
+            <div class="field-label" style="margin-bottom:6px">Nhân viên đã chọn</div>
+            <div class="selected-strip" id="selectedStrip"></div>
+          </div>
+          <div class="field">
+            <label class="field-label">Ca làm</label>
+            <select class="select" id="bulkShiftSelect"></select>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Từ ngày</label>
+              <input class="input" type="date" id="bulkFrom">
+            </div>
+            <div class="field">
+              <label class="field-label">Đến ngày</label>
+              <input class="input" type="date" id="bulkTo">
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-label">Ca làm việc</div>
-            <select class="form-select" id="bulkShiftSelect"></select>
+          <div class="field" style="grid-column:1/-1">
+            <label class="field-label">Ghi chú</label>
+            <input class="input" id="bulkNote" placeholder="Ví dụ: tăng cường cuối tuần">
           </div>
-          <div class="form-row">
-            <div class="form-label">Khoảng thời gian</div>
-            <div class="date-range">
-              <input type="date" class="form-input" id="bulkFrom">
-              <input type="date" class="form-input" id="bulkTo">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-label">Ghi chú</div>
-            <input type="text" class="form-input" id="bulkNote" placeholder="Ghi chú (tuỳ chọn)">
-          </div>
-          <button class="btn btn-primary" style="width:100%" onclick="doBulkAssign()">⚡ Phân công hàng loạt</button>
+          <button class="icon-btn primary" onclick="bulkAssign()" style="align-self:end">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+            Phân công
+          </button>
         </div>
-
       </div>
-    </div>
-  </div>
-</div>
-</div>
+    </section>
+  </section>
+</main>
 
-<!-- Modal: Tạo / sửa ca -->
 <div class="modal-overlay" id="shiftModal">
   <div class="modal-box">
-    <button class="modal-x" onclick="closeModal()">✕</button>
-    <div class="modal-title" id="modalTitle">Tạo ca mới</div>
-    <input type="hidden" id="editShiftId">
-
-    <div class="form-row">
-      <div class="form-label">Tên ca <span style="color:var(--red)">*</span></div>
-      <input type="text" class="form-input" id="fName" placeholder="Ca sáng, Ca chiều...">
+    <div class="modal-head">
+      <div class="modal-title" id="shiftModalTitle">Tạo ca</div>
+      <button class="icon-btn icon-only" onclick="closeShiftModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
-    <div class="form-row">
-      <div class="form-label">Mã ca (code) <span style="color:var(--red)">*</span></div>
-      <input type="text" class="form-input" id="fCode" placeholder="morning, afternoon, night...">
-    </div>
-    <div class="form-row dual">
-      <div>
-        <div class="form-label">Giờ vào <span style="color:var(--red)">*</span></div>
-        <input type="time" class="form-input" id="fStart" value="08:00">
+    <div class="modal-body">
+      <input type="hidden" id="shiftId">
+      <div class="field-row">
+        <div class="field"><label class="field-label">Tên ca</label><input class="input" id="shiftName" placeholder="Ca tối"></div>
+        <div class="field"><label class="field-label">Mã ca</label><input class="input" id="shiftCode" placeholder="evening"></div>
       </div>
-      <div>
-        <div class="form-label">Giờ ra <span style="color:var(--red)">*</span></div>
-        <input type="time" class="form-input" id="fEnd" value="17:00">
+      <div class="field-row">
+        <div class="field"><label class="field-label">Giờ vào</label><input class="input" type="time" id="shiftStart" value="16:00"></div>
+        <div class="field"><label class="field-label">Giờ ra</label><input class="input" type="time" id="shiftEnd" value="22:00"></div>
       </div>
-    </div>
-    <div class="form-row">
-      <div class="form-label">Ngưỡng đi muộn (phút)</div>
-      <input type="number" class="form-input" id="fLate" value="15" min="0" max="60">
-    </div>
-    <div class="form-row">
-      <div class="form-label">Ghi chú</div>
-      <input type="text" class="form-input" id="fNote" placeholder="Tuỳ chọn">
+      <div class="field-row">
+        <div class="field"><label class="field-label">Cho vào sớm</label><input class="input" type="number" id="shiftEarly" min="0" max="240" value="30"></div>
+        <div class="field"><label class="field-label">Ngưỡng đi muộn</label><input class="input" type="number" id="shiftLate" min="0" max="120" value="10"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="field-label">Cửa sổ ra sau ca</label><input class="input" type="number" id="shiftAuto" min="0" max="720" value="180"></div>
+        <div class="field"><label class="field-label">Nghỉ giữa ca</label><input class="input" type="number" id="shiftBreak" min="0" max="240" value="30"></div>
+      </div>
+      <label class="check-row"><input type="checkbox" id="shiftOvernight"> Ca qua ngày</label>
+      <div class="field"><label class="field-label">Ghi chú</label><input class="input" id="shiftNote" placeholder="Tuỳ chọn"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal()">Huỷ</button>
-      <button class="btn btn-primary" onclick="saveShift()">Lưu ca</button>
+      <button class="icon-btn" onclick="closeShiftModal()">Huỷ</button>
+      <button class="icon-btn primary" onclick="saveShift()">Lưu ca</button>
     </div>
   </div>
 </div>
 
-<!-- Modal: Gán ca cho 1 ngày -->
 <div class="modal-overlay" id="dayModal">
   <div class="modal-box">
-    <button class="modal-x" onclick="closeDayModal()">✕</button>
-    <div class="modal-title">Phân công ca</div>
-    <div id="dayModalInfo" style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px 12px;margin-bottom:14px;font-size:12px"></div>
-    <div class="form-row">
-      <div class="form-label">Chọn ca</div>
-      <select class="form-select" id="dayShiftSelect"></select>
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Phân ca trong ngày</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px" id="dayModalSub"></div>
+      </div>
+      <button class="icon-btn icon-only" onclick="closeDayModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
-    <div class="form-row">
-      <div class="form-label">Ghi chú</div>
-      <input type="text" class="form-input" id="dayNote" placeholder="Tuỳ chọn">
+    <div class="modal-body">
+      <div>
+        <div class="field-label" style="margin-bottom:8px">Ca đã phân</div>
+        <div class="assigned-list" id="assignedList"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="field-label">Thêm ca</label><select class="select" id="dayShiftSelect"></select></div>
+        <div class="field"><label class="field-label">Ghi chú</label><input class="input" id="dayNote" placeholder="Tuỳ chọn"></div>
+      </div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeDayModal()">Huỷ</button>
-      <button class="btn btn-primary" onclick="saveDayAssign()">Lưu</button>
+      <button class="icon-btn" onclick="closeDayModal()">Đóng</button>
+      <button class="icon-btn primary" onclick="saveDayAssignment()">Lưu phân ca</button>
     </div>
   </div>
 </div>
 
+<div id="toast"></div>
+<script src="/static/js/toast.js"></script>
 <script>
-// ── State ────────────────────────────────────────────────────────
-let shifts       = [];
-let employees    = [];
-let selectedEmps = [];   // bulk picker
-let calYear      = new Date().getFullYear();
-let calMonth     = new Date().getMonth() + 1;  // 1-based
-let calAssign    = {};   // { "YYYY-MM-DD": shiftObj }
-let dayModalDate = null;
-let dayModalEmp  = null;
+let shifts = [];
+let employees = [];
+let selectedEmployee = "";
+let selectedBulk = new Set();
+let assignmentsByDate = {};
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let modalDate = "";
 
-const DOT_COLORS = {
-  morning:'dot-morning', afternoon:'dot-afternoon',
-  night:'dot-night', office:'dot-office'
-};
-const SHIFT_CLASSES = {
-  morning:'morning', afternoon:'afternoon',
-  night:'night', office:'office'
-};
+const shiftClass = code => ({morning:"morning",lunch:"lunch",evening:"evening",night:"night",afternoon:"evening",office:"morning"}[code] || "");
+const pad = n => String(n).padStart(2,"0");
+const todayIso = () => new Date().toISOString().slice(0,10);
+const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 
-// ── Auth header ──────────────────────────────────────────────────
-function authH() {
-  const token = localStorage.getItem('access_token');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
-}
-
-// ── Init ─────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  setDefaultDates();
-  await loadShifts();
-  await loadEmployees();
-  updateCalMonthLabel();
+document.addEventListener("DOMContentLoaded", async () => {
+  setDefaultRange();
+  await loadAll();
 });
 
-function setDefaultDates() {
-  const today = new Date().toISOString().slice(0, 10);
-  const end   = new Date(new Date().setDate(new Date().getDate() + 6)).toISOString().slice(0, 10);
-  document.getElementById('bulkFrom').value = today;
-  document.getElementById('bulkTo').value   = end;
+async function loadAll(){
+  await Promise.all([loadShifts(), loadEmployees()]);
+  await loadTodayAssignments();
+  updateSelectedEmployeeBox();
+  await loadCalendar();
 }
 
-// ── Load shifts ──────────────────────────────────────────────────
-async function loadShifts() {
-  const showInactive = document.getElementById('showInactive').checked;
-  const url = showInactive ? '/api/shifts' : '/api/shifts?active_only=true';
-  const res = await fetch(url, { headers: authH() });
-  if (!res.ok) return;
-  shifts = await res.json();
-  renderShiftList();
-  populateShiftSelects();
-  document.getElementById('statTotal').textContent = shifts.filter(s => s.is_active).length;
+async function loadShifts(){
+  const showInactive = document.getElementById("showInactive")?.checked;
+  const res = await authFetch(showInactive ? "/api/shifts" : "/api/shifts?active_only=true");
+  shifts = res.ok ? await res.json() : [];
+  renderShifts();
+  fillShiftSelects();
+  document.getElementById("statActive").textContent = shifts.filter(s => s.is_active).length;
 }
 
-function renderShiftList() {
-  const el = document.getElementById('shiftList');
-  if (!shifts.length) {
-    el.innerHTML = '<div class="muted" style="text-align:center;padding:20px;font-size:12px">Chưa có ca nào. Tạo ca đầu tiên →</div>';
+async function loadEmployees(){
+  const res = await authFetch("/api/employees?active_only=true");
+  const data = res.ok ? await res.json() : [];
+  employees = Array.isArray(data) ? data : (data.items || []);
+  if (!selectedEmployee && employees.length) selectedEmployee = employees[0].emp_code;
+  renderEmployees();
+  document.getElementById("statEmployees").textContent = employees.length;
+}
+
+async function loadTodayAssignments(){
+  try{
+    const res = await authFetch(`/api/shifts/assignments/date/${todayIso()}`);
+    const rows = res.ok ? await res.json() : [];
+    document.getElementById("statToday").textContent = rows.length;
+  }catch{
+    document.getElementById("statToday").textContent = "0";
+  }
+}
+
+function renderShifts(){
+  const list = document.getElementById("shiftList");
+  if (!shifts.length){
+    list.innerHTML = `<div class="empty">Chưa có ca làm</div>`;
     return;
   }
-  el.innerHTML = shifts.map(s => `
-    <div class="shift-card ${s.is_active ? '' : 'sc-inactive'}">
-      <div class="sc-actions">
-        <button class="sc-btn" onclick="openEditModal(${s.id})">Sửa</button>
-        <button class="sc-btn del" onclick="deleteShift(${s.id})">Xoá</button>
+  list.innerHTML = shifts.map(s => `
+    <article class="shift-card ${s.is_active ? "" : "off"}">
+      <div class="shift-top">
+        <span class="shift-dot ${shiftClass(s.code)}"></span>
+        <div>
+          <div class="shift-name">${esc(s.name)}</div>
+          <div class="shift-code">${esc(s.code)}</div>
+        </div>
+        <div class="shift-time">${esc(s.work_start)}-${esc(s.work_end)}</div>
       </div>
-      <div class="sc-header">
-        <div class="sc-dot ${DOT_COLORS[s.code] || 'dot-default'}"></div>
-        <div class="sc-name">${esc(s.name)}</div>
-        <span class="sc-code">${esc(s.code)}</span>
+      <div class="shift-meta">
+        <span class="pill ${s.is_active ? "active" : ""}">${s.is_active ? "Đang dùng" : "Đã tắt"}</span>
+        <span class="pill">Muộn ${s.late_threshold_minutes ?? 0}p</span>
+        <span class="pill">Nghỉ ${s.break_minutes ?? 0}p</span>
+        ${s.is_overnight ? `<span class="pill warn">Qua ngày</span>` : ""}
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="sc-time">⏱ ${s.work_start} → ${s.work_end}</div>
-        <div class="sc-late">≤ ${s.late_threshold_minutes} phút</div>
-        <span class="sc-badge ${s.is_active ? 'on' : 'off'}">${s.is_active ? 'ACTIVE' : 'OFF'}</span>
+      <div class="shift-actions">
+        <button class="icon-btn icon-only" title="Sửa ca" onclick="openShiftModal(${s.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="icon-btn icon-only danger" title="Tắt ca" onclick="deleteShift(${s.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        </button>
       </div>
-      ${s.note ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">${esc(s.note)}</div>` : ''}
-    </div>
-  `).join('');
+    </article>
+  `).join("");
 }
 
-function populateShiftSelects() {
-  const opts = shifts.filter(s => s.is_active)
-                     .map(s => `<option value="${s.id}">${esc(s.name)} (${s.work_start}–${s.work_end})</option>`)
-                     .join('');
-  ['bulkShiftSelect', 'dayShiftSelect'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = opts;
-  });
+function renderEmployees(){
+  const q = document.getElementById("employeeSearch").value.trim().toLowerCase();
+  const rows = filteredEmployees(q);
+  const list = document.getElementById("employeeList");
+  list.innerHTML = rows.map(e => `
+    <label class="employee-row ${selectedEmployee === e.emp_code ? "active" : ""}" ondblclick="setSelectedEmployee('${esc(e.emp_code)}')">
+      <input type="checkbox" ${selectedBulk.has(e.emp_code) ? "checked" : ""} onchange="toggleBulkEmployee('${esc(e.emp_code)}', this.checked)">
+      <div onclick="setSelectedEmployee('${esc(e.emp_code)}')">
+        <div class="emp-name">${esc(e.name)}</div>
+        <div class="emp-code">${esc(e.emp_code)}</div>
+      </div>
+      <div class="emp-dept">${esc(e.department || "")}</div>
+    </label>
+  `).join("") || `<div class="empty">Không tìm thấy nhân viên</div>`;
+  renderSelectedStrip();
 }
 
-// ── Load employees ───────────────────────────────────────────────
-async function loadEmployees() {
-  const res = await fetch('/api/employees?limit=500', { headers: authH() });
-  if (!res.ok) return;
-  const data = await res.json();
-  employees = data.items || data;
-  populateEmpSelects();
+function filteredEmployees(q = document.getElementById("employeeSearch").value.trim().toLowerCase()){
+  if (!q) return employees;
+  return employees.filter(e => [e.name,e.emp_code,e.department,e.position].some(v => String(v || "").toLowerCase().includes(q)));
 }
 
-function populateEmpSelects() {
-  const opts = '<option value="">— Chọn —</option>' +
-    employees.map(e => `<option value="${esc(e.emp_code)}">${esc(e.name)} (${esc(e.emp_code)})</option>`).join('');
-  ['calEmpSelect', 'bulkEmpSelect'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = opts;
-  });
+function setSelectedEmployee(code){
+  selectedEmployee = code;
+  updateSelectedEmployeeBox();
+  renderEmployees();
+  loadCalendar();
 }
 
-// ── Tab switch ───────────────────────────────────────────────────
-function switchTab(name) {
-  document.querySelectorAll('.pt').forEach((b, i) => {
-    const names = ['calendar', 'bulk'];
-    b.classList.toggle('active', names[i] === name);
-  });
-  document.querySelectorAll('.pt-content').forEach(c => {
-    c.classList.toggle('active', c.id === `tab-${name}`);
-  });
+function toggleBulkEmployee(code, checked){
+  if (checked) selectedBulk.add(code); else selectedBulk.delete(code);
+  renderSelectedStrip();
+  updateSelectedStats();
 }
 
-// ── Calendar ─────────────────────────────────────────────────────
-function updateCalMonthLabel() {
-  const months = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
-                  'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
-  document.getElementById('calMonthLabel').textContent = `${months[calMonth-1]} ${calYear}`;
-}
-function prevMonth() {
-  if (calMonth === 1) { calMonth = 12; calYear--; } else calMonth--;
-  updateCalMonthLabel(); loadCalendar();
-}
-function nextMonth() {
-  if (calMonth === 12) { calMonth = 1; calYear++; } else calMonth++;
-  updateCalMonthLabel(); loadCalendar();
+function selectVisibleEmployees(){
+  filteredEmployees().forEach(e => selectedBulk.add(e.emp_code));
+  renderEmployees();
+  updateSelectedStats();
 }
 
-async function loadCalendar() {
-  const empCode = document.getElementById('calEmpSelect').value;
-  if (!empCode) {
-    document.getElementById('calGrid').innerHTML = '<div class="muted" style="grid-column:1/-1;text-align:center;padding:20px;font-size:12px">Chọn nhân viên để xem lịch ca</div>';
+function clearSelectedEmployees(){
+  selectedBulk.clear();
+  renderEmployees();
+  updateSelectedStats();
+}
+
+function renderSelectedStrip(){
+  const strip = document.getElementById("selectedStrip");
+  const codes = [...selectedBulk];
+  strip.innerHTML = codes.length ? codes.map(code => {
+    const emp = employees.find(e => e.emp_code === code);
+    return `<span class="selected-tag">${esc(emp?.name || code)}<button onclick="toggleBulkEmployee('${esc(code)}', false);renderEmployees()">×</button></span>`;
+  }).join("") : `<span style="font-size:12px;color:var(--muted);align-self:center">Chọn nhân viên từ danh sách bên trái</span>`;
+  document.getElementById("bulkCount").textContent = `${codes.length} nhân viên`;
+}
+
+function updateSelectedStats(){
+  document.getElementById("statSelected").textContent = selectedBulk.size;
+}
+
+function updateSelectedEmployeeBox(){
+  const box = document.getElementById("selectedEmployeeBox");
+  const emp = employees.find(e => e.emp_code === selectedEmployee);
+  if (!emp){
+    box.innerHTML = `<div class="selected-name">Chưa chọn nhân viên</div>`;
     return;
   }
-  const pad = n => String(n).padStart(2, '0');
-  const from = `${calYear}-${pad(calMonth)}-01`;
-  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
-  const to = `${calYear}-${pad(calMonth)}-${pad(daysInMonth)}`;
-
-  const res = await fetch(
-    `/api/shifts/assignments/employee/${empCode}?from_date=${from}&to_date=${to}`,
-    { headers: authH() }
-  );
-  calAssign = {};
-  if (res.ok) {
-    const rows = await res.json();
-    rows.forEach(r => { calAssign[r.work_date] = r.shift || null; });
-  }
-  renderCalendar(empCode, daysInMonth);
+  const initials = String(emp.name || emp.emp_code).split(" ").slice(-2).map(x => x[0]).join("").toUpperCase();
+  box.innerHTML = `
+    <div class="avatar">${esc(initials)}</div>
+    <div style="min-width:0">
+      <div class="selected-name">${esc(emp.name)}</div>
+      <div class="selected-sub">${esc(emp.emp_code)} · ${esc(emp.department || "Nhân viên")}</div>
+    </div>`;
 }
 
-function renderCalendar(empCode, daysInMonth) {
-  const pad  = n => String(n).padStart(2, '0');
-  const firstDow = new Date(calYear, calMonth - 1, 1).getDay(); // 0=Sun
-  const offset   = firstDow === 0 ? 6 : firstDow - 1;          // Mon-first
-  const today    = new Date().toISOString().slice(0, 10);
-  let html = '';
+function fillShiftSelects(){
+  const active = shifts.filter(s => s.is_active);
+  const html = active.map(s => `<option value="${s.id}">${esc(s.name)} · ${esc(s.work_start)}-${esc(s.work_end)}</option>`).join("");
+  document.getElementById("bulkShiftSelect").innerHTML = html;
+  document.getElementById("dayShiftSelect").innerHTML = html;
+}
 
-  for (let i = 0; i < offset; i++) html += '<div class="cal-cell empty"></div>';
+function monthLabel(){
+  return `Tháng ${currentMonth} ${currentYear}`;
+}
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const ds  = `${calYear}-${pad(calMonth)}-${pad(d)}`;
-    const dow = new Date(calYear, calMonth - 1, d).getDay();
-    const isOff = (dow === 0 || dow === 6);
-    const isToday = ds === today;
-    const shift   = calAssign[ds];
-    const shiftHtml = shift
-      ? `<div class="cell-shift ${SHIFT_CLASSES[shift.code] || 'default'}">${esc(shift.name)}<br>${shift.work_start}–${shift.work_end}</div>`
-      : `<div style="font-size:9px;color:var(--muted);margin-top:4px">${isOff ? '— nghỉ —' : 'Mặc định'}</div>`;
+function moveMonth(delta){
+  currentMonth += delta;
+  if (currentMonth < 1){currentMonth = 12; currentYear--;}
+  if (currentMonth > 12){currentMonth = 1; currentYear++;}
+  loadCalendar();
+}
 
+function goToday(){
+  const d = new Date();
+  currentYear = d.getFullYear();
+  currentMonth = d.getMonth() + 1;
+  loadCalendar();
+}
+
+async function loadCalendar(){
+  document.getElementById("monthLabel").textContent = monthLabel();
+  assignmentsByDate = {};
+  if (selectedEmployee){
+    const days = new Date(currentYear, currentMonth, 0).getDate();
+    const from = `${currentYear}-${pad(currentMonth)}-01`;
+    const to = `${currentYear}-${pad(currentMonth)}-${pad(days)}`;
+    const res = await authFetch(`/api/shifts/assignments/employee/${encodeURIComponent(selectedEmployee)}?from_date=${from}&to_date=${to}`);
+    const rows = res.ok ? await res.json() : [];
+    rows.forEach(r => {
+      if (!assignmentsByDate[r.work_date]) assignmentsByDate[r.work_date] = [];
+      assignmentsByDate[r.work_date].push(r);
+    });
+  }
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const grid = document.getElementById("calendarGrid");
+  const days = new Date(currentYear, currentMonth, 0).getDate();
+  const firstDow = new Date(currentYear, currentMonth - 1, 1).getDay();
+  const offset = firstDow === 0 ? 6 : firstDow - 1;
+  const today = todayIso();
+  let html = "";
+  for (let i = 0; i < offset; i++) html += `<div class="day empty"></div>`;
+  for (let d = 1; d <= days; d++){
+    const iso = `${currentYear}-${pad(currentMonth)}-${pad(d)}`;
+    const dow = new Date(currentYear, currentMonth - 1, d).getDay();
+    const rows = assignmentsByDate[iso] || [];
     html += `
-      <div class="cal-cell ${isOff ? 'off' : ''} ${isToday ? 'today' : ''}"
-           onclick="openDayModal('${ds}', '${empCode}')">
-        <div class="cell-day">${d}</div>
-        ${shiftHtml}
+      <div class="day ${iso === today ? "today" : ""} ${(dow === 0 || dow === 6) ? "weekend" : ""}" onclick="openDayModal('${iso}')">
+        <div class="day-num"><span>${d}</span>${iso === today ? `<span class="today-mark">Hôm nay</span>` : ""}</div>
+        ${rows.map(r => shiftChip(r.shift)).join("")}
+        ${rows.length ? "" : `<div class="empty-slot">Chưa phân ca</div>`}
       </div>`;
   }
-  document.getElementById('calGrid').innerHTML = html;
+  grid.innerHTML = html;
 }
 
-// ── Day modal ────────────────────────────────────────────────────
-function openDayModal(dateStr, empCode) {
-  dayModalDate = dateStr;
-  dayModalEmp  = empCode;
-  const emp  = employees.find(e => e.emp_code === empCode);
-  const [y, m, d] = dateStr.split('-');
-  const fmt  = `${parseInt(d)}/${parseInt(m)}/${y}`;
-  document.getElementById('dayModalInfo').innerHTML =
-    `<b>${emp ? esc(emp.name) : empCode}</b> — ${fmt}`;
-  const cur = calAssign[dateStr];
-  if (cur) document.getElementById('dayShiftSelect').value = cur.id;
-  document.getElementById('dayNote').value = '';
-  document.getElementById('dayModal').classList.add('open');
-}
-function closeDayModal() { document.getElementById('dayModal').classList.remove('open'); }
-
-async function saveDayAssign() {
-  const shiftId = parseInt(document.getElementById('dayShiftSelect').value);
-  const note    = document.getElementById('dayNote').value;
-  const res = await fetch('/api/shifts/assignments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authH() },
-    body: JSON.stringify({ emp_code: dayModalEmp, shift_id: shiftId, work_date: dayModalDate, note }),
-  });
-  if (res.ok) {
-    showToast('Đã phân công ca ✓', 'success');
-    closeDayModal();
-    loadCalendar();
-  } else {
-    const err = await res.json();
-    showToast(err.detail || 'Lỗi khi lưu', 'error');
-  }
+function shiftChip(s){
+  if (!s) return "";
+  return `<div class="assignment-chip ${shiftClass(s.code)}"><div class="chip-name">${esc(s.name)}</div><div class="chip-time">${esc(s.work_start)}-${esc(s.work_end)}</div></div>`;
 }
 
-// ── Bulk picker ──────────────────────────────────────────────────
-function addEmpTag() {
-  const sel  = document.getElementById('bulkEmpSelect');
-  const code = sel.value;
-  if (!code || selectedEmps.includes(code)) { sel.value = ''; return; }
-  selectedEmps.push(code);
-  sel.value = '';
-  renderEmpPicker();
-}
-
-function removeEmpTag(code) {
-  selectedEmps = selectedEmps.filter(c => c !== code);
-  renderEmpPicker();
-}
-
-function renderEmpPicker() {
-  const hint = document.getElementById('emptyPickerHint');
-  const picker = document.getElementById('empPicker');
-  hint.style.display = selectedEmps.length ? 'none' : 'inline';
-  const tags = selectedEmps.map(code => {
-    const emp = employees.find(e => e.emp_code === code);
-    const label = emp ? emp.name : code;
-    return `<span class="emp-tag">${esc(label)}<button onclick="removeEmpTag('${code}')">×</button></span>`;
-  }).join('');
-  // preserve hint element
-  picker.innerHTML = `<span class="muted" style="font-size:11px;align-self:center;${selectedEmps.length?'display:none':''}" id="emptyPickerHint">Chưa chọn nhân viên nào</span>` + tags;
-}
-
-async function doBulkAssign() {
-  if (!selectedEmps.length)  return showToast('Chọn ít nhất 1 nhân viên', 'error');
-  const shiftId = parseInt(document.getElementById('bulkShiftSelect').value);
-  const from    = document.getElementById('bulkFrom').value;
-  const to      = document.getElementById('bulkTo').value;
-  const note    = document.getElementById('bulkNote').value;
-  if (!from || !to) return showToast('Chọn khoảng thời gian', 'error');
-  if (from > to)    return showToast('Ngày bắt đầu phải trước ngày kết thúc', 'error');
-
-  const res = await fetch('/api/shifts/assignments/bulk', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authH() },
-    body: JSON.stringify({ emp_codes: selectedEmps, shift_id: shiftId, from_date: from, to_date: to, note }),
-  });
-  if (res.ok) {
-    const data = await res.json();
-    showToast(data.message, 'success');
-    selectedEmps = [];
-    renderEmpPicker();
-    loadCalendar();
-  } else {
-    const err = await res.json();
-    showToast(err.detail || 'Lỗi', 'error');
-  }
-}
-
-// ── Shift CRUD modals ────────────────────────────────────────────
-function openCreateModal() {
-  document.getElementById('editShiftId').value = '';
-  document.getElementById('modalTitle').textContent = '＋ Tạo ca mới';
-  ['fName','fCode','fNote'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('fStart').value = '08:00';
-  document.getElementById('fEnd').value   = '17:00';
-  document.getElementById('fLate').value  = '15';
-  document.getElementById('shiftModal').classList.add('open');
-}
-
-function openEditModal(id) {
+function openShiftModal(id = null){
   const s = shifts.find(x => x.id === id);
-  if (!s) return;
-  document.getElementById('editShiftId').value = id;
-  document.getElementById('modalTitle').textContent  = 'Sửa ca làm việc';
-  document.getElementById('fName').value  = s.name;
-  document.getElementById('fCode').value  = s.code;
-  document.getElementById('fStart').value = s.work_start;
-  document.getElementById('fEnd').value   = s.work_end;
-  document.getElementById('fLate').value  = s.late_threshold_minutes;
-  document.getElementById('fNote').value  = s.note || '';
-  document.getElementById('shiftModal').classList.add('open');
+  document.getElementById("shiftId").value = s?.id || "";
+  document.getElementById("shiftModalTitle").textContent = s ? "Sửa ca làm" : "Tạo ca làm";
+  document.getElementById("shiftName").value = s?.name || "";
+  document.getElementById("shiftCode").value = s?.code || "";
+  document.getElementById("shiftStart").value = s?.work_start || "16:00";
+  document.getElementById("shiftEnd").value = s?.work_end || "22:00";
+  document.getElementById("shiftEarly").value = s?.early_checkin_minutes ?? 30;
+  document.getElementById("shiftLate").value = s?.late_threshold_minutes ?? 10;
+  document.getElementById("shiftAuto").value = s?.auto_checkout_minutes ?? 180;
+  document.getElementById("shiftBreak").value = s?.break_minutes ?? 30;
+  document.getElementById("shiftOvernight").checked = !!s?.is_overnight;
+  document.getElementById("shiftNote").value = s?.note || "";
+  document.getElementById("shiftModal").classList.add("open");
 }
 
-function closeModal() { document.getElementById('shiftModal').classList.remove('open'); }
+function closeShiftModal(){
+  document.getElementById("shiftModal").classList.remove("open");
+}
 
-async function saveShift() {
-  const id   = document.getElementById('editShiftId').value;
+async function saveShift(){
+  const id = document.getElementById("shiftId").value;
   const body = {
-    name:       document.getElementById('fName').value.trim(),
-    code:       document.getElementById('fCode').value.trim(),
-    work_start: document.getElementById('fStart').value,
-    work_end:   document.getElementById('fEnd').value,
-    late_threshold_minutes: parseInt(document.getElementById('fLate').value) || 15,
-    note:       document.getElementById('fNote').value.trim(),
+    name: document.getElementById("shiftName").value.trim(),
+    code: document.getElementById("shiftCode").value.trim(),
+    work_start: document.getElementById("shiftStart").value,
+    work_end: document.getElementById("shiftEnd").value,
+    early_checkin_minutes: parseInt(document.getElementById("shiftEarly").value) || 0,
+    late_threshold_minutes: parseInt(document.getElementById("shiftLate").value) || 0,
+    auto_checkout_minutes: parseInt(document.getElementById("shiftAuto").value) || 0,
+    break_minutes: parseInt(document.getElementById("shiftBreak").value) || 0,
+    is_overnight: document.getElementById("shiftOvernight").checked,
+    note: document.getElementById("shiftNote").value.trim()
   };
-  if (!body.name || !body.code) return showToast('Nhập tên và mã ca', 'error');
-
-  const url    = id ? `/api/shifts/${id}` : '/api/shifts';
-  const method = id ? 'PUT' : 'POST';
-  const res    = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...authH() },
-    body: JSON.stringify(body),
+  if (!body.name || !body.code) return showToast("Nhập tên ca và mã ca", "error");
+  const res = await authFetch(id ? `/api/shifts/${id}` : "/api/shifts", {
+    method: id ? "PUT" : "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body)
   });
-  if (res.ok) {
-    showToast(id ? 'Đã cập nhật ca ✓' : 'Đã tạo ca mới ✓', 'success');
-    closeModal();
-    loadShifts();
-  } else {
+  if (!res.ok){
     const err = await res.json();
-    showToast(err.detail || 'Lỗi', 'error');
+    return showToast(err.detail || "Không lưu được ca", "error");
+  }
+  closeShiftModal();
+  await loadShifts();
+  await loadCalendar();
+  showToast(id ? "Đã cập nhật ca" : "Đã tạo ca", "success");
+}
+
+async function deleteShift(id){
+  const s = shifts.find(x => x.id === id);
+  if (!s || !confirm(`Tắt ca "${s.name}"?`)) return;
+  const res = await authFetch(`/api/shifts/${id}`, {method:"DELETE"});
+  if (res.ok || res.status === 204){
+    await loadShifts();
+    showToast("Đã tắt ca", "success");
+  }else{
+    showToast("Không tắt được ca", "error");
   }
 }
 
-async function deleteShift(id) {
-  const s = shifts.find(x => x.id === id);
-  if (!s || !confirm(`Tắt ca "${s.name}"? Ca sẽ không hiện trong danh sách phân công.`)) return;
-  const res = await fetch(`/api/shifts/${id}`, { method: 'DELETE', headers: authH() });
-  if (res.ok || res.status === 204) { showToast('Đã tắt ca ✓', 'success'); loadShifts(); }
-  else showToast('Lỗi khi xoá', 'error');
+function openDayModal(iso){
+  if (!selectedEmployee) return showToast("Chọn nhân viên trước", "error");
+  modalDate = iso;
+  const emp = employees.find(e => e.emp_code === selectedEmployee);
+  document.getElementById("dayModalSub").textContent = `${emp?.name || selectedEmployee} · ${iso}`;
+  renderAssignedList();
+  document.getElementById("dayNote").value = "";
+  document.getElementById("dayModal").classList.add("open");
 }
 
-// ── Toast ────────────────────────────────────────────────────────
-function showToast(msg, type = 'success') {
-  // Dùng toast hiện có của dự án nếu có, hoặc fallback
-  if (window.toast) { window.toast(msg, type); return; }
-  const t = document.createElement('div');
-  t.textContent = msg;
-  t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${type==='success'?'var(--teal)':'var(--red)'};color:${type==='success'?'#000':'#fff'};padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.4);animation:mUp .2s ease`;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2800);
+function closeDayModal(){
+  document.getElementById("dayModal").classList.remove("open");
 }
 
-function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function renderAssignedList(){
+  const list = document.getElementById("assignedList");
+  const rows = assignmentsByDate[modalDate] || [];
+  list.innerHTML = rows.length ? rows.map(r => `
+    <div class="assigned-row">
+      <div>
+        <div class="assigned-title">${esc(r.shift?.name || "Ca")}</div>
+        <div class="assigned-meta">${esc(r.shift?.work_start || "")}-${esc(r.shift?.work_end || "")}${r.note ? ` · ${esc(r.note)}` : ""}</div>
+      </div>
+      <button class="icon-btn icon-only danger" onclick="deleteAssignment(${r.id})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button>
+    </div>
+  `).join("") : `<div class="empty" style="padding:18px">Ngày này chưa có ca</div>`;
+}
+
+async function saveDayAssignment(){
+  const shiftId = parseInt(document.getElementById("dayShiftSelect").value);
+  if (!shiftId) return showToast("Chưa có ca hoạt động", "error");
+  const res = await authFetch("/api/shifts/assignments", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      emp_code:selectedEmployee,
+      shift_id:shiftId,
+      work_date:modalDate,
+      note:document.getElementById("dayNote").value.trim()
+    })
+  });
+  if (!res.ok){
+    const err = await res.json();
+    return showToast(err.detail || "Không lưu được phân ca", "error");
+  }
+  await loadCalendar();
+  renderAssignedList();
+  showToast("Đã lưu phân ca", "success");
+}
+
+async function deleteAssignment(id){
+  const res = await authFetch(`/api/shifts/assignments/${id}`, {method:"DELETE"});
+  if (res.ok || res.status === 204){
+    await loadCalendar();
+    renderAssignedList();
+    showToast("Đã xoá phân ca", "success");
+  }else{
+    showToast("Không xoá được phân ca", "error");
+  }
+}
+
+function setDefaultRange(){
+  const start = todayIso();
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 6);
+  document.getElementById("bulkFrom").value = start;
+  document.getElementById("bulkTo").value = endDate.toISOString().slice(0,10);
+}
+
+async function bulkAssign(){
+  const empCodes = [...selectedBulk];
+  const shiftId = parseInt(document.getElementById("bulkShiftSelect").value);
+  const from = document.getElementById("bulkFrom").value;
+  const to = document.getElementById("bulkTo").value;
+  if (!empCodes.length) return showToast("Chọn ít nhất một nhân viên", "error");
+  if (!shiftId) return showToast("Chọn ca làm", "error");
+  if (!from || !to || from > to) return showToast("Khoảng ngày không hợp lệ", "error");
+  const res = await authFetch("/api/shifts/assignments/bulk", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      emp_codes:empCodes,
+      shift_id:shiftId,
+      from_date:from,
+      to_date:to,
+      note:document.getElementById("bulkNote").value.trim()
+    })
+  });
+  if (!res.ok){
+    const err = await res.json();
+    return showToast(err.detail || "Không phân công được", "error");
+  }
+  const data = await res.json();
+  await loadCalendar();
+  await loadTodayAssignments();
+  showToast(data.message || "Đã phân công", "success");
+}
 </script>
 </body>
 </html>
