@@ -53,6 +53,12 @@ def init_db():
     """Tạo tất cả bảng. Gọi khi app khởi động."""
     from app.models import Base  # noqa — import để SQLAlchemy nhận diện tất cả models
     Base.metadata.create_all(bind=get_engine())
+    db = get_session_factory()()
+    try:
+        from app.services.shift_service import seed_default_shifts
+        seed_default_shifts(db)
+    finally:
+        db.close()
 #     _seed_sample_data()
 
 
