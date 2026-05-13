@@ -87,6 +87,8 @@
 .period-day{display:flex;flex-direction:column;gap:2px}
 .period-day b{font-size:10px;color:var(--text);letter-spacing:0;text-transform:none}
 .period-day span{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:0;text-transform:none}
+.period-day-btn{display:block;width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;font-family:var(--font-sans)}
+.period-day-btn:hover b{color:var(--teal)}
 .period-cell{min-height:58px;border-radius:7px;border:1px solid transparent;padding:7px;background:rgba(255,255,255,.018);cursor:pointer}
 .period-cell:hover{border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.055)}
 .period-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;border-radius:999px;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.28);color:var(--teal);font-family:var(--font-mono);font-size:11px;font-weight:800;margin-bottom:5px}
@@ -283,8 +285,7 @@
         <select class="filter-input roster-dept" id="rosterDept" onchange="renderShiftRosterTable()"><option value="">Tất cả bộ phận</option></select>
         <button class="btn btn-teal roster-refresh" onclick="loadShiftRoster()">Tải lại</button>
         <div class="roster-view-toggle">
-          <button class="roster-view-btn active" id="rosterPeriodDay" onclick="setRosterPeriod('day')">Ngày</button>
-          <button class="roster-view-btn" id="rosterPeriodWeek" onclick="setRosterPeriod('week')">Tuần</button>
+          <button class="roster-view-btn active" id="rosterPeriodWeek" onclick="setRosterPeriod('week')">Tuần</button>
           <button class="roster-view-btn" id="rosterPeriodMonth" onclick="setRosterPeriod('month')">Tháng</button>
         </div>
         <div class="roster-view-toggle">
@@ -292,6 +293,7 @@
           <button class="roster-view-btn" id="rosterViewEmployee" onclick="setRosterView('employee')">Theo nhân viên</button>
         </div>
         <span class="roster-range-label" id="rosterRangeLabel">—</span>
+        <button class="log-btn" id="rosterBackBtn" onclick="returnToRosterPeriod()" style="display:none">Quay lại</button>
       </div>
       <div class="roster-summary">
         <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricAssigned">0</div><div class="roster-metric-label">Lượt phân ca</div></div>
@@ -766,7 +768,7 @@ setInterval(async()=>{
 },60000);
 
 // ── Shift roster ──
-let rosterShifts=[],rosterAssignments=[],rosterAssignmentsByDate=new Map(),rosterDates=[],rosterLoaded=false,rosterViewMode='shift',rosterPeriod='day';
+let rosterShifts=[],rosterAssignments=[],rosterAssignmentsByDate=new Map(),rosterDates=[],rosterLoaded=false,rosterViewMode='shift',rosterPeriod='week',rosterParentPeriod='week';
 function rosterDateStr(d){
   const p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
@@ -809,7 +811,7 @@ function rosterPeriodDates(){
 function rosterRangeLabel(){
   if(!rosterDates.length)return '—';
   const fmt=s=>{const d=rosterParseDate(s);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;};
-  if(rosterPeriod==='day')return fmt(rosterDates[0]);
+  if(rosterPeriod==='day')return `Chi tiết ngày ${fmt(rosterDates[0])}`;
   return `${fmt(rosterDates[0])} - ${fmt(rosterDates[rosterDates.length-1])}`;
 }
 function rosterSafe(v){
@@ -840,11 +842,25 @@ function setRosterView(mode){
   document.getElementById('rosterViewEmployee')?.classList.toggle('active',rosterViewMode==='employee');
   renderShiftRosterTable();
 }
+function updateRosterPeriodControls(){
+  const parent=rosterPeriod==='day'?rosterParentPeriod:rosterPeriod;
+  document.getElementById('rosterPeriodWeek')?.classList.toggle('active',parent==='week');
+  document.getElementById('rosterPeriodMonth')?.classList.toggle('active',parent==='month');
+  const back=document.getElementById('rosterBackBtn');
+  if(back){
+    back.style.display=rosterPeriod==='day'?'inline-flex':'none';
+    back.textContent=`Quay lại ${rosterParentPeriod==='month'?'tháng':'tuần'}`;
+  }
+}
 function setRosterPeriod(period){
-  rosterPeriod=['day','week','month'].includes(period)?period:'day';
-  document.getElementById('rosterPeriodDay')?.classList.toggle('active',rosterPeriod==='day');
-  document.getElementById('rosterPeriodWeek')?.classList.toggle('active',rosterPeriod==='week');
-  document.getElementById('rosterPeriodMonth')?.classList.toggle('active',rosterPeriod==='month');
+  rosterPeriod=period==='month'?'month':'week';
+  rosterParentPeriod=rosterPeriod;
+  updateRosterPeriodControls();
+  loadShiftRoster();
+}
+function returnToRosterPeriod(){
+  rosterPeriod=rosterParentPeriod==='month'?'month':'week';
+  updateRosterPeriodControls();
   loadShiftRoster();
 }
 async function loadShiftRoster(){
@@ -875,6 +891,7 @@ async function loadShiftRoster(){
     });
     rosterLoaded=true;
     const label=document.getElementById('rosterRangeLabel');if(label)label.textContent=rosterRangeLabel();
+    updateRosterPeriodControls();
     fillRosterDept();
     renderShiftRosterTable();
   }catch(e){
@@ -977,11 +994,14 @@ function renderRosterByShift(){
 function rosterDayLabel(ds){
   const d=rosterParseDate(ds);
   const w=['CN','T2','T3','T4','T5','T6','T7'][d.getDay()];
-  return `<div class="period-day"><b>${w}</b><span>${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</span></div>`;
+  return `<button class="period-day-btn" onclick="rosterJumpToDay('${ds}')"><div class="period-day"><b>${w}</b><span>${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</span></div></button>`;
 }
 function rosterJumpToDay(ds){
   const el=document.getElementById('rosterDate');if(el)el.value=ds;
-  setRosterPeriod('day');
+  if(rosterPeriod!=='day')rosterParentPeriod=rosterPeriod;
+  rosterPeriod='day';
+  updateRosterPeriodControls();
+  loadShiftRoster();
 }
 function renderRosterPeriodByShift(){
   const head=document.getElementById('shiftRosterPeriodHead'),body=document.getElementById('shiftRosterPeriodBody');
