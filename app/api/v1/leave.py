@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.employee import Employee
-from app.models.leave import LeaveRequest
+from app.models.leave import LeaveRequest, LeaveRequestDay
 from app.models.user import User
 from app.services.work_calendar import get_calendar_day
 from app.services.notify import (
@@ -153,6 +153,13 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
     db.add(req)
     db.commit()
     db.refresh(req)
+    for day in validated_dates:
+        db.add(LeaveRequestDay(
+            leave_request_id=req.id,
+            date=date.fromisoformat(day["date"]),
+            half_day=day.get("half"),
+        ))
+    db.commit()
 
     # Notify
     if not is_admin_override:
