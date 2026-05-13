@@ -88,6 +88,7 @@ body::after{
 .shift-dot.evening{background:var(--cyan)}.shift-dot.night{background:var(--violet)}
 .shift-name{font-size:13px;font-weight:700}
 .shift-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
+.code-note{font-family:var(--font-mono);font-size:10px;color:var(--muted);padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:rgba(6,12,23,.22)}
 .shift-time{font-family:var(--font-mono);font-size:13px;color:var(--green);white-space:nowrap}
 .shift-meta{display:flex;gap:6px;flex-wrap:wrap}
 .pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--muted);background:rgba(6,12,23,.35)}
@@ -137,7 +138,16 @@ body::after{
 .day.empty{visibility:hidden;pointer-events:none}
 .day.today{border-color:var(--green);box-shadow:0 0 0 1px rgba(0,212,170,.18) inset}
 .day.weekend{background:rgba(17,30,52,.58)}
-.day-num{font-family:var(--font-mono);font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.day-num{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.date-badge{
+  min-width:30px;height:30px;border-radius:8px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:15px;font-weight:700;
+  color:var(--text);background:rgba(232,240,254,.07);
+  border:1px solid rgba(90,122,154,.32);
+}
+.day.weekend .date-badge{color:var(--amber);border-color:rgba(246,201,14,.28);background:rgba(246,201,14,.08)}
+.day.today .date-badge{color:#00110d;background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(0,212,170,.12)}
 .today-mark{font-size:9px;color:var(--green);font-family:var(--font-sans);font-weight:700}
 .assignment-chip{
   border-radius:6px;padding:5px 7px;font-size:10px;line-height:1.25;
@@ -342,10 +352,8 @@ body::after{
     </div>
     <div class="modal-body">
       <input type="hidden" id="shiftId">
-      <div class="field-row">
-        <div class="field"><label class="field-label">Tên ca</label><input class="input" id="shiftName" placeholder="Ca tối"></div>
-        <div class="field"><label class="field-label">Mã ca</label><input class="input" id="shiftCode" placeholder="evening"></div>
-      </div>
+      <div class="field"><label class="field-label">Tên ca</label><input class="input" id="shiftName" placeholder="Ca tối"></div>
+      <div class="code-note" id="shiftCodeNote">Mã nội bộ sẽ được hệ thống tự tạo khi lưu ca mới.</div>
       <div class="field-row">
         <div class="field"><label class="field-label">Giờ vào</label><input class="input" type="time" id="shiftStart" value="16:00"></div>
         <div class="field"><label class="field-label">Giờ ra</label><input class="input" type="time" id="shiftEnd" value="22:00"></div>
@@ -355,7 +363,7 @@ body::after{
         <div class="field"><label class="field-label">Ngưỡng đi muộn</label><input class="input" type="number" id="shiftLate" min="0" max="120" value="10"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label class="field-label">Cửa sổ ra sau ca</label><input class="input" type="number" id="shiftAuto" min="0" max="720" value="180"></div>
+        <div class="field"><label class="field-label">Cho phép chấm ra muộn</label><input class="input" type="number" id="shiftAuto" min="0" max="720" value="180"></div>
         <div class="field"><label class="field-label">Nghỉ giữa ca</label><input class="input" type="number" id="shiftBreak" min="0" max="240" value="30"></div>
       </div>
       <label class="check-row"><input type="checkbox" id="shiftOvernight"> Ca qua ngày</label>
@@ -408,7 +416,22 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 let modalDate = "";
 
-const shiftClass = code => ({morning:"morning",lunch:"lunch",evening:"evening",night:"night",afternoon:"evening",office:"morning"}[code] || "");
+function normalizeText(value){
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+}
+
+function shiftTone(shift){
+  const text = normalizeText(`${shift?.code || ""} ${shift?.name || ""}`);
+  if (text.includes("dem") || text.includes("night")) return "night";
+  if (text.includes("toi") || text.includes("chieu") || text.includes("evening") || text.includes("afternoon")) return "evening";
+  if (text.includes("trua") || text.includes("lunch")) return "lunch";
+  if (text.includes("sang") || text.includes("morning") || text.includes("office")) return "morning";
+  return "";
+}
 const pad = n => String(n).padStart(2,"0");
 const todayIso = () => new Date().toISOString().slice(0,10);
 const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
@@ -462,7 +485,7 @@ function renderShifts(){
   list.innerHTML = shifts.map(s => `
     <article class="shift-card ${s.is_active ? "" : "off"}">
       <div class="shift-top">
-        <span class="shift-dot ${shiftClass(s.code)}"></span>
+        <span class="shift-dot ${shiftTone(s)}"></span>
         <div>
           <div class="shift-name">${esc(s.name)}</div>
           <div class="shift-code">${esc(s.code)}</div>
@@ -620,7 +643,7 @@ function renderCalendar(){
     const rows = assignmentsByDate[iso] || [];
     html += `
       <div class="day ${iso === today ? "today" : ""} ${(dow === 0 || dow === 6) ? "weekend" : ""}" onclick="openDayModal('${iso}')">
-        <div class="day-num"><span>${d}</span>${iso === today ? `<span class="today-mark">Hôm nay</span>` : ""}</div>
+        <div class="day-num"><span class="date-badge">${d}</span>${iso === today ? `<span class="today-mark">Hôm nay</span>` : ""}</div>
         ${rows.map(r => shiftChip(r.shift)).join("")}
         ${rows.length ? "" : `<div class="empty-slot">Chưa phân ca</div>`}
       </div>`;
@@ -630,7 +653,7 @@ function renderCalendar(){
 
 function shiftChip(s){
   if (!s) return "";
-  return `<div class="assignment-chip ${shiftClass(s.code)}"><div class="chip-name">${esc(s.name)}</div><div class="chip-time">${esc(s.work_start)}-${esc(s.work_end)}</div></div>`;
+  return `<div class="assignment-chip ${shiftTone(s)}"><div class="chip-name">${esc(s.name)}</div><div class="chip-time">${esc(s.work_start)}-${esc(s.work_end)}</div></div>`;
 }
 
 function openShiftModal(id = null){
@@ -638,7 +661,7 @@ function openShiftModal(id = null){
   document.getElementById("shiftId").value = s?.id || "";
   document.getElementById("shiftModalTitle").textContent = s ? "Sửa ca làm" : "Tạo ca làm";
   document.getElementById("shiftName").value = s?.name || "";
-  document.getElementById("shiftCode").value = s?.code || "";
+  document.getElementById("shiftCodeNote").textContent = s ? `Mã nội bộ: ${s.code}` : "Mã nội bộ sẽ được hệ thống tự tạo khi lưu ca mới.";
   document.getElementById("shiftStart").value = s?.work_start || "16:00";
   document.getElementById("shiftEnd").value = s?.work_end || "22:00";
   document.getElementById("shiftEarly").value = s?.early_checkin_minutes ?? 30;
@@ -658,7 +681,6 @@ async function saveShift(){
   const id = document.getElementById("shiftId").value;
   const body = {
     name: document.getElementById("shiftName").value.trim(),
-    code: document.getElementById("shiftCode").value.trim(),
     work_start: document.getElementById("shiftStart").value,
     work_end: document.getElementById("shiftEnd").value,
     early_checkin_minutes: parseInt(document.getElementById("shiftEarly").value) || 0,
@@ -668,7 +690,7 @@ async function saveShift(){
     is_overnight: document.getElementById("shiftOvernight").checked,
     note: document.getElementById("shiftNote").value.trim()
   };
-  if (!body.name || !body.code) return showToast("Nhập tên ca và mã ca", "error");
+  if (!body.name) return showToast("Nhập tên ca", "error");
   const res = await authFetch(id ? `/api/shifts/${id}` : "/api/shifts", {
     method: id ? "PUT" : "POST",
     headers: {"Content-Type":"application/json"},

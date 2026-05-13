@@ -3,6 +3,8 @@ app/services/shift_service.py
 Business logic cho ca làm việc.
 """
 
+import re
+import unicodedata
 from datetime import date, datetime, time, timedelta
 from typing import Optional
 
@@ -68,11 +70,32 @@ def get_shift(shift_id: int, db: Session) -> Optional[dict]:
     return _shift_to_dict(s) if s else None
 
 
+def _slugify_shift_code(name: str) -> str:
+    """Sinh mã ca nội bộ từ tên ca: 'Ca tối VIP' -> 'ca-toi-vip'."""
+    source = (name or "").replace("đ", "d").replace("Đ", "D")
+    raw = unicodedata.normalize("NFKD", source)
+    ascii_text = raw.encode("ascii", "ignore").decode("ascii").lower()
+    code = re.sub(r"[^a-z0-9]+", "-", ascii_text).strip("-")
+    return code or "ca"
+
+
+def _unique_shift_code(value: str, branch_id: int | None, db: Session) -> str:
+    base = _slugify_shift_code(value)
+    code = base
+    i = 2
+    while db.query(Shift).filter_by(branch_id=branch_id, code=code).first():
+        code = f"{base}-{i}"
+        i += 1
+    return code
+
+
 def create_shift(data: dict, db: Session) -> dict:
+    branch_id = data.get("branch_id")
+    code = _unique_shift_code(data.get("code") or data["name"], branch_id, db)
     s = Shift(
-        branch_id  = data.get("branch_id"),
+        branch_id  = branch_id,
         name       = data["name"],
-        code       = data["code"],
+        code       = code,
         work_start = data["work_start"],
         work_end   = data["work_end"],
         late_threshold_minutes = data.get("late_threshold_minutes", 15),
@@ -94,7 +117,7 @@ def update_shift(shift_id: int, data: dict, db: Session) -> Optional[dict]:
     if not s:
         return None
     for field in (
-        "branch_id", "name", "code", "work_start", "work_end",
+        "branch_id", "name", "work_start", "work_end",
         "late_threshold_minutes", "early_checkin_minutes",
         "auto_checkout_minutes", "break_minutes", "is_overnight",
         "note", "is_active",

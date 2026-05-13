@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/shifts", tags=["shifts"])
 class ShiftCreate(BaseModel):
     branch_id:  Optional[int] = None
     name:       str
-    code:       str
+    code:       Optional[str] = None
     work_start: str   # "HH:MM"
     work_end:   str
     late_threshold_minutes: int = 15
@@ -51,6 +51,8 @@ class ShiftCreate(BaseModel):
     @field_validator("code")
     @classmethod
     def validate_code(cls, v):
+        if not v:
+            return None
         if not v.replace("_", "").replace("-", "").isalnum():
             raise ValueError("code chỉ chứa chữ cái, số, dấu _ và -")
         return v.lower()
@@ -59,7 +61,6 @@ class ShiftCreate(BaseModel):
 class ShiftUpdate(BaseModel):
     branch_id:  Optional[int]  = None
     name:       Optional[str]  = None
-    code:       Optional[str]  = None
     work_start: Optional[str]  = None
     work_end:   Optional[str]  = None
     late_threshold_minutes: Optional[int] = None
@@ -147,10 +148,6 @@ def api_create_shift(
     current_user: User = Depends(get_current_user),
 ):
     _require_manager(current_user)
-    # Kiểm tra trùng code
-    from app.models.shift import Shift
-    if db.query(Shift).filter_by(branch_id=body.branch_id, code=body.code).first():
-        raise HTTPException(400, f"Code '{body.code}' đã tồn tại")
     return create_shift(body.model_dump(), db)
 
 
