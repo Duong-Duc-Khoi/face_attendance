@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-
+from app.api.v1.shifts import router as shifts_router
 from app.core.config import settings
 from app.core.database import init_db
 from app.services.face_engine import face_engine
@@ -97,7 +97,7 @@ app.include_router(employees.router)
 app.include_router(reports.router)
 app.include_router(leave_router)
 app.include_router(calendar_router)
-
+app.include_router(shifts_router)
 
 # ── Auth pages ───────────────────────────────────────────────────
 @app.get("/auth/login-page")
@@ -129,6 +129,10 @@ async def report_page(request: Request):
 @app.get("/users")
 async def users_page(request: Request):
     return templates.TemplateResponse("users.html", {"request": request})
+
+@app.get("/shifts")
+async def shifts_page(request: Request):
+    return templates.TemplateResponse("shifts.html", {"request": request})
 
 # ── Camera stream ────────────────────────────────────────────────
 def _placeholder_mjpeg():
