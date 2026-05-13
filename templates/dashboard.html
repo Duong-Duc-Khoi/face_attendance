@@ -53,6 +53,36 @@
 .sdg-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
 .sdg-num{font-family:var(--font-mono);font-size:20px;font-weight:700}
 .sdg-lbl{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
+.roster-toolbar{display:grid;grid-template-columns:auto 150px auto minmax(180px,1fr) 180px auto;gap:8px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
+.roster-date-btn{height:34px;width:34px;border-radius:7px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;font-size:17px;display:grid;place-items:center;transition:all .15s}
+.roster-date-btn:hover{border-color:var(--teal);color:var(--teal)}
+.roster-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.roster-metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
+.roster-metric-num{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text)}
+.roster-metric-label{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
+.roster-table-wrap{overflow:auto;max-height:620px}
+.shift-roster-table{width:100%;min-width:880px;border-collapse:separate;border-spacing:0;font-size:12px}
+.shift-roster-table th{position:sticky;top:0;z-index:2;background:var(--panel);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.07em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
+.shift-roster-table td{padding:10px 12px;border-bottom:1px solid rgba(26,47,80,.45);vertical-align:middle;color:var(--text)}
+.shift-roster-table tbody tr:hover td{background:rgba(255,255,255,.025)}
+.shift-roster-table th:first-child,.shift-roster-table td:first-child{position:sticky;left:0;z-index:3;background:var(--panel);min-width:220px}
+.shift-roster-table tbody tr:hover td:first-child{background:#0f1a2b}
+.roster-emp{display:flex;align-items:center;gap:10px;min-width:200px}
+.roster-avatar{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,rgba(0,212,170,.18),rgba(77,166,255,.14));border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--teal);overflow:hidden;flex-shrink:0}
+.shift-head{display:flex;flex-direction:column;gap:3px;min-width:110px}
+.shift-head-name{font-size:11px;color:var(--text);font-weight:700;text-transform:none;letter-spacing:0}
+.shift-head-time{font-family:var(--font-mono);font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none}
+.roster-cell{min-width:118px;height:42px;border-radius:7px;border:1px dashed rgba(90,122,154,.28);display:flex;align-items:center;justify-content:center;color:rgba(90,122,154,.75)}
+.roster-cell.assigned{justify-content:flex-start;padding:7px 9px;border-style:solid;background:rgba(0,212,170,.08);border-color:rgba(0,212,170,.26);color:var(--text)}
+.roster-chip{display:flex;flex-direction:column;gap:1px;line-height:1.2}
+.roster-chip b{font-size:11px;color:var(--text)}
+.roster-chip span{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.roster-empty{padding:32px;text-align:center;color:var(--muted);font-size:12px}
+.shift-tone-morning .roster-cell.assigned{background:rgba(0,212,170,.1);border-color:rgba(0,212,170,.32)}
+.shift-tone-lunch .roster-cell.assigned{background:rgba(246,201,14,.1);border-color:rgba(246,201,14,.32)}
+.shift-tone-evening .roster-cell.assigned{background:rgba(77,166,255,.1);border-color:rgba(77,166,255,.32)}
+.shift-tone-night .roster-cell.assigned{background:rgba(167,139,250,.11);border-color:rgba(167,139,250,.35)}
+@media(max-width:860px){.roster-toolbar{grid-template-columns:auto 1fr auto}.roster-toolbar .roster-search,.roster-toolbar .roster-dept,.roster-toolbar .roster-refresh{grid-column:1/-1;width:100%}.roster-summary{grid-template-columns:1fr 1fr}}
 
 /* ── Attendance modals ── */
 .atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center}
@@ -73,7 +103,7 @@
 .atd-warn{background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.25);border-radius:9px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.65}
 .atd-warn strong{color:var(--red)}
 /* Table extras */
-.log-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.log-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;text-decoration:none}
 .log-btn:hover{border-color:var(--teal);color:var(--teal)}
 .log-btn.del:hover{border-color:var(--red);color:var(--red)}
 .col-act{display:none}
@@ -108,7 +138,7 @@
       ✉ Duyệt nghỉ phép
       <span class="tab-badge" id="leaveBadge">0</span>
     </button>
-    <button class="dash-tab" onclick="switchDashTab('tab-calendar',this)">📅 Lịch làm việc</button>
+    <button class="dash-tab" onclick="switchDashTab('tab-calendar',this)">📋 Bảng phân ca</button>
   </div>
 
   <!-- TAB: Overview -->
@@ -200,77 +230,32 @@
     </div>
   </div>
 
-  <!-- TAB: Lịch làm việc -->
+  <!-- TAB: Bảng phân ca -->
   <div class="dash-tab-content" id="tab-calendar">
-    <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
-      <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">
-          <button onclick="calMgmtNav(-1)" style="background:none;border:1px solid var(--border);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:grid;place-items:center">&#8249;</button>
-          <span id="calMgmtLabel" style="font-size:13px;font-weight:700;color:var(--text)">—</span>
-          <button onclick="calMgmtNav(1)" style="background:none;border:1px solid var(--border);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:grid;place-items:center">&#8250;</button>
-        </div>
-        <div id="calMgmtBody"></div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;padding:6px 14px 12px;font-size:10px;color:var(--muted)">
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--teal);display:inline-block"></span>Cả ngày</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block"></span>Nửa ngày</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f6c90e;display:inline-block"></span>Ngày lễ</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block"></span>Tăng ca</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:rgba(90,122,154,.4);display:inline-block"></span>Nghỉ</span>
-        </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Bảng nhân viên theo ca</div>
+        <a href="/shifts" class="log-btn">Mở trang chia ca</a>
       </div>
-      <div>
-        <div class="panel" id="editDayPanel">
-          <div class="panel-header"><div class="panel-header-left"><span class="dot"></span><span id="editDayTitle">Chọn ngày để chỉnh sửa</span></div></div>
-          <div style="padding:14px">
-            <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px">Loại ngày</div>
-            <div class="dtype-picker">
-              <button class="dtype-btn active" data-dt="full" onclick="selectDayType(this,'full')">Cả ngày</button>
-              <button class="dtype-btn" data-dt="half_am" onclick="selectDayType(this,'half_am')">Buổi sáng</button>
-              <button class="dtype-btn" data-dt="half_pm" onclick="selectDayType(this,'half_pm')">Buổi chiều</button>
-              <button class="dtype-btn" data-dt="off" onclick="selectDayType(this,'off')">Nghỉ</button>
-              <button class="dtype-btn" data-dt="holiday" onclick="selectDayType(this,'holiday')">Ngày lễ</button>
-              <button class="dtype-btn" data-dt="overtime" onclick="selectDayType(this,'overtime')">Tăng ca</button>
-            </div>
-            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <div class="cfg-group"><label class="cfg-label">Giờ vào (override)</label><input class="cfg-input" id="editDayStart" type="time"></div>
-              <div class="cfg-group"><label class="cfg-label">Giờ tan (override)</label><input class="cfg-input" id="editDayEnd" type="time"></div>
-            </div>
-            <div class="cfg-group" style="margin-top:10px">
-              <label class="cfg-label">Nhãn hiển thị</label>
-              <input class="cfg-input" id="editDayLabel" placeholder="VD: Tết Nguyên Đán, Làm bù...">
-            </div>
-            <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="btn-save" onclick="saveDayOverride()" style="flex:1">Lưu ngày này</button>
-              <button onclick="deleteDayOverride()" style="flex:1;padding:8px;border-radius:7px;background:none;border:1px solid rgba(255,77,106,.3);color:var(--red);font-size:12px;font-weight:700;cursor:pointer">Xóa override</button>
-            </div>
-          </div>
-        </div>
-        <div class="panel" style="margin-top:16px">
-          <div class="panel-header"><div class="panel-header-left"><span class="dot"></span> Cấu hình mặc định</div></div>
-          <div style="padding:14px">
-            <div class="cfg-grid">
-              <div class="cfg-group" style="grid-column:1/-1">
-                <label class="cfg-label">Ngày làm việc trong tuần</label>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="workDaysPicker">
-                  <button class="dtype-btn" data-wd="1" onclick="toggleWorkDay(this)">T2</button>
-                  <button class="dtype-btn" data-wd="2" onclick="toggleWorkDay(this)">T3</button>
-                  <button class="dtype-btn" data-wd="3" onclick="toggleWorkDay(this)">T4</button>
-                  <button class="dtype-btn" data-wd="4" onclick="toggleWorkDay(this)">T5</button>
-                  <button class="dtype-btn" data-wd="5" onclick="toggleWorkDay(this)">T6</button>
-                  <button class="dtype-btn" data-wd="6" onclick="toggleWorkDay(this)">T7</button>
-                  <button class="dtype-btn" data-wd="7" onclick="toggleWorkDay(this)">CN</button>
-                </div>
-              </div>
-              <div class="cfg-group"><label class="cfg-label">Giờ vào làm</label><input class="cfg-input" id="cfgStart" type="time"></div>
-              <div class="cfg-group"><label class="cfg-label">Giờ tan làm</label><input class="cfg-input" id="cfgEnd" type="time"></div>
-              <div class="cfg-group"><label class="cfg-label">Ngưỡng đi muộn (phút)</label><input class="cfg-input" id="cfgLate" type="number" min="0" max="60"></div>
-              <div class="cfg-group"><label class="cfg-label">Mốc sáng/chiều</label><input class="cfg-input" id="cfgHalfCutoff" type="time"></div>
-            </div>
-            <div style="margin-top:14px;display:flex;justify-content:flex-end">
-              <button class="btn-save" onclick="saveConfig()">Lưu cấu hình</button>
-            </div>
-          </div>
-        </div>
+      <div class="roster-toolbar">
+        <button class="roster-date-btn" onclick="rosterNav(-1)" title="Ngày trước">&#8249;</button>
+        <input class="filter-input" id="rosterDate" type="date" onchange="loadShiftRoster()">
+        <button class="roster-date-btn" onclick="rosterNav(1)" title="Ngày sau">&#8250;</button>
+        <input class="filter-input roster-search" id="rosterSearch" placeholder="Tìm nhân viên, mã NV..." oninput="renderShiftRosterTable()">
+        <select class="filter-input roster-dept" id="rosterDept" onchange="renderShiftRosterTable()"><option value="">Tất cả bộ phận</option></select>
+        <button class="btn btn-teal roster-refresh" onclick="loadShiftRoster()">Tải lại</button>
+      </div>
+      <div class="roster-summary">
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricAssigned">0</div><div class="roster-metric-label">Lượt phân ca</div></div>
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricEmployees">0</div><div class="roster-metric-label">Nhân viên có ca</div></div>
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricUnassigned">0</div><div class="roster-metric-label">Chưa có ca</div></div>
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricShifts">0</div><div class="roster-metric-label">Ca đang mở</div></div>
+      </div>
+      <div class="roster-table-wrap">
+        <table class="shift-roster-table">
+          <thead id="shiftRosterHead"></thead>
+          <tbody id="shiftRosterBody"><tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -647,7 +632,7 @@ function switchDashTab(id,btn){
   document.querySelectorAll('.dash-tab').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');btn.classList.add('active');
   if(id==='tab-leave')loadLeaveRequests();
-  if(id==='tab-calendar'){loadConfig();renderCalMgmt();}
+  if(id==='tab-calendar')loadShiftRoster();
 }
 
 // ── Leave management ──
@@ -722,6 +707,138 @@ async function submitRejectLeave(){
 setInterval(async()=>{
   try{const r=await authFetch('/api/leave/pending-count');const d=await r.json();const badge=document.getElementById('leaveBadge');if(d.count>0){badge.textContent=d.count;badge.classList.add('show');}else badge.classList.remove('show');}catch{}
 },60000);
+
+// ── Shift roster ──
+let rosterShifts=[],rosterAssignments=[],rosterLoaded=false;
+function _todayStr(){return new Date().toISOString().slice(0,10);}
+function _rosterDate(){
+  const el=document.getElementById('rosterDate');
+  if(el&&!el.value)el.value=_todayStr();
+  return el?el.value:_todayStr();
+}
+function rosterNav(dir){
+  const el=document.getElementById('rosterDate');if(!el)return;
+  const d=new Date((el.value||_todayStr())+'T00:00:00');
+  d.setDate(d.getDate()+dir);
+  el.value=d.toISOString().slice(0,10);
+  loadShiftRoster();
+}
+function rosterSafe(v){
+  return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function rosterTime(v){
+  const s=String(v||'');
+  return s.length>=5?s.slice(0,5):s;
+}
+function rosterTone(shift){
+  const text=`${shift?.name||''} ${shift?.code||''}`.toLowerCase();
+  if(/trua|lunch|mid|noon/.test(text))return 'shift-tone-lunch';
+  if(/toi|chieu|evening|pm|dinner/.test(text))return 'shift-tone-evening';
+  if(/dem|night|overnight/.test(text))return 'shift-tone-night';
+  return 'shift-tone-morning';
+}
+function fillRosterDept(){
+  const sel=document.getElementById('rosterDept');if(!sel)return;
+  const curr=sel.value;
+  const depts=[...new Set(employees.map(e=>e.department).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Tất cả bộ phận</option>';
+  depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
+  if(depts.includes(curr))sel.value=curr;
+}
+async function loadShiftRoster(){
+  const date=_rosterDate();
+  const tbody=document.getElementById('shiftRosterBody');
+  if(tbody)tbody.innerHTML='<tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr>';
+  try{
+    if(!employees.length)await loadEmployees();
+    const [shiftRes,assignmentRes]=await Promise.all([
+      authFetch('/api/shifts?active_only=true'),
+      authFetch(`/api/shifts/assignments/date/${date}`)
+    ]);
+    if(!shiftRes.ok)throw new Error('Không tải được danh sách ca');
+    if(!assignmentRes.ok)throw new Error('Không tải được phân ca theo ngày');
+    rosterShifts=await shiftRes.json();
+    rosterAssignments=await assignmentRes.json();
+    rosterLoaded=true;
+    fillRosterDept();
+    renderShiftRosterTable();
+  }catch(e){
+    if(tbody)tbody.innerHTML=`<tr><td class="roster-empty">Lỗi tải bảng phân ca: ${rosterSafe(e.message)}</td></tr>`;
+    showToast('Lỗi tải bảng phân ca','error');
+  }
+}
+function renderShiftRosterTable(){
+  const head=document.getElementById('shiftRosterHead'),body=document.getElementById('shiftRosterBody');
+  if(!head||!body)return;
+  if(!rosterLoaded){body.innerHTML='<tr><td class="roster-empty">Chọn tab để tải bảng phân ca</td></tr>';return;}
+  const q=(document.getElementById('rosterSearch')?.value||'').trim().toLowerCase();
+  const dept=document.getElementById('rosterDept')?.value||'';
+  const activeEmployees=employees.filter(e=>e.is_active!==false);
+  let visibleEmployees=activeEmployees;
+  if(dept)visibleEmployees=visibleEmployees.filter(e=>e.department===dept);
+  if(q)visibleEmployees=visibleEmployees.filter(e=>
+    (e.name||'').toLowerCase().includes(q)||
+    (e.emp_code||'').toLowerCase().includes(q)||
+    (e.position||'').toLowerCase().includes(q)
+  );
+
+  const assignmentsByEmp=new Map();
+  rosterAssignments.forEach(a=>{
+    if(!assignmentsByEmp.has(a.emp_code))assignmentsByEmp.set(a.emp_code,[]);
+    assignmentsByEmp.get(a.emp_code).push(a);
+  });
+  const activeCodes=new Set(activeEmployees.map(e=>e.emp_code));
+  const scheduledCodes=new Set(rosterAssignments.map(a=>a.emp_code).filter(code=>activeCodes.has(code)));
+  document.getElementById('rosterMetricAssigned').textContent=rosterAssignments.length;
+  document.getElementById('rosterMetricEmployees').textContent=scheduledCodes.size;
+  document.getElementById('rosterMetricUnassigned').textContent=Math.max(activeEmployees.length-scheduledCodes.size,0);
+  document.getElementById('rosterMetricShifts').textContent=rosterShifts.length;
+
+  const shiftHeaders=rosterShifts.map(s=>`
+    <th>
+      <div class="shift-head">
+        <span class="shift-head-name">${rosterSafe(s.name)}</span>
+        <span class="shift-head-time">${rosterSafe(rosterTime(s.work_start))} - ${rosterSafe(rosterTime(s.work_end))}</span>
+      </div>
+    </th>`).join('');
+  head.innerHTML=`<tr><th>Nhân viên</th>${shiftHeaders}<th>Ghi chú ngày</th></tr>`;
+
+  if(!rosterShifts.length){
+    body.innerHTML='<tr><td class="roster-empty" colspan="2">Chưa có ca đang mở. Vào trang chia ca để tạo ca trước.</td></tr>';
+    return;
+  }
+  if(!visibleEmployees.length){
+    body.innerHTML=`<tr><td class="roster-empty" colspan="${rosterShifts.length+2}">Không có nhân viên phù hợp bộ lọc</td></tr>`;
+    return;
+  }
+
+  body.innerHTML=visibleEmployees.map(emp=>{
+    const empAssignments=assignmentsByEmp.get(emp.emp_code)||[];
+    const byShift=new Map(empAssignments.map(a=>[a.shift_id,a]));
+    const cells=rosterShifts.map(shift=>{
+      const a=byShift.get(shift.id);
+      if(!a)return `<td class="${rosterTone(shift)}"><div class="roster-cell">—</div></td>`;
+      return `<td class="${rosterTone(shift)}"><div class="roster-cell assigned"><div class="roster-chip"><b>Có ca</b><span>${rosterSafe(rosterTime(shift.work_start))}-${rosterSafe(rosterTime(shift.work_end))}</span></div></div></td>`;
+    }).join('');
+    const notes=empAssignments.map(a=>a.note).filter(Boolean).map(rosterSafe).join('<br>')||'—';
+    const avatar=emp.avatar_url
+      ? `<img src="${rosterSafe(emp.avatar_url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='?'">`
+      : rosterSafe((emp.name||'?')[0]);
+    return `<tr>
+      <td>
+        <div class="roster-emp">
+          <div class="roster-avatar">${avatar}</div>
+          <div>
+            <div style="font-weight:700;font-size:13px">${rosterSafe(emp.name)}</div>
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${rosterSafe(emp.emp_code)} · ${rosterSafe(emp.department||'Chưa có bộ phận')}</div>
+          </div>
+        </div>
+      </td>
+      ${cells}
+      <td style="font-size:11px;color:var(--muted);min-width:140px">${notes}</td>
+    </tr>`;
+  }).join('');
+}
 
 // ── Calendar ──
 let calMgmtYear=new Date().getFullYear(),calMgmtMonth=new Date().getMonth()+1,calMgmtCache={},editingDate=null,editingDayType='full';
