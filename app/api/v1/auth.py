@@ -16,7 +16,7 @@ from app.core.security import (
     create_access_token, decode_access_token,
     hash_password, verify_password,
 )
-from app.models.user import User, RefreshToken
+from app.models.user import User, EmailToken, RefreshToken
 from app.services.auth_service import (
     _hash_token,
     consume_token, create_otp_token, create_refresh_token_db, create_verify_token,
@@ -93,7 +93,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         full_name       = req.full_name,
         hashed_password = hash_password(req.password),
         role            = req.role,
-        is_active       = True, 
+        is_active       = False,
         is_email_verified = False,
     )
     db.add(user); db.commit(); db.refresh(user)
@@ -139,10 +139,10 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(401, "Email hoặc mật khẩu không đúng")
     if not user.is_email_verified:
         raise HTTPException(403, "Email chưa được xác minh. Kiểm tra hộp thư và click link xác minh.")
-    if not user.is_active:
-        raise HTTPException(403, "Tài khoản đã bị khóa. Liên hệ quản trị viên.")
     if not user.is_approved:
         raise HTTPException(403, "Tài khoản chưa được duyệt. Vui lòng chờ admin/manager phê duyệt.")
+    if not user.is_active:
+        raise HTTPException(403, "Tài khoản đã bị khóa. Liên hệ quản trị viên.")
     otp = create_otp_token(user.id, db)
     send_login_otp_email(user.email, user.full_name, otp)
     return {"success": True, "message": f"Mã OTP đã gửi tới {user.email}.", "step": "otp_required", "email": user.email}
