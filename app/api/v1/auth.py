@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
     create_access_token, decode_access_token,
@@ -163,7 +164,7 @@ def login_verify_otp(req: OTPVerifyRequest, db: Session = Depends(get_db)):
     access_token  = create_access_token(user.id, user.email, user.role)
     refresh_token = create_refresh_token_db(user.id, db)
     return {"success": True, "access_token": access_token, "refresh_token": refresh_token,
-            "token_type": "bearer", "expires_in": 15 * 60, "user": _user_dict(user)}
+            "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXP * 60, "user": _user_dict(user)}
 
 
 # ── POST /auth/refresh ───────────────────────────────────────────
@@ -179,7 +180,7 @@ def refresh_token(req: RefreshRequest, db: Session = Depends(get_db)):
     new_access  = create_access_token(user.id, user.email, user.role)
     new_refresh = create_refresh_token_db(user.id, db)
     return {"success": True, "access_token": new_access, "refresh_token": new_refresh,
-            "token_type": "bearer", "expires_in": 15 * 60}
+            "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXP * 60}
 
 
 # ── POST /auth/logout ────────────────────────────────────────────

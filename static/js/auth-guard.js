@@ -15,6 +15,14 @@
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
   }
 
+  function getRefreshToken() {
+    return localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token') || '';
+  }
+
+  function getAuthStorage() {
+    return localStorage.getItem('refresh_token') ? localStorage : sessionStorage;
+  }
+
   function getUser() {
     try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null'); } catch { return null; }
   }
@@ -48,18 +56,57 @@
   window.getToken = getToken;
   window.getUser  = getUser;
 
+  let refreshPromise = null;
+
+  async function refreshAuth() {
+    const rt = getRefreshToken();
+    if (!rt) return false;
+
+    if (!refreshPromise) {
+      refreshPromise = fetch('/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt })
+      })
+        .then(async function (res) {
+          if (!res.ok) return false;
+          const data = await res.json();
+          if (!data.access_token || !data.refresh_token) return false;
+          const storage = getAuthStorage();
+          storage.setItem('access_token', data.access_token);
+          storage.setItem('refresh_token', data.refresh_token);
+          return true;
+        })
+        .catch(function () { return false; })
+        .finally(function () { refreshPromise = null; });
+    }
+
+    return refreshPromise;
+  }
+
   window.authHeaders = function (extra) {
     return Object.assign({ 'Authorization': 'Bearer ' + getToken() }, extra || {});
   };
 
-  // Wrapper fetch tự động xử lý 401
+  // Wrapper fetch tự động refresh access token khi hết hạn rồi retry 1 lần
   window.authFetch = async function (url, options) {
     options = options || {};
     options.headers = Object.assign(
       { 'Authorization': 'Bearer ' + getToken() },
       options.headers || {}
     );
-    const res = await fetch(url, options);
+
+    let res = await fetch(url, options);
+    if (res.status === 401) {
+      const refreshed = await refreshAuth();
+      if (refreshed) {
+        options.headers = Object.assign({}, options.headers, {
+          'Authorization': 'Bearer ' + getToken()
+        });
+        res = await fetch(url, options);
+      }
+    }
+
     if (res.status === 401 || res.status === 403) {
       redirectLogin();
       throw new Error('Unauthorized');
