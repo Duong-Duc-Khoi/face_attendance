@@ -6,6 +6,7 @@ Business logic cho ca làm việc.
 from datetime import date, datetime, time, timedelta
 from typing import Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -357,7 +358,7 @@ def calc_status_for_shift(check_time: datetime, emp_code: str, db: Session) -> s
 
 def seed_default_shifts(db: Session):
     """Tạo các ca mặc định nếu bảng shifts còn trống."""
-    if db.query(Shift).count() > 0:
+    if db.query(func.count(Shift.id)).scalar() > 0:
         return
 
     defaults = [
