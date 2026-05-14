@@ -161,6 +161,18 @@ CREATE INDEX IF NOT EXISTS ix_shift_plan_draft_assignments_emp_code ON shift_pla
 CREATE INDEX IF NOT EXISTS ix_shift_plan_draft_assignments_shift_id ON shift_plan_draft_assignments(shift_id);
 CREATE INDEX IF NOT EXISTS ix_shift_plan_draft_assignments_work_date ON shift_plan_draft_assignments(work_date);
 
+CREATE TABLE IF NOT EXISTS ai_provider_settings (
+    id SERIAL PRIMARY KEY,
+    provider VARCHAR(30) NOT NULL UNIQUE,
+    api_key_encrypted TEXT DEFAULT '',
+    model VARCHAR(100) DEFAULT '',
+    is_enabled BOOLEAN DEFAULT FALSE,
+    updated_by VARCHAR(150) DEFAULT '',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_provider_settings_provider ON ai_provider_settings(provider);
+
 UPDATE employees SET full_name = name WHERE COALESCE(full_name, '') = '';
 UPDATE employees SET status = CASE WHEN is_active THEN 'active' ELSE 'inactive' END
 WHERE status IS NULL OR status = '';

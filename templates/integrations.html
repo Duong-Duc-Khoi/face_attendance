@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tích hợp AI - FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<script src="/static/js/auth-guard.js"></script>
+<style>
+.page{max-width:980px;margin:0 auto;padding:24px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#00d4aa;margin-bottom:7px}
+.title{font-size:25px;font-weight:800;letter-spacing:0}
+.sub{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px;max-width:680px}
+.provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.provider-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.provider-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid var(--border);background:rgba(17,30,52,.68)}
+.provider-name{font-size:15px;font-weight:800}
+.provider-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:4px}
+.status-pill{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.status-pill.on{color:#00d4aa;border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.08)}
+.provider-body{display:grid;gap:12px;padding:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field-label{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.input{width:100%;min-height:37px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-sans);font-size:12px;padding:8px 10px;outline:none}
+.input:focus{border-color:#00d4aa}
+.check-row{display:flex;align-items:center;gap:8px;color:var(--text);font-size:12px}
+.check-row input{accent-color:#00d4aa}
+.actions{display:flex;gap:8px;justify-content:flex-end;padding-top:4px}
+.btn{min-height:34px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:8px;padding:0 12px;font-family:var(--font-sans);font-size:12px;font-weight:800;cursor:pointer}
+.btn:hover{border-color:#3a8fff}
+.btn.primary{background:#00d4aa;border-color:#00d4aa;color:#00110d}
+.btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
+.notice{border:1px solid rgba(246,201,14,.32);background:rgba(246,201,14,.08);border-radius:8px;padding:12px 14px;color:#f6c90e;font-size:12px;line-height:1.6;margin-bottom:14px}
+.admin-only{display:none;border:1px solid rgba(255,77,106,.35);background:rgba(255,77,106,.08);border-radius:8px;padding:16px;color:var(--red);font-size:13px}
+@media(max-width:760px){.page{padding:16px}.head{display:block}.provider-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <span class="brand-name">FaceAttend</span>
+  </div>
+  <div class="nav-links" id="mainNav">
+    <a href="/dashboard" class="nav-link">Quản lý</a>
+    <a href="/shifts" class="nav-link">Ca làm</a>
+    <a href="/report" class="nav-link">Báo cáo</a>
+    <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
+    <a href="/integrations" class="nav-link active" id="navIntegrations">Tích hợp</a>
+    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">Đăng xuất</button>
+  </div>
+</header>
+
+<main class="page">
+  <section class="head">
+    <div>
+      <div class="eyebrow">AI Provider Keys</div>
+      <h1 class="title">Tích hợp AI</h1>
+      <p class="sub">Quản lý key cho OpenAI và Google Gemini. Khi lập nháp phân ca, hệ thống sẽ thử provider đang bật theo thứ tự OpenAI, Gemini, rồi mới dùng thuật toán nội bộ.</p>
+    </div>
+    <button class="btn" onclick="loadProviders()">Tải lại</button>
+  </section>
+
+  <div class="notice">Key đã lưu sẽ không hiển thị lại. Muốn đổi key, nhập key mới rồi bấm lưu. Chỉ admin nên truy cập trang này.</div>
+  <div class="admin-only" id="adminOnly">Trang này chỉ dành cho admin.</div>
+  <section class="provider-grid" id="providerGrid"></section>
+</main>
+
+<div id="toast"></div>
+<script src="/static/js/toast.js"></script>
+<script>
+const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+const defaultModels = {openai:"gpt-4.1-mini", gemini:"gemini-2.0-flash"};
+
+document.addEventListener("DOMContentLoaded", () => {
+  const user = getUser();
+  if (!user || user.role !== "admin"){
+    document.getElementById("adminOnly").style.display = "block";
+    document.getElementById("providerGrid").style.display = "none";
+    return;
+  }
+  loadProviders();
+});
+
+async function loadProviders(){
+  const res = await authFetch("/api/integrations/ai-keys");
+  const data = await res.json();
+  renderProviders(data.providers || []);
+}
+
+function renderProviders(providers){
+  const grid = document.getElementById("providerGrid");
+  grid.innerHTML = providers.map(p => `
+    <article class="provider-card" data-provider="${esc(p.provider)}">
+      <div class="provider-head">
+        <div>
+          <div class="provider-name">${esc(p.label)}</div>
+          <div class="provider-meta">Nguồn key: ${esc(p.source)}${p.updated_by ? ` · ${esc(p.updated_by)}` : ""}</div>
+        </div>
+        <span class="status-pill ${p.configured && p.is_enabled ? "on" : ""}">${p.configured && p.is_enabled ? "Sẵn sàng" : "Chưa bật"}</span>
+      </div>
+      <div class="provider-body">
+        <label class="check-row"><input type="checkbox" id="${p.provider}Enabled" ${p.is_enabled ? "checked" : ""}> Bật provider này</label>
+        <div class="field">
+          <label class="field-label">Model</label>
+          <input class="input" id="${p.provider}Model" value="${esc(p.model || defaultModels[p.provider])}">
+        </div>
+        <div class="field">
+          <label class="field-label">API key mới</label>
+          <input class="input" id="${p.provider}Key" type="password" placeholder="${p.configured ? "Đã có key, để trống nếu không đổi" : "Nhập API key"}">
+        </div>
+        <div class="actions">
+          <button class="btn danger" onclick="clearProvider('${esc(p.provider)}')">Xoá key</button>
+          <button class="btn primary" onclick="saveProvider('${esc(p.provider)}')">Lưu</button>
+        </div>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function saveProvider(provider){
+  const res = await authFetch(`/api/integrations/ai-keys/${provider}`, {
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      api_key: document.getElementById(`${provider}Key`).value.trim() || null,
+      model: document.getElementById(`${provider}Model`).value.trim(),
+      is_enabled: document.getElementById(`${provider}Enabled`).checked,
+      clear_key: false
+    })
+  });
+  if (!res.ok){
+    const err = await res.json();
+    return showToast(err.detail || "Không lưu được provider", "error");
+  }
+  showToast("Đã lưu cấu hình AI", "success");
+  loadProviders();
+}
+
+async function clearProvider(provider){
+  if (!confirm("Xoá key đã lưu cho provider này?")) return;
+  const res = await authFetch(`/api/integrations/ai-keys/${provider}`, {
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      model: document.getElementById(`${provider}Model`).value.trim(),
+      is_enabled: false,
+      clear_key: true
+    })
+  });
+  if (!res.ok){
+    const err = await res.json();
+    return showToast(err.detail || "Không xoá được key", "error");
+  }
+  showToast("Đã xoá key", "success");
+  loadProviders();
+}
+</script>
+</body>
+</html>

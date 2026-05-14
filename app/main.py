@@ -36,6 +36,7 @@ from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
 from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
+from app.api.v1.integrations import router as integrations_router
 from app.services.attendance import get_summary_today, auto_checkout_missing
 scheduler = AsyncIOScheduler()
 
@@ -98,6 +99,7 @@ app.include_router(reports.router)
 app.include_router(leave_router)
 app.include_router(calendar_router)
 app.include_router(shifts_router)
+app.include_router(integrations_router)
 
 # ── Auth pages ───────────────────────────────────────────────────
 @app.get("/auth/login-page")
@@ -133,6 +135,10 @@ async def users_page(request: Request):
 @app.get("/shifts")
 async def shifts_page(request: Request):
     return templates.TemplateResponse("shifts.html", {"request": request})
+
+@app.get("/integrations")
+async def integrations_page(request: Request):
+    return templates.TemplateResponse("integrations.html", {"request": request})
 
 # ── Camera stream ────────────────────────────────────────────────
 def _placeholder_mjpeg():

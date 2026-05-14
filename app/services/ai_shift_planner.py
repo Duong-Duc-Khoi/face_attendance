@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment, ShiftPlanDraft, ShiftPlanDraftAssignment
+from app.services.integration_settings import get_ai_provider_runtime_configs
 from app.services.shift_service import assign_shift
 
 
@@ -144,12 +145,19 @@ def create_shift_plan_draft(
     source = "heuristic"
     ai_warnings: list[str] = []
     plan = None
-    if use_ai and settings.OPENAI_API_KEY:
-        try:
-            plan = _call_openai_planner(context)
-            source = "openai"
-        except Exception as exc:
-            ai_warnings.append(f"OpenAI không tạo được lịch, dùng thuật toán dự phòng: {exc}")
+    if use_ai:
+        for provider in get_ai_provider_runtime_configs(db):
+            try:
+                if provider["provider"] == "openai":
+                    plan = _call_openai_planner(context, provider["api_key"], provider["model"])
+                elif provider["provider"] == "gemini":
+                    plan = _call_gemini_planner(context, provider["api_key"], provider["model"])
+                else:
+                    continue
+                source = provider["provider"]
+                break
+            except Exception as exc:
+                ai_warnings.append(f"{provider['provider']} không tạo được lịch: {exc}")
 
     if not plan:
         plan = _heuristic_plan(context)
@@ -319,8 +327,8 @@ def _heuristic_plan(context: dict) -> dict:
     }
 
 
-def _call_openai_planner(context: dict) -> dict:
-    schema = {
+def _planner_schema() -> dict:
+    return {
         "type": "object",
         "additionalProperties": False,
         "properties": {
@@ -343,18 +351,29 @@ def _call_openai_planner(context: dict) -> dict:
         },
         "required": ["summary", "warnings", "assignments"],
     }
+
+
+def _planner_instruction() -> str:
+    return (
+        "Bạn là trợ lý lập lịch ca nhà hàng. Chỉ tạo bản nháp phân ca, "
+        "không xoá lịch hiện có. Ưu tiên đủ người mỗi ca, chia đều tải, "
+        "không xếp quá 2 ca/người/ngày và tôn trọng dữ liệu đầu vào. "
+        "Chỉ trả JSON đúng schema."
+    )
+
+
+def _call_openai_planner(context: dict, api_key: str, model: str) -> dict:
+    schema = {
+        **_planner_schema()
+    }
     payload = {
-        "model": settings.OPENAI_MODEL,
+        "model": model or settings.OPENAI_MODEL,
         "input": [
             {
                 "role": "system",
                 "content": [{
                     "type": "input_text",
-                    "text": (
-                        "Bạn là trợ lý lập lịch ca nhà hàng. Chỉ tạo bản nháp phân ca, "
-                        "không xoá lịch hiện có. Ưu tiên đủ người mỗi ca, chia đều tải, "
-                        "không xếp quá 2 ca/người/ngày và tôn trọng dữ liệu đầu vào."
-                    ),
+                    "text": _planner_instruction(),
                 }],
             },
             {
@@ -375,7 +394,7 @@ def _call_openai_planner(context: dict) -> dict:
         "https://api.openai.com/v1/responses",
         data=json.dumps(payload).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         },
         method="POST",
@@ -398,4 +417,48 @@ def _extract_response_text(data: dict) -> str:
         for content in item.get("content", []) or []:
             if content.get("type") in ("output_text", "text"):
                 return content.get("text", "")
+    return ""
+
+
+def _call_gemini_planner(context: dict, api_key: str, model: str) -> dict:
+    prompt = _planner_instruction() + "\n\nDữ liệu lập lịch:\n" + json.dumps(context, ensure_ascii=False)
+    payload = {
+        "contents": [{
+            "role": "user",
+            "parts": [{"text": prompt}],
+        }],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseJsonSchema": _planner_schema(),
+        },
+    }
+    safe_model = model or settings.GEMINI_MODEL
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{safe_model}:generateContent",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "x-goog-api-key": api_key,
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=45) as res:
+            data = json.loads(res.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"Gemini API lỗi {exc.code}: {detail[:300]}") from exc
+
+    text = _extract_gemini_text(data)
+    if not text:
+        raise RuntimeError("Gemini không trả nội dung JSON")
+    return json.loads(text)
+
+
+def _extract_gemini_text(data: dict) -> str:
+    for candidate in data.get("candidates", []) or []:
+        content = candidate.get("content") or {}
+        for part in content.get("parts", []) or []:
+            if "text" in part:
+                return part["text"]
     return ""

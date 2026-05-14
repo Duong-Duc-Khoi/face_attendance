@@ -9,7 +9,7 @@
 
 (function () {
   const LOGIN_PAGE = '/auth/login-page';
-  const MANAGER_ONLY = ['/dashboard', '/report', '/users'];
+  const MANAGER_ONLY = ['/dashboard', '/report', '/users', '/integrations'];
 
   function getToken() {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
@@ -154,6 +154,10 @@
     const navUsers = document.getElementById('navUsers');
     if (navUsers && user && user.role !== 'admin') {
       navUsers.style.display = 'none';
+    }
+    const navIntegrations = document.getElementById('navIntegrations');
+    if (navIntegrations && user && user.role !== 'admin') {
+      navIntegrations.style.display = 'none';
     }
 
     document.querySelectorAll('[data-logout]').forEach(function (el) {
