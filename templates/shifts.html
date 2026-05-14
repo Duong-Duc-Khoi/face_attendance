@@ -177,6 +177,17 @@ body::after{
 .assigned-list{display:flex;flex-direction:column;gap:8px}
 .assigned-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
 .assigned-title{font-size:12px;font-weight:700}.assigned-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
+.ai-box{display:grid;gap:10px}
+.ai-status{border:1px solid var(--border);border-radius:8px;background:rgba(6,12,23,.28);padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.55}
+.ai-status strong{color:var(--text)}
+.ai-warning{border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08);color:var(--amber)}
+.ai-draft-list{display:grid;gap:8px;max-height:280px;overflow:auto}
+.ai-draft-row{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
+.ai-draft-date{font-family:var(--font-mono);font-size:11px;color:var(--green)}
+.ai-draft-main{min-width:0}
+.ai-draft-title{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-draft-reason{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-source{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 
 @media(max-width:1120px){
   .planner-grid{grid-template-columns:1fr}
@@ -223,6 +234,10 @@ body::after{
       <p class="ops-sub">Theo dõi ca sáng, trưa, tối, ca đêm và phân công nhân sự theo từng ngày trong tháng.</p>
     </div>
     <div class="head-actions">
+      <button class="icon-btn" onclick="openAiPlanner()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+        AI đề xuất
+      </button>
       <button class="icon-btn" onclick="loadAll()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         Làm mới
@@ -404,6 +419,45 @@ body::after{
   </div>
 </div>
 
+<div class="modal-overlay" id="aiPlannerModal">
+  <div class="modal-box" style="width:min(760px,100%)">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">AI đề xuất phân ca</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Tạo bản nháp để quản lý xem trước rồi mới áp dụng</div>
+      </div>
+      <button class="icon-btn icon-only" onclick="closeAiPlanner()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field"><label class="field-label">Từ ngày</label><input class="input" type="date" id="aiFrom"></div>
+        <div class="field"><label class="field-label">Đến ngày</label><input class="input" type="date" id="aiTo"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="field-label">Tối thiểu mỗi ca</label><input class="input" type="number" id="aiMinStaff" min="0" max="20" value="1"></div>
+        <label class="check-row" style="align-self:end"><input type="checkbox" id="aiUseOpenAI" checked> Dùng OpenAI nếu đã cấu hình key</label>
+      </div>
+      <div class="field">
+        <label class="field-label">Yêu cầu thêm</label>
+        <input class="input" id="aiInstructions" placeholder="VD: cuối tuần đông khách, ưu tiên nhân viên kinh nghiệm ca tối">
+      </div>
+      <div class="ai-box" id="aiDraftBox">
+        <div class="ai-status">Chưa có bản nháp. Bấm tạo đề xuất để bắt đầu.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="icon-btn" onclick="closeAiPlanner()">Đóng</button>
+      <button class="icon-btn" onclick="generateAiPlan()" id="aiGenerateBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+        Tạo đề xuất
+      </button>
+      <button class="icon-btn primary" onclick="applyAiPlan()" id="aiApplyBtn" disabled>Áp dụng nháp</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <script src="/static/js/toast.js"></script>
 <script>
@@ -415,6 +469,7 @@ let assignmentsByDate = {};
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 let modalDate = "";
+let currentAiDraft = null;
 
 function normalizeText(value){
   return String(value || "")
@@ -816,6 +871,114 @@ async function bulkAssign(){
   await loadCalendar();
   await loadTodayAssignments();
   showToast(data.message || "Đã phân công", "success");
+}
+
+function openAiPlanner(){
+  const from = document.getElementById("bulkFrom").value || todayIso();
+  const to = document.getElementById("bulkTo").value || from;
+  document.getElementById("aiFrom").value = from;
+  document.getElementById("aiTo").value = to;
+  document.getElementById("aiInstructions").value = document.getElementById("bulkNote").value || "";
+  currentAiDraft = null;
+  document.getElementById("aiApplyBtn").disabled = true;
+  document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status">Chưa có bản nháp. Bấm tạo đề xuất để bắt đầu.</div>`;
+  document.getElementById("aiPlannerModal").classList.add("open");
+}
+
+function closeAiPlanner(){
+  document.getElementById("aiPlannerModal").classList.remove("open");
+}
+
+async function generateAiPlan(){
+  const from = document.getElementById("aiFrom").value;
+  const to = document.getElementById("aiTo").value;
+  if (!from || !to || from > to) return showToast("Khoảng ngày không hợp lệ", "error");
+  const btn = document.getElementById("aiGenerateBtn");
+  btn.disabled = true;
+  btn.textContent = "Đang tạo...";
+  document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status">Đang tạo bản nháp phân ca...</div>`;
+  try{
+    const res = await authFetch("/api/shifts/ai-plan", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        from_date: from,
+        to_date: to,
+        default_min_staff: parseInt(document.getElementById("aiMinStaff").value) || 0,
+        instructions: document.getElementById("aiInstructions").value.trim(),
+        emp_codes: [...selectedBulk],
+        use_ai: document.getElementById("aiUseOpenAI").checked
+      })
+    });
+    if (!res.ok){
+      const err = await res.json();
+      throw new Error(err.detail || "Không tạo được bản nháp");
+    }
+    currentAiDraft = await res.json();
+    renderAiDraft(currentAiDraft);
+    document.getElementById("aiApplyBtn").disabled = !currentAiDraft.assignments?.length;
+  }catch(e){
+    currentAiDraft = null;
+    document.getElementById("aiApplyBtn").disabled = true;
+    document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status ai-warning">${esc(e.message)}</div>`;
+    showToast("Không tạo được bản nháp", "error");
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg> Tạo đề xuất`;
+  }
+}
+
+function renderAiDraft(draft){
+  const warnings = draft.warnings || [];
+  const rows = draft.assignments || [];
+  const grouped = rows.reduce((acc, r) => {
+    const key = r.work_date;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(r);
+    return acc;
+  }, {});
+  const list = Object.keys(grouped).sort().map(day => grouped[day].map(r => {
+    const emp = r.employee?.name || r.emp_code;
+    const shift = r.shift?.name || `Ca #${r.shift_id}`;
+    return `<div class="ai-draft-row">
+      <div class="ai-draft-date">${esc(day)}</div>
+      <div class="ai-draft-main">
+        <div class="ai-draft-title">${esc(emp)} · ${esc(shift)}</div>
+        <div class="ai-draft-reason">${esc(r.reason || "Đề xuất phân ca")}</div>
+      </div>
+      <div class="ai-source">${esc(r.shift?.work_start || "")}-${esc(r.shift?.work_end || "")}</div>
+    </div>`;
+  }).join("")).join("");
+  document.getElementById("aiDraftBox").innerHTML = `
+    <div class="ai-status"><strong>${esc(draft.summary || "Bản nháp phân ca")}</strong><br>Nguồn: ${esc(draft.source)} · ${rows.length} lượt đề xuất</div>
+    ${warnings.length ? `<div class="ai-status ai-warning">${warnings.map(esc).join("<br>")}</div>` : ""}
+    <div class="ai-draft-list">${list || `<div class="ai-status">Không có lượt phân ca mới cần đề xuất.</div>`}</div>
+  `;
+}
+
+async function applyAiPlan(){
+  if (!currentAiDraft?.id) return;
+  if (!confirm("Áp dụng bản nháp này vào lịch phân ca thật?")) return;
+  const btn = document.getElementById("aiApplyBtn");
+  btn.disabled = true;
+  btn.textContent = "Đang áp dụng...";
+  try{
+    const res = await authFetch(`/api/shifts/ai-plan/${currentAiDraft.id}/apply`, {method:"POST"});
+    if (!res.ok){
+      const err = await res.json();
+      throw new Error(err.detail || "Không áp dụng được bản nháp");
+    }
+    const data = await res.json();
+    await loadCalendar();
+    await loadTodayAssignments();
+    closeAiPlanner();
+    showToast(data.message || "Đã áp dụng bản nháp", "success");
+  }catch(e){
+    showToast(e.message, "error");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Áp dụng nháp";
+  }
 }
 </script>
 </body>

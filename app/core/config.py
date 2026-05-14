@@ -34,6 +34,10 @@ class Settings:
     REFRESH_TOKEN_EXP: int = int(os.getenv("REFRESH_TOKEN_EXP", "10080"))   # phút (7 ngày)
     OTP_EXP_MINUTES:   int = int(os.getenv("OTP_EXP_MINUTES",   "10"))
 
+    # ── OpenAI / AI planning ───────────────────────────
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL:   str = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
     # ── Email ──────────────────────────────────────────
     EMAIL_HOST:     str = os.getenv("EMAIL_HOST",     "smtp.gmail.com")
     EMAIL_PORT:     int = int(os.getenv("EMAIL_PORT", "587"))

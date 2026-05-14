@@ -19,6 +19,11 @@ from app.services.shift_service import (
     get_assignments_by_emp, get_assignments_by_date,
     get_shift_for_employee,
 )
+from app.services.ai_shift_planner import (
+    apply_shift_plan_draft,
+    create_shift_plan_draft,
+    get_shift_plan_draft,
+)
 
 router = APIRouter(prefix="/api/shifts", tags=["shifts"])
 
@@ -105,6 +110,32 @@ class BulkAssignRequest(BaseModel):
         return v
 
 
+class AIPlanRequest(BaseModel):
+    from_date: str
+    to_date: str
+    instructions: Optional[str] = ""
+    default_min_staff: int = 1
+    min_staff_per_shift: Optional[dict[str, int]] = None
+    emp_codes: Optional[list[str]] = None
+    use_ai: bool = True
+
+    @field_validator("from_date", "to_date")
+    @classmethod
+    def validate_date(cls, v):
+        try:
+            date.fromisoformat(v)
+        except Exception:
+            raise ValueError("Ngày phải định dạng YYYY-MM-DD")
+        return v
+
+    @field_validator("default_min_staff")
+    @classmethod
+    def validate_min_staff(cls, v):
+        if v < 0 or v > 20:
+            raise ValueError("Số nhân viên tối thiểu mỗi ca phải trong khoảng 0-20")
+        return v
+
+
 # ── Helpers ──────────────────────────────────────────────────────
 
 def _require_manager(user: User):
@@ -170,6 +201,69 @@ def api_get_my_shift(
 
     d = date.fromisoformat(work_date) if work_date else date.today()
     return get_shift_for_employee(emp.emp_code, d, db)
+
+
+# ── AI shift planning ────────────────────────────────────────────
+
+@router.post("/ai-plan", status_code=201)
+def api_create_ai_plan(
+    body: AIPlanRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_manager(current_user)
+    fd = date.fromisoformat(body.from_date)
+    td = date.fromisoformat(body.to_date)
+    if td < fd:
+        raise HTTPException(400, "to_date phải >= from_date")
+    if (td - fd).days > 31:
+        raise HTTPException(400, "AI chỉ lập nháp tối đa 32 ngày mỗi lần")
+    min_by_shift = {}
+    for key, value in (body.min_staff_per_shift or {}).items():
+        try:
+            min_by_shift[int(key)] = max(int(value), 0)
+        except Exception:
+            raise HTTPException(400, f"shift_id không hợp lệ: {key}")
+    try:
+        return create_shift_plan_draft(
+            db=db,
+            from_date=fd,
+            to_date=td,
+            created_by=current_user.email,
+            instructions=body.instructions or "",
+            default_min_staff=body.default_min_staff,
+            min_staff_per_shift=min_by_shift,
+            emp_codes=body.emp_codes or None,
+            use_ai=body.use_ai,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/ai-plan/{draft_id}")
+def api_get_ai_plan(
+    draft_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_manager(current_user)
+    result = get_shift_plan_draft(draft_id, db)
+    if not result:
+        raise HTTPException(404, "Không tìm thấy bản nháp")
+    return result
+
+
+@router.post("/ai-plan/{draft_id}/apply")
+def api_apply_ai_plan(
+    draft_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_manager(current_user)
+    try:
+        return apply_shift_plan_draft(draft_id, current_user.email, db)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
 
 
 # ── PUT /api/shifts/{id} ─────────────────────────────────────────

@@ -124,6 +124,43 @@ CREATE TABLE IF NOT EXISTS leave_request_days (
 CREATE INDEX IF NOT EXISTS ix_leave_request_days_leave_request_id ON leave_request_days(leave_request_id);
 CREATE INDEX IF NOT EXISTS ix_leave_request_days_date ON leave_request_days(date);
 
+CREATE TABLE IF NOT EXISTS shift_plan_drafts (
+    id SERIAL PRIMARY KEY,
+    branch_id INTEGER,
+    from_date DATE NOT NULL,
+    to_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'draft',
+    source VARCHAR(20) DEFAULT 'heuristic',
+    prompt TEXT DEFAULT '',
+    summary TEXT DEFAULT '',
+    warnings TEXT DEFAULT '[]',
+    created_by VARCHAR(150) DEFAULT '',
+    applied_by VARCHAR(150) DEFAULT '',
+    created_at TIMESTAMP DEFAULT NOW(),
+    applied_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_drafts_branch_id ON shift_plan_drafts(branch_id);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_drafts_from_date ON shift_plan_drafts(from_date);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_drafts_to_date ON shift_plan_drafts(to_date);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_drafts_status ON shift_plan_drafts(status);
+
+CREATE TABLE IF NOT EXISTS shift_plan_draft_assignments (
+    id SERIAL PRIMARY KEY,
+    draft_id INTEGER NOT NULL,
+    emp_code VARCHAR(20) NOT NULL,
+    shift_id INTEGER NOT NULL,
+    work_date DATE NOT NULL,
+    reason TEXT DEFAULT '',
+    validation_status VARCHAR(20) DEFAULT 'valid',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_shift_plan_draft_item
+    ON shift_plan_draft_assignments(draft_id, emp_code, work_date, shift_id);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_draft_assignments_draft_id ON shift_plan_draft_assignments(draft_id);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_draft_assignments_emp_code ON shift_plan_draft_assignments(emp_code);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_draft_assignments_shift_id ON shift_plan_draft_assignments(shift_id);
+CREATE INDEX IF NOT EXISTS ix_shift_plan_draft_assignments_work_date ON shift_plan_draft_assignments(work_date);
+
 UPDATE employees SET full_name = name WHERE COALESCE(full_name, '') = '';
 UPDATE employees SET status = CASE WHEN is_active THEN 'active' ELSE 'inactive' END
 WHERE status IS NULL OR status = '';
