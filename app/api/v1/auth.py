@@ -11,12 +11,13 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
     create_access_token, decode_access_token,
     hash_password, verify_password,
 )
-from app.models.user import User, RefreshToken
+from app.models.user import User, EmailToken, RefreshToken
 from app.services.auth_service import (
     _hash_token,
     consume_token, create_otp_token, create_refresh_token_db, create_verify_token,
@@ -98,11 +99,19 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(user); db.commit(); db.refresh(user)
     token = create_verify_token(user.id, db)
-    send_verification_email(user.email, user.full_name, token)
+    email_sent = send_verification_email(user.email, user.full_name, token)
+    if not email_sent:
+        db.query(EmailToken).filter_by(user_id=user.id).delete()
+        db.delete(user)
+        db.commit()
+        raise HTTPException(
+            status_code=500,
+            detail="Không thể gửi email xác minh. Vui lòng kiểm tra cấu hình SMTP hoặc thử lại sau.",
+         )
     return {
         "success": True,
         "message": "Đăng ký thành công! Kiểm tra email để xác minh tài khoản.",
-    }
+     }
 
 
 # ── GET /auth/verify-email ───────────────────────────────────────
@@ -131,10 +140,10 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(401, "Email hoặc mật khẩu không đúng")
     if not user.is_email_verified:
         raise HTTPException(403, "Email chưa được xác minh. Kiểm tra hộp thư và click link xác minh.")
-    if not user.is_active:
-        raise HTTPException(403, "Tài khoản đã bị khóa. Liên hệ quản trị viên.")
     if not user.is_approved:
         raise HTTPException(403, "Tài khoản chưa được duyệt. Vui lòng chờ admin/manager phê duyệt.")
+    if not user.is_active:
+        raise HTTPException(403, "Tài khoản đã bị khóa. Liên hệ quản trị viên.")
     otp = create_otp_token(user.id, db)
     send_login_otp_email(user.email, user.full_name, otp)
     return {"success": True, "message": f"Mã OTP đã gửi tới {user.email}.", "step": "otp_required", "email": user.email}
@@ -155,7 +164,7 @@ def login_verify_otp(req: OTPVerifyRequest, db: Session = Depends(get_db)):
     access_token  = create_access_token(user.id, user.email, user.role)
     refresh_token = create_refresh_token_db(user.id, db)
     return {"success": True, "access_token": access_token, "refresh_token": refresh_token,
-            "token_type": "bearer", "expires_in": 15 * 60, "user": _user_dict(user)}
+            "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXP * 60, "user": _user_dict(user)}
 
 
 # ── POST /auth/refresh ───────────────────────────────────────────
@@ -171,7 +180,7 @@ def refresh_token(req: RefreshRequest, db: Session = Depends(get_db)):
     new_access  = create_access_token(user.id, user.email, user.role)
     new_refresh = create_refresh_token_db(user.id, db)
     return {"success": True, "access_token": new_access, "refresh_token": new_refresh,
-            "token_type": "bearer", "expires_in": 15 * 60}
+            "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXP * 60}
 
 
 # ── POST /auth/logout ────────────────────────────────────────────

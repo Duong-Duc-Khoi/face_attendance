@@ -177,3 +177,153 @@ async def notify_leave_request_async(payload: dict):
     """
     await _send_email_async(recipient, subject, html)
     print(f"  ✓ Đơn xin nghỉ của {emp_name} đã thông báo tới {recipient}")
+
+
+# ── Notify hệ thống Leave mới ────────────────────────────────────
+
+def _leave_dates_str(req) -> str:
+    dates = req.get_dates()
+    parts = []
+    for d in dates:
+        s = d["date"]
+        if d.get("half") == "am":
+            s += " (Sáng)"
+        elif d.get("half") == "pm":
+            s += " (Chiều)"
+        parts.append(s)
+    return ", ".join(parts)
+
+
+def _leave_type_label(req) -> str:
+    return "Làm Remote" if req.request_type == "remote" else "Nghỉ phép"
+
+
+def notify_leave_submitted(req):
+    """Gửi email cho manager khi NV gửi đơn."""
+    recipient = settings.EMAIL_TO or settings.EMAIL_USER
+    if not recipient:
+        return
+    rtype  = _leave_type_label(req)
+    dates  = _leave_dates_str(req)
+    total  = req.total_days()
+    submitted = req.submitted_at.strftime("%H:%M — %d/%m/%Y") if req.submitted_at else ""
+    subject = f"[FaceAttend] Đơn {rtype} — {req.emp_name} ({req.emp_code})"
+    html = f"""
+    <div style="font-family:Arial,sans-serif;background:#f0f4f8;padding:32px">
+      <div style="max-width:500px;margin:auto;background:#fff;border-radius:10px;
+                  padding:28px;border-left:4px solid #805ad5">
+        <h2 style="margin:0 0 16px;color:#805ad5">📋 Đơn {rtype} mới</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 4px;color:#718096;width:40%">Nhân viên</td>
+            <td style="padding:8px 4px;font-weight:600">{req.emp_name} ({req.emp_code})</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 4px;color:#718096">Phòng ban</td>
+            <td style="padding:8px 4px">{req.department or "—"}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 4px;color:#718096">Ngày</td>
+            <td style="padding:8px 4px;font-weight:700">{dates}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 4px;color:#718096">Tổng</td>
+            <td style="padding:8px 4px">{total} ngày</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 4px;color:#718096">Lý do</td>
+            <td style="padding:8px 4px">{req.reason or "(Không ghi)"}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 4px;color:#718096">Gửi lúc</td>
+            <td style="padding:8px 4px;color:#a0aec0;font-size:12px">{submitted}</td>
+          </tr>
+        </table>
+        <p style="margin:20px 0 0;font-size:12px;color:#a0aec0">
+          Vui lòng đăng nhập hệ thống FaceAttend để duyệt hoặc từ chối.
+        </p>
+      </div>
+    </div>"""
+    _send_email(recipient, subject, html)
+
+
+def notify_leave_approved(req):
+    """Gửi email cho nhân viên khi đơn được duyệt."""
+    if not req.emp_email:
+        return
+    rtype  = _leave_type_label(req)
+    dates  = _leave_dates_str(req)
+    subject = f"[FaceAttend] ✅ Đơn {rtype} đã được duyệt"
+    html = f"""
+    <div style="font-family:Arial,sans-serif;background:#f0f4f8;padding:32px">
+      <div style="max-width:500px;margin:auto;background:#fff;border-radius:10px;
+                  padding:28px;border-left:4px solid #38a169">
+        <h2 style="margin:0 0 16px;color:#38a169">✅ Đơn {rtype} đã được duyệt</h2>
+        <p style="color:#4a5568">Xin chào <strong>{req.emp_name}</strong>,</p>
+        <p style="color:#4a5568">Đơn {rtype.lower()} của bạn đã được <strong>phê duyệt</strong>.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0">
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 4px;color:#718096;width:40%">Ngày</td>
+            <td style="padding:8px 4px;font-weight:700">{dates}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 4px;color:#718096">Ghi chú</td>
+            <td style="padding:8px 4px">{req.note or "—"}</td>
+          </tr>
+        </table>
+        <p style="color:#a0aec0;font-size:12px">Duyệt bởi: {req.reviewed_by or "—"}</p>
+      </div>
+    </div>"""
+    _send_email(req.emp_email, subject, html)
+
+
+def notify_leave_rejected(req):
+    """Gửi email cho nhân viên khi đơn bị từ chối."""
+    if not req.emp_email:
+        return
+    rtype  = _leave_type_label(req)
+    dates  = _leave_dates_str(req)
+    subject = f"[FaceAttend] ❌ Đơn {rtype} bị từ chối"
+    html = f"""
+    <div style="font-family:Arial,sans-serif;background:#f0f4f8;padding:32px">
+      <div style="max-width:500px;margin:auto;background:#fff;border-radius:10px;
+                  padding:28px;border-left:4px solid #e53e3e">
+        <h2 style="margin:0 0 16px;color:#e53e3e">❌ Đơn {rtype} bị từ chối</h2>
+        <p style="color:#4a5568">Xin chào <strong>{req.emp_name}</strong>,</p>
+        <p style="color:#4a5568">Rất tiếc, đơn {rtype.lower()} của bạn đã bị <strong>từ chối</strong>.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0">
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 4px;color:#718096;width:40%">Ngày</td>
+            <td style="padding:8px 4px;font-weight:700">{dates}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 4px;color:#718096">Lý do từ chối</td>
+            <td style="padding:8px 4px;color:#e53e3e;font-weight:600">{req.note}</td>
+          </tr>
+        </table>
+        <p style="color:#4a5568;font-size:13px">Nếu có thắc mắc vui lòng liên hệ quản lý trực tiếp.</p>
+      </div>
+    </div>"""
+    _send_email(req.emp_email, subject, html)
+
+
+def notify_leave_cancelled(req, cancelled_by: str = ""):
+    """Gửi email cho manager khi NV hủy đơn."""
+    recipient = settings.EMAIL_TO or settings.EMAIL_USER
+    if not recipient:
+        return
+    rtype = _leave_type_label(req)
+    dates = _leave_dates_str(req)
+    subject = f"[FaceAttend] Hủy đơn {rtype} — {req.emp_name}"
+    html = f"""
+    <div style="font-family:Arial,sans-serif;background:#f0f4f8;padding:32px">
+      <div style="max-width:500px;margin:auto;background:#fff;border-radius:10px;
+                  padding:28px;border-left:4px solid #718096">
+        <h2 style="margin:0 0 16px;color:#718096">🚫 Đơn {rtype} đã bị hủy</h2>
+        <p style="color:#4a5568"><strong>{req.emp_name} ({req.emp_code})</strong>
+           đã hủy đơn {rtype.lower()}.</p>
+        <p style="color:#4a5568">Ngày: <strong>{dates}</strong></p>
+        <p style="color:#a0aec0;font-size:12px">Hủy bởi: {cancelled_by}</p>
+      </div>
+    </div>"""
+    _send_email(recipient, subject, html)

@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-
+from app.api.v1.shifts import router as shifts_router
 from app.core.config import settings
 from app.core.database import init_db
 from app.services.face_engine import face_engine
@@ -34,7 +34,9 @@ from app.api.v1 import employees, reports
 from app.api.v1.auth import router as auth_router
 from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
-
+from app.api.v1.leave import router as leave_router
+from app.api.v1.calendar import router as calendar_router
+from app.services.attendance import get_summary_today, auto_checkout_missing
 scheduler = AsyncIOScheduler()
 
 
@@ -51,15 +53,22 @@ async def lifespan(app: FastAPI):
         summary = get_summary_today()
         await notify_daily_report_async(summary)
 
+    async def _auto_checkout():
+        count = auto_checkout_missing()
+        print(f"  ✓ Auto checkout: {count} nhân viên chưa check out")
+
     scheduler.add_job(_daily_report, CronTrigger(hour=18, minute=0),
                       id="daily_report", replace_existing=True)
+    scheduler.add_job(_auto_checkout, CronTrigger(hour=23, minute=59),
+                      id="auto_checkout", replace_existing=True)
     scheduler.start()
-    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00")
+    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00, auto checkout lúc 23:59")
     yield
     scheduler.shutdown(wait=False)
     release_camera()
     print("  FaceAttend — Đã tắt")
 
+    
 
 # ── App ──────────────────────────────────────────────────────────
 app = FastAPI(
@@ -86,7 +95,9 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(employees.router)
 app.include_router(reports.router)
-
+app.include_router(leave_router)
+app.include_router(calendar_router)
+app.include_router(shifts_router)
 
 # ── Auth pages ───────────────────────────────────────────────────
 @app.get("/auth/login-page")
@@ -118,6 +129,10 @@ async def report_page(request: Request):
 @app.get("/users")
 async def users_page(request: Request):
     return templates.TemplateResponse("users.html", {"request": request})
+
+@app.get("/shifts")
+async def shifts_page(request: Request):
+    return templates.TemplateResponse("shifts.html", {"request": request})
 
 # ── Camera stream ────────────────────────────────────────────────
 def _placeholder_mjpeg():
@@ -167,17 +182,6 @@ def api_camera_status():
 
 
 # ── Misc ─────────────────────────────────────────────────────────
-# ── Leave request ────────────────────────────────────────────────
-@app.post("/api/leave-request")
-async def submit_leave_request(payload: dict, request: Request):
-    """Nhân viên gửi đơn xin nghỉ — ghi log và gửi email thông báo cho quản lý."""
-    from app.services.notify import notify_leave_request_async
-    try:
-        await notify_leave_request_async(payload)
-    except Exception as e:
-        print(f"[leave-request] notify lỗi: {e}")
-    return {"success": True, "message": "Đơn xin nghỉ đã được ghi nhận"}
-
 
 @app.get("/api/health")
 def health_check():

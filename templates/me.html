@@ -11,121 +11,106 @@
 <script src="/static/js/auth-guard.js"></script>
 <style>
 html,body{min-height:100vh}
-
-.page{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:28px 20px;display:grid;
-  grid-template-columns:340px 1fr;gap:20px;align-items:start}
-
-/* ── Profile card ── */
+.page{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:24px 18px}
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
+.tab-btn{flex:1;padding:9px 12px;border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:12px;font-weight:600;letter-spacing:.05em;cursor:pointer;border-radius:7px;transition:all .2s;text-transform:uppercase}
+.tab-btn.active{background:var(--teal);color:#000}
+.tab-btn:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
+.tab-content{display:none}.tab-content.active{display:block}
+.two-col{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start}
 .profile-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-.profile-top{padding:28px 24px;text-align:center;border-bottom:1px solid var(--border);
-  background:linear-gradient(180deg,rgba(0,212,170,.04) 0%,transparent 100%)}
-.avatar-ring{width:88px;height:88px;border-radius:50%;border:2.5px solid var(--teal);
-  background:var(--teal-glow);display:grid;place-items:center;margin:0 auto 14px;
-  font-size:32px;overflow:hidden;position:relative}
+.profile-top{padding:24px 20px;text-align:center;border-bottom:1px solid var(--border)}
+.avatar-ring{width:80px;height:80px;border-radius:50%;border:2.5px solid var(--teal);background:rgba(0,212,170,.08);display:grid;place-items:center;margin:0 auto 12px;font-size:28px;overflow:hidden}
 .avatar-ring img{width:100%;height:100%;object-fit:cover}
-.pname{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px}
-.pemp{font-family:var(--font-mono);font-size:12px;color:var(--teal);letter-spacing:.08em}
-.pdept{font-size:12px;color:var(--muted);margin-top:4px}
-.role-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
-  border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  margin-top:10px;border:1px solid var(--border)}
-.role-badge.staff  {border-color:rgba(58,143,255,.4);background:rgba(58,143,255,.08);color:var(--blue)}
-.role-badge.manager{border-color:rgba(0,212,170,.4);background:var(--teal-glow);color:var(--teal)}
-.role-badge.admin  {border-color:rgba(246,201,14,.4);background:rgba(246,201,14,.08);color:#f6c90e}
-
-.profile-info{padding:20px 24px}
-.info-row{display:flex;justify-content:space-between;align-items:center;
-  padding:10px 0;border-bottom:1px solid var(--border);gap:12px}
+.pname{font-size:18px;font-weight:700;color:var(--text)}
+.pemp{font-family:var(--font-mono);font-size:11px;color:var(--teal);letter-spacing:.08em;margin-top:3px}
+.pdept{font-size:11px;color:var(--muted);margin-top:3px}
+.role-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-top:8px;border:1px solid var(--border)}
+.role-badge.staff{border-color:rgba(58,143,255,.4);background:rgba(58,143,255,.08);color:var(--blue)}
+.role-badge.manager{border-color:rgba(0,212,170,.4);background:rgba(0,212,170,.08);color:var(--teal)}
+.profile-info{padding:16px 20px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);gap:10px}
 .info-row:last-child{border-bottom:none}
-.info-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
-.info-val{font-size:13px;color:var(--text);text-align:right;word-break:break-word}
-.info-val.mono{font-family:var(--font-mono)}
-
-/* ── Right column ── */
-.right-col{display:flex;flex-direction:column;gap:18px}
-
-/* ── Today stats ── */
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;
-  padding:16px 18px;text-align:center}
-.stat-num{font-family:var(--font-mono);font-size:26px;font-weight:700;line-height:1}
-.stat-num.teal{color:var(--teal)}.stat-num.blue{color:var(--blue)}.stat-num.yellow{color:#f6c90e}
-.stat-lbl{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:5px}
-
-/* ── Panel ── */
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.panel-header{padding:13px 18px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;
-  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.panel-header .dot{width:5px;height:5px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal);flex-shrink:0}
-.ph-left{display:flex;align-items:center;gap:8px}
+.info-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;flex-shrink:0}
+.info-val{font-size:12px;color:var(--text);text-align:right}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
+.stat-num{font-family:var(--font-mono);font-size:24px;font-weight:700}
+.stat-num.teal{color:var(--teal)}.stat-num.blue{color:var(--blue)}.stat-num.yellow{color:#f6c90e}.stat-num.red{color:var(--red)}
+.stat-lbl{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:4px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.panel-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ph-left{display:flex;align-items:center;gap:7px}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal)}
 .panel-body{padding:16px}
-
-/* ── Attendance table ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.cal-nav-btn{background:none;border:1px solid var(--border);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:grid;place-items:center;transition:all .15s}
+.cal-nav-btn:hover{border-color:var(--teal);color:var(--teal)}
+.cal-month-label{font-size:13px;font-weight:700;color:var(--text)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px}
+.cal-dow{text-align:center;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:4px 0}
+.cal-day{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:7px;font-size:11px;cursor:default;transition:all .15s;user-select:none}
+.cal-day.selectable{cursor:pointer}
+.cal-day.selectable:hover{background:rgba(0,212,170,.12);color:var(--teal)}
+.cal-day.selected{background:var(--teal)!important;color:#000!important;font-weight:700}
+.cal-day.today{border:1px solid var(--teal);color:var(--teal)}
+.cal-day.is-off{color:rgba(90,122,154,.3)}
+.cal-day.is-holiday{color:#f6c90e}
+.cal-day.is-overtime{color:#a78bfa}
+.cal-day.is-half{color:var(--blue)}
+.cal-day.past-locked{opacity:.35;cursor:not-allowed}
+.cal-day.has-approved::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--teal)}
+.cal-day.has-pending::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#f6c90e}
+.cal-day.empty-slot{opacity:0;pointer-events:none}
+.cal-legend{display:flex;flex-wrap:wrap;gap:10px;padding:6px 14px 12px;font-size:10px;color:var(--muted)}
+.leg-item{display:flex;align-items:center;gap:4px}
+.leg-dot{width:7px;height:7px;border-radius:50%}
+.leave-form{display:grid;gap:12px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fl{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase}
+.fi{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:12px;padding:8px 12px;border-radius:7px;transition:border-color .2s;outline:none;resize:vertical;box-sizing:border-box}
+.fi:focus{border-color:var(--teal)}
+.fi::placeholder{color:var(--muted)}
+select.fi option{background:var(--panel)}
+.dates-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;align-items:center}
+.date-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);border-radius:6px;font-size:11px;color:var(--teal)}
+.date-chip .rm{cursor:pointer;opacity:.6;font-size:14px;line-height:1}.date-chip .rm:hover{opacity:1}
+.chip-half{font-size:9px;background:rgba(0,212,170,.2);padding:1px 4px;border-radius:3px}
+.half-picker{display:flex;gap:6px;margin-top:4px}
+.half-btn{flex:1;padding:6px;border:1px solid var(--border);background:none;color:var(--muted);border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s}
+.half-btn.active{border-color:var(--teal);background:rgba(0,212,170,.1);color:var(--teal);font-weight:700}
+.btn-submit{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:8px;background:var(--teal);color:#000;font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;border:none;width:100%;transition:all .2s}
+.btn-submit:hover:not(:disabled){background:#00f0c0}
+.btn-submit:disabled{background:rgba(0,212,170,.3);cursor:not-allowed}
 .att-table{width:100%;border-collapse:collapse;font-size:12px}
-.att-table th{text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);
-  letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)}
-.att-table td{padding:9px 12px;border-bottom:1px solid rgba(26,47,80,.5);color:var(--text)}
+.att-table th{text-align:left;padding:8px 12px;font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.att-table td{padding:8px 12px;border-bottom:1px solid rgba(26,47,80,.4);color:var(--text)}
 .att-table tr:last-child td{border-bottom:none}
 .att-table tr:hover td{background:rgba(255,255,255,.02)}
-.badge-in {display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;
-  font-family:var(--font-mono);font-size:10px;font-weight:700;
-  background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
-.badge-out{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;
-  font-family:var(--font-mono);font-size:10px;font-weight:700;
-  background:rgba(58,143,255,.1);border:1px solid rgba(58,143,255,.3);color:var(--blue)}
-.empty-msg{text-align:center;padding:32px;color:var(--muted);font-size:12px}
-
-/* ── Leave request ── */
-.leave-form{display:grid;gap:12px}
-.fg{display:flex;flex-direction:column;gap:5px}
-.fl{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-.fi{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);
-  font-family:var(--font-sans);font-size:13px;padding:9px 13px;border-radius:8px;
-  transition:border-color .2s;outline:none;resize:vertical}
-.fi:focus{border-color:var(--teal)}.fi::placeholder{color:var(--muted)}
-select.fi option{background:var(--panel);color:var(--text)}
-.fr2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.btn-submit{display:inline-flex;align-items:center;justify-content:center;gap:7px;
-  padding:10px 20px;border-radius:8px;background:var(--teal);color:#000;
-  font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;
-  border:none;width:100%;transition:all .2s;letter-spacing:.03em;margin-top:4px}
-.btn-submit:hover:not(:disabled){background:#00f0c0;transform:translateY(-1px)}
-.btn-submit:disabled{background:var(--teal-dim);cursor:not-allowed}
-
-/* Leave history badges */
-.leave-status{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:4px;
-  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.s-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.sb-present{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
+.sb-late{background:rgba(246,201,14,.1);border:1px solid rgba(246,201,14,.3);color:#f6c90e}
+.sb-leave{background:rgba(58,143,255,.1);border:1px solid rgba(58,143,255,.3);color:var(--blue)}
+.sb-remote{background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa}
+.sb-absent{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--red)}
+.sb-pending{background:rgba(246,201,14,.06);border:1px solid rgba(246,201,14,.2);color:#f6c90e}
+.sb-off{background:rgba(90,122,154,.06);border:1px solid rgba(90,122,154,.2);color:var(--muted)}
 .ls-pending{background:rgba(246,201,14,.1);border:1px solid rgba(246,201,14,.3);color:#f6c90e}
 .ls-approved{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
 .ls-rejected{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--red)}
-
-/* ── Date filter ── */
-.date-filter{display:flex;gap:8px;align-items:center}
-.date-filter input{background:var(--panel);border:1px solid var(--border);color:var(--text);
-  font-family:var(--font-sans);font-size:11px;padding:5px 10px;border-radius:6px;outline:none}
-.date-filter input:focus{border-color:var(--teal)}
-.btn-sm{padding:5px 12px;border-radius:6px;background:var(--teal);color:#000;
-  font-size:11px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
-.btn-sm:hover{background:#00f0c0}
-
-/* ── Toast ── */
-#toast{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--panel);
-  border:1px solid var(--border);padding:10px 16px;border-radius:9px;font-size:12px;
-  max-width:300px;transform:translateY(14px);opacity:0;transition:all .3s;
-  display:flex;align-items:center;gap:8px}
+.ls-cancelled{background:rgba(90,122,154,.1);border:1px solid rgba(90,122,154,.2);color:var(--muted)}
+.df{display:flex;gap:6px;align-items:center}
+.df input{background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:11px;padding:5px 9px;border-radius:6px;outline:none}
+.df input:focus{border-color:var(--teal)}
+.btn-sm{padding:5px 12px;border-radius:6px;background:var(--teal);color:#000;font-size:11px;font-weight:700;cursor:pointer;border:none}
+#toast{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--panel);border:1px solid var(--border);padding:10px 15px;border-radius:9px;font-size:12px;max-width:280px;transform:translateY(14px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:7px}
 #toast.show{transform:translateY(0);opacity:1}
 #toast.success{border-color:var(--teal)}#toast.error{border-color:var(--red)}
-
-/* ── Spinner ── */
-.spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);
-  border-top-color:var(--teal);animation:spin .7s linear infinite;flex-shrink:0}
+.spinner{width:13px;height:13px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--teal);animation:spin .7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-@media(max-width:768px){
-  .page{grid-template-columns:1fr}
-  .stats-row{grid-template-columns:1fr 1fr 1fr}
-}
+.empty-msg{text-align:center;padding:28px;color:var(--muted);font-size:12px}
+.notice-box{padding:10px 13px;background:rgba(246,201,14,.06);border:1px solid rgba(246,201,14,.2);border-radius:8px;font-size:11px;color:#f6c90e}
+@media(max-width:800px){.two-col{grid-template-columns:1fr}.stats-row{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -140,445 +125,545 @@ select.fi option{background:var(--panel);color:var(--text)}
     </div>
     <span class="brand-name">FaceAttend</span>
   </div>
-  <div class="nav-links" id="mainNav">
-    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
-    <!-- Manager/admin có thêm link quản lý -->
-    <a href="/dashboard" class="nav-link" id="navDashboard" style="display:none">Quản lý</a>
-    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
+  <div class="nav-links">
+    <span id="navUserName" style="font-size:12px;color:var(--muted)"></span>
+    <a href="/dashboard" id="navDashboard" class="nav-link" style="display:none">Quản lý</a>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">→ Đăng xuất</button>
   </div>
 </header>
 
 <div class="page">
-  <!-- ══ LEFT: Profile ══ -->
-  <div>
-    <div class="profile-card">
-      <div class="profile-top">
-        <div class="avatar-ring" id="avatarEl">👤</div>
-        <div class="pname" id="profileName">—</div>
-        <div class="pemp" id="profileCode">—</div>
-        <div class="pdept" id="profileDept">—</div>
-        <div class="role-badge staff" id="roleBadge">nhân viên</div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tab-home',this)">Tổng quan</button>
+    <button class="tab-btn" onclick="switchTab('tab-leave',this)">Xin nghỉ / Remote</button>
+    <button class="tab-btn" onclick="switchTab('tab-schedule',this)">Lịch công ty</button>
+  </div>
+
+  <!-- TAB: Tổng quan -->
+  <div id="tab-home" class="tab-content active">
+    <div class="two-col">
+      <div>
+        <div class="profile-card">
+          <div class="profile-top">
+            <div class="avatar-ring" id="avatarEl">👤</div>
+            <div class="pname" id="profileName">—</div>
+            <div class="pemp" id="profileCode">—</div>
+            <div class="pdept" id="profileDept">—</div>
+            <div class="role-badge staff" id="roleBadge">Nhân viên</div>
+          </div>
+          <div class="profile-info">
+            <div class="info-row"><span class="info-label">Email</span><span class="info-val" id="profileEmail">—</span></div>
+            <div class="info-row"><span class="info-label">Điện thoại</span><span class="info-val" id="profilePhone">—</span></div>
+            <div class="info-row"><span class="info-label">Chức vụ</span><span class="info-val" id="profilePosition">—</span></div>
+            <div class="info-row"><span class="info-label">Ngày vào làm</span><span class="info-val" id="profileJoined">—</span></div>
+            <div class="info-row"><span class="info-label">Trạng thái</span><span class="info-val" id="profileStatus">—</span></div>
+          </div>
+        </div>
       </div>
-      <div class="profile-info">
-        <div class="info-row">
-          <span class="info-label">Email</span>
-          <span class="info-val" id="profileEmail">—</span>
+      <div>
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-num teal" id="stPresent">—</div><div class="stat-lbl">Có mặt</div></div>
+          <div class="stat-box"><div class="stat-num blue" id="stRemote">—</div><div class="stat-lbl">Remote</div></div>
+          <div class="stat-box"><div class="stat-num yellow" id="stLeave">—</div><div class="stat-lbl">Nghỉ phép</div></div>
+          <div class="stat-box"><div class="stat-num red" id="stAbsent">—</div><div class="stat-lbl">Vắng KP</div></div>
         </div>
-        <div class="info-row">
-          <span class="info-label">Điện thoại</span>
-          <span class="info-val mono" id="profilePhone">—</span>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="ph-left"><span class="dot"></span>Lịch sử chấm công</div>
+            <div class="df">
+              <input type="date" id="filterFrom">
+              <input type="date" id="filterTo">
+              <button class="btn-sm" onclick="loadMyAttendance()">Xem</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;max-height:360px;overflow-y:auto">
+            <table class="att-table">
+              <thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th>Trạng thái</th><th>Chi tiết</th></tr></thead>
+              <tbody id="attBody"><tr><td colspan="5" class="empty-msg">Đang tải...</td></tr></tbody>
+            </table>
+          </div>
         </div>
-        <div class="info-row">
-          <span class="info-label">Chức vụ</span>
-          <span class="info-val" id="profilePosition">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Ngày vào làm</span>
-          <span class="info-val mono" id="profileJoined">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Đăng nhập lần cuối</span>
-          <span class="info-val mono" id="profileLastLogin">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Trạng thái</span>
-          <span class="info-val" id="profileStatus">—</span>
+        <div class="panel">
+          <div class="panel-header"><div class="ph-left"><span class="dot"></span>Đơn đã gửi</div></div>
+          <div style="overflow-x:auto">
+            <table class="att-table">
+              <thead><tr><th>Ngày gửi</th><th>Loại</th><th>Ngày nghỉ</th><th>Lý do</th><th>Trạng thái</th><th></th></tr></thead>
+              <tbody id="leaveHistBody"><tr><td colspan="6" class="empty-msg">Đang tải...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ══ RIGHT: Attendance + Leave ══ -->
-  <div class="right-col">
-
-    <!-- Thống kê hôm nay -->
-    <div class="stats-row">
-      <div class="stat-box">
-        <div class="stat-num teal" id="statTodayIn">—</div>
-        <div class="stat-lbl">Vào hôm nay</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-num blue" id="statTodayOut">—</div>
-        <div class="stat-lbl">Ra hôm nay</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-num yellow" id="statMonthDays">—</div>
-        <div class="stat-lbl">Ngày công tháng</div>
-      </div>
-    </div>
-
-    <!-- Lịch sử chấm công -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="ph-left"><span class="dot"></span> Lịch sử chấm công của tôi</div>
-        <div class="date-filter">
-          <input type="date" id="filterFrom" title="Từ ngày">
-          <input type="date" id="filterTo" title="Đến ngày">
-          <button class="btn-sm" onclick="loadMyAttendance()">Xem</button>
+  <!-- TAB: Xin nghỉ / Remote -->
+  <div id="tab-leave" class="tab-content">
+    <div class="two-col">
+      <div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="ph-left"><span class="dot"></span>Chọn ngày</div>
+            <div style="display:flex;gap:4px">
+              <button class="cal-nav-btn" onclick="calPickerNav(-1)">&#8249;</button>
+              <button class="cal-nav-btn" onclick="calPickerNav(1)">&#8250;</button>
+            </div>
+          </div>
+          <div id="calPickerBody"></div>
+          <div class="cal-legend">
+            <span class="leg-item"><span class="leg-dot" style="background:var(--teal)"></span>Chọn được</span>
+            <span class="leg-item"><span class="leg-dot" style="background:rgba(90,122,154,.4)"></span>Ngày nghỉ</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#f6c90e"></span>Chờ duyệt</span>
+            <span class="leg-item"><span class="leg-dot" style="background:var(--teal);opacity:.5"></span>Đã duyệt</span>
+          </div>
         </div>
       </div>
-      <div style="overflow-x:auto;max-height:360px;overflow-y:auto">
-        <table class="att-table">
-          <thead><tr>
-            <th>Ngày</th><th>Giờ vào</th><th>Giờ ra</th><th>Loại</th>
-          </tr></thead>
-          <tbody id="attTableBody">
-            <tr><td colspan="4" class="empty-msg">Đang tải...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Xin nghỉ -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="ph-left"><span class="dot"></span> Báo xin nghỉ</div>
-      </div>
-      <div class="panel-body">
-        <div class="leave-form">
-          <div class="fr2">
-            <div class="fg">
-              <label class="fl">Từ ngày *</label>
-              <input class="fi" type="date" id="leaveFrom">
+      <div>
+        <div class="panel">
+          <div class="panel-header"><div class="ph-left"><span class="dot"></span>Thông tin đơn</div></div>
+          <div class="panel-body">
+            <div class="leave-form">
+              <div class="fg">
+                <label class="fl">Loại đơn *</label>
+                <select class="fi" id="leaveType">
+                  <option value="leave">📅 Nghỉ phép</option>
+                  <option value="remote">🏠 Làm remote</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="fl">Ngày đã chọn <span id="selCount" style="color:var(--teal)">(0/3)</span></label>
+                <div class="dates-chips" id="datesChips"><span style="color:var(--muted);font-size:11px">Bấm vào lịch để chọn ngày...</span></div>
+              </div>
+              <div class="fg" id="halfPickerWrap" style="display:none">
+                <label class="fl">Buổi của ngày vừa chọn</label>
+                <div class="half-picker">
+                  <button class="half-btn active" data-half="null" onclick="setHalf(this,'null')">Cả ngày</button>
+                  <button class="half-btn" data-half="am" onclick="setHalf(this,'am')">Buổi sáng</button>
+                  <button class="half-btn" data-half="pm" onclick="setHalf(this,'pm')">Buổi chiều</button>
+                </div>
+              </div>
+              <div class="fg">
+                <label class="fl">Lý do / ghi chú</label>
+                <textarea class="fi" id="leaveReason" rows="3" placeholder="Mô tả lý do..."></textarea>
+              </div>
+              <div class="notice-box">
+                ⓘ Tối đa 3 ngày/đơn &nbsp;·&nbsp; Chỉ gửi được từ ngày mai trở đi.
+                Xin nhiều hơn 3 ngày vui lòng liên hệ trực tiếp quản lý.
+              </div>
+              <button class="btn-submit" id="btnSubmit" onclick="submitLeave()">✉ Gửi đơn</button>
             </div>
-            <div class="fg">
-              <label class="fl">Đến ngày *</label>
-              <input class="fi" type="date" id="leaveTo">
-            </div>
           </div>
-          <div class="fg">
-            <label class="fl">Loại nghỉ *</label>
-            <select class="fi" id="leaveType">
-              <option value="">— Chọn loại —</option>
-              <option value="annual">Nghỉ phép năm</option>
-              <option value="sick">Nghỉ ốm</option>
-              <option value="unpaid">Nghỉ không lương</option>
-              <option value="personal">Việc cá nhân</option>
-              <option value="other">Lý do khác</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label class="fl">Lý do / ghi chú</label>
-            <textarea class="fi" id="leaveReason" rows="3" placeholder="Mô tả lý do xin nghỉ..."></textarea>
-          </div>
-          <button class="btn-submit" id="btnLeave" onclick="submitLeave()">
-            ✉ Gửi đơn xin nghỉ
-          </button>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Lịch sử đơn nghỉ -->
-    <div class="panel" id="leaveHistoryPanel" style="display:none">
-      <div class="panel-header">
-        <div class="ph-left"><span class="dot"></span> Đơn nghỉ đã gửi</div>
+  <!-- TAB: Lịch công ty -->
+  <div id="tab-schedule" class="tab-content">
+    <div class="panel">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="scheduleNav(-1)">&#8249;</button>
+        <span class="cal-month-label" id="scheduleLabel">—</span>
+        <button class="cal-nav-btn" onclick="scheduleNav(1)">&#8250;</button>
       </div>
+      <div id="scheduleBody"></div>
+      <div class="cal-legend">
+        <span class="leg-item"><span class="leg-dot" style="background:var(--teal)"></span>Cả ngày</span>
+        <span class="leg-item"><span class="leg-dot" style="background:var(--blue)"></span>Nửa ngày</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#f6c90e"></span>Ngày lễ</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#a78bfa"></span>Tăng ca</span>
+        <span class="leg-item"><span class="leg-dot" style="background:rgba(90,122,154,.4)"></span>Nghỉ</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div class="ph-left"><span class="dot"></span>Trạng thái của tôi trong tháng</div></div>
       <div style="overflow-x:auto">
         <table class="att-table">
-          <thead><tr>
-            <th>Ngày gửi</th><th>Từ</th><th>Đến</th><th>Loại</th><th>Trạng thái</th>
-          </tr></thead>
-          <tbody id="leaveTableBody"></tbody>
+          <thead><tr><th>Ngày</th><th>Loại ngày</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
+          <tbody id="myStatusBody"><tr><td colspan="4" class="empty-msg">Đang tải...</td></tr></tbody>
         </table>
       </div>
     </div>
-
   </div>
 </div>
 
 <div id="toast"></div>
-
 <script>
-// ══ Helpers ══
-let currentEmpCode = '';
+let currentEmp=null,selectedDates=[],lastClickedDate=null;
+let pickerOffset=0; // months offset from current month
+let schedYear=new Date().getFullYear(),schedMonth=new Date().getMonth()+1;
+let calCache={},myLeaves=[];
 
-function today() { return new Date().toISOString().slice(0,10); }
-
-function fmtDate(str) {
-  if (!str) return '—';
-  const d = new Date(str);
-  return d.toLocaleDateString('vi-VN');
+function switchTab(id,btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='tab-leave')renderCalPicker();
+  if(id==='tab-schedule')renderSchedule();
 }
 
-function fmtTime(str) {
-  if (!str) return '—';
-  const d = new Date(str);
-  return d.toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+function today(){return new Date().toISOString().slice(0,10);}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);}
+function fmtDate(s){if(!s)return'—';return new Date(s).toLocaleDateString('vi-VN');}
+function fmtTime(s){if(!s)return'—';return new Date(s).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
+
+let _toastTmr;
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  const col=type==='success'?'var(--teal)':type==='error'?'var(--red)':'var(--blue)';
+  const icon=type==='success'?'✓':type==='error'?'✕':'ℹ';
+  t.innerHTML=`<span style="color:${col}">${icon}</span> ${msg}`;
+  t.className='show '+type;
+  clearTimeout(_toastTmr);
+  _toastTmr=setTimeout(()=>t.className='',4200);
 }
 
-let toastTmr;
-function showToast(msg, type='info') {
-  const t = document.getElementById('toast');
-  const col = type==='success'?'var(--teal)':type==='error'?'var(--red)':'var(--blue)';
-  const icon = type==='success'?'✓':type==='error'?'✕':'ℹ';
-  t.innerHTML = `<span style="color:${col}">${icon}</span> ${msg}`;
-  t.className = 'show '+type;
-  clearTimeout(toastTmr);
-  toastTmr = setTimeout(() => { t.className = ''; }, 4500);
-}
+// ── Init ──
+async function init(){
+  try{
+    const r=await authFetch('/auth/me');
+    const d=await r.json();
+    const user=d.user;
+    if(!user)return;
+    document.getElementById('navUserName').textContent=user.full_name||user.email;
+    if(user.role!=='staff')document.getElementById('navDashboard').style.display='';
+    document.getElementById('profileEmail').textContent=user.email||'—';
+    document.getElementById('profileStatus').innerHTML=user.is_active
+      ?'<span style="color:var(--teal)">● Đang hoạt động</span>'
+      :'<span style="color:var(--red)">● Tài khoản khóa</span>';
+    const rmap={staff:'Nhân viên',manager:'Quản lý',admin:'Admin'};
+    const badge=document.getElementById('roleBadge');
+    badge.textContent=rmap[user.role]||user.role;
+    badge.className='role-badge '+(user.role||'staff');
 
-// ══ Load profile ══
-async function loadProfile() {
-  try {
-    const res  = await authFetch('/auth/me');
-    const data = await res.json();
-    const user = data.user;
-    if (!user) return;
-
-    // Lưu user vào localStorage để auth-guard dùng
-    localStorage.setItem('user', JSON.stringify(user));
-
-    document.getElementById('profileEmail').textContent = user.email || '—';
-    document.getElementById('profileLastLogin').textContent = user.last_login || '—';
-    document.getElementById('profileStatus').innerHTML = user.is_active
-      ? '<span style="color:var(--teal)">● Đang hoạt động</span>'
-      : '<span style="color:var(--red)">● Tài khoản khóa</span>';
-
-    // Role badge
-    const badge = document.getElementById('roleBadge');
-    const roleMap = {staff:'Nhân viên',manager:'Quản lý',admin:'Admin'};
-    badge.textContent = roleMap[user.role] || user.role;
-    badge.className = 'role-badge ' + (user.role || 'staff');
-
-    // Hiển thị link dashboard nếu manager/admin
-    if (user.role === 'manager' || user.role === 'admin') {
-      document.getElementById('navDashboard').style.display = '';
-    }
-    document.getElementById('navUserName').textContent = user.full_name || user.email;
-
-    // Load employee profile bằng email
-    loadEmployeeProfile(user.email);
-  } catch(e) {
-    console.warn('Load profile lỗi:', e);
-  }
-}
-
-async function loadEmployeeProfile(email) {
-  try {
-    // Tìm nhân viên theo email
-    const res  = await authFetch(`/api/employees?active_only=false`);
-    const emps = await res.json();
-    const emp  = emps.find(e => e.email && e.email.toLowerCase() === email.toLowerCase());
-    if (!emp) {
-      document.getElementById('profileName').textContent = email.split('@')[0];
-      document.getElementById('profileCode').textContent = 'Chưa liên kết';
-      return;
-    }
-
-    currentEmpCode = emp.emp_code;
-
-    document.getElementById('profileName').textContent    = emp.name || '—';
-    document.getElementById('profileCode').textContent    = emp.emp_code || '—';
-    document.getElementById('profileDept').textContent    = emp.department || '—';
-    document.getElementById('profilePhone').textContent   = emp.phone || '—';
-    document.getElementById('profilePosition').textContent= emp.position || '—';
-    document.getElementById('profileJoined').textContent  = emp.created_at || '—';
-
-    if (emp.avatar_url) {
-      document.getElementById('avatarEl').innerHTML = `<img src="${emp.avatar_url}" alt="avatar">`;
-    } else {
-      document.getElementById('avatarEl').textContent = emp.name ? emp.name[0].toUpperCase() : '👤';
-    }
-
-    loadMyAttendance();
-    loadMonthStats();
-  } catch(e) {
-    console.warn('Load employee lỗi:', e);
-  }
-}
-
-// ══ Load attendance ══
-async function loadMyAttendance() {
-  const from = document.getElementById('filterFrom').value || today();
-  const to   = document.getElementById('filterTo').value   || today();
-  const tbody = document.getElementById('attTableBody');
-  tbody.innerHTML = '<tr><td colspan="4" class="empty-msg"><div class="spinner" style="margin:0 auto"></div></td></tr>';
-
-  try {
-    const url = `/api/attendance?date=${from}&days=1${currentEmpCode ? '&emp_code='+currentEmpCode : ''}`;
-    let allLogs = [];
-
-    if (from === to) {
-      const res  = await authFetch(url);
-      const data = await res.json();
-      allLogs = (data.logs ?? data) || [];
-    } else {
-      // Load range day by day (max 31 days)
-      const start = new Date(from), end = new Date(to);
-      const diffDays = Math.min(31, Math.round((end-start)/(1000*60*60*24))+1);
-      for (let i = 0; i < diffDays; i++) {
-        const d = new Date(start); d.setDate(d.getDate()+i);
-        const ds = d.toISOString().slice(0,10);
-        const r = await authFetch(`/api/attendance?date=${ds}${currentEmpCode ? '&emp_code='+currentEmpCode : ''}`);
-        const j = await r.json();
-        allLogs.push(...((j.logs ?? j) || []));
+    const emps=await(await authFetch('/api/employees?active_only=false')).json();
+    currentEmp=emps.find(e=>e.email&&e.email.toLowerCase()===(user.email||'').toLowerCase());
+    if(currentEmp){
+      document.getElementById('profileName').textContent=currentEmp.name||'—';
+      document.getElementById('profileCode').textContent=currentEmp.emp_code||'—';
+      document.getElementById('profileDept').textContent=currentEmp.department||'—';
+      document.getElementById('profilePhone').textContent=currentEmp.phone||'—';
+      document.getElementById('profilePosition').textContent=currentEmp.position||'—';
+      document.getElementById('profileJoined').textContent=currentEmp.created_at||'—';
+      if(currentEmp.avatar_url){
+        document.getElementById('avatarEl').innerHTML=`<img src="${currentEmp.avatar_url}" onerror="this.parentElement.textContent='${(currentEmp.name||'?')[0]}'">`;
+      } else {
+        document.getElementById('avatarEl').textContent=(currentEmp.name||'?')[0].toUpperCase();
       }
     }
+    const from7=new Date();from7.setDate(from7.getDate()-6);
+    document.getElementById('filterFrom').value=from7.toISOString().slice(0,10);
+    document.getElementById('filterTo').value=today();
+    await Promise.all([loadMyAttendance(),loadLeaveHistory(),loadYearStats()]);
+  }catch(e){console.error(e);}
+}
 
-    // Filter by emp_code client-side if needed
-    const logs = currentEmpCode
-      ? allLogs.filter(l => l.emp_code === currentEmpCode)
-      : allLogs;
+// ── Year stats ──
+async function loadYearStats(){
+  if(!currentEmp)return;
+  try{
+    const r=await authFetch(`/api/reports/employee/${currentEmp.emp_code}/stats?year=${new Date().getFullYear()}`);
+    const d=await r.json();
+    document.getElementById('stPresent').textContent=d.present_days??'0';
+    document.getElementById('stRemote').textContent=d.remote_days??'0';
+    document.getElementById('stLeave').textContent=d.approved_leave??'0';
+    document.getElementById('stAbsent').textContent=d.absent_days??'0';
+  }catch{}
+}
 
-    if (!logs.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Chưa có dữ liệu chấm công trong khoảng thời gian này</td></tr>';
-      document.getElementById('statTodayIn').textContent  = '0';
-      document.getElementById('statTodayOut').textContent = '0';
-      return;
+// ── Attendance history (load by month range) ──
+async function loadMyAttendance(){
+  if(!currentEmp){setTimeout(loadMyAttendance,600);return;}
+  const from=document.getElementById('filterFrom').value||today();
+  const to=document.getElementById('filterTo').value||today();
+  const tbody=document.getElementById('attBody');
+  tbody.innerHTML='<tr><td colspan="5" class="empty-msg"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+  try{
+    // Get month range needed
+    const startD=new Date(from),endD=new Date(to);
+    const months=new Set();
+    const cur=new Date(startD);
+    while(cur<=endD){months.add(`${cur.getFullYear()}-${cur.getMonth()+1}`);cur.setMonth(cur.getMonth()+1);}
+
+    // Load stats for each month
+    const dayMap={};
+    for(const mk of months){
+      const[y,m]=mk.split('-').map(Number);
+      const r=await authFetch(`/api/reports/employee/${currentEmp.emp_code}/stats?year=${y}&month=${m}`);
+      const d=await r.json();
+      (d.days||[]).forEach(x=>{
+        const ds=`${y}-${String(m).padStart(2,'0')}-${String(x.day).padStart(2,'0')}`;
+        dayMap[ds]=x;
+      });
     }
 
-    // Count today
-    const todayStr = today();
-    const todayIn  = logs.filter(l => l.check_type==='check_in'  && (l.timestamp||l.time||'').slice(0,10)===todayStr).length;
-    const todayOut = logs.filter(l => l.check_type==='check_out' && (l.timestamp||l.time||'').slice(0,10)===todayStr).length;
-    document.getElementById('statTodayIn').textContent  = todayIn;
-    document.getElementById('statTodayOut').textContent = todayOut;
+    // Get attendance logs for range (basic check_in/out times)
+    const days=Math.min(62,Math.round((endD-startD)/86400000)+1);
+    const logMap={};
+    for(let i=0;i<days;i++){
+      const d=new Date(startD);d.setDate(d.getDate()+i);
+      const ds=d.toISOString().slice(0,10);
+      if(ds>today())break;
+      try{
+        const r=await authFetch(`/api/attendance?date=${ds}&emp_code=${currentEmp.emp_code}`);
+        const ld=await r.json();
+        const logs=((ld.logs??ld)||[]).filter(l=>l.emp_code===currentEmp.emp_code);
+        logMap[ds]={in:logs.find(l=>l.check_type==='check_in'),out:logs.find(l=>l.check_type==='check_out')};
+      }catch{}
+    }
 
-    tbody.innerHTML = logs.slice(0,200).map(l => {
-      const ts = l.timestamp || l.time || '';
-      const isIn = l.check_type === 'check_in';
+    const sClass={present:'sb-present',late:'sb-late',approved_leave:'sb-leave',
+      approved_leave_half:'sb-leave',approved_remote:'sb-remote',pending_leave:'sb-pending',
+      pending_remote:'sb-pending',absent:'sb-absent',day_off:'sb-off',holiday:'sb-off',
+      future:'sb-off',overtime_absent:'sb-off'};
+
+    const rows=Object.entries(dayMap).filter(([ds])=>ds>=from&&ds<=today()&&ds<=to)
+      .sort(([a],[b])=>b.localeCompare(a));
+
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="5" class="empty-msg">Không có dữ liệu</td></tr>';return;}
+
+    tbody.innerHTML=rows.map(([ds,x])=>{
+      const lg=logMap[ds]||{};
+      const inT=lg.in?fmtTime(lg.in.timestamp||lg.in.time):'—';
+      const outT=lg.out?fmtTime(lg.out.timestamp||lg.out.time):'—';
       return `<tr>
-        <td>${fmtDate(ts)}</td>
-        <td>${isIn  ? fmtTime(ts) : '—'}</td>
-        <td>${!isIn ? fmtTime(ts) : '—'}</td>
-        <td><span class="${isIn?'badge-in':'badge-out'}">${isIn?'▲ VÀO':'▼ RA'}</span></td>
+        <td style="font-family:var(--font-mono)">${fmtDate(ds)}</td>
+        <td style="color:var(--teal);font-family:var(--font-mono)">${inT}</td>
+        <td style="color:var(--blue);font-family:var(--font-mono)">${outT}</td>
+        <td><span class="s-badge ${sClass[x.status]||'sb-off'}">${x.label||x.status}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${x.detail||''}</td>
       </tr>`;
     }).join('');
-
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Không tải được dữ liệu</td></tr>';
-  }
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="empty-msg">Lỗi tải dữ liệu</td></tr>';}
 }
 
-async function loadMonthStats() {
-  if (!currentEmpCode) return;
-  try {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
-    const lastDay  = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10);
-
-    let allLogs = [];
-    const start = new Date(firstDay), end = new Date(lastDay);
-    const diffDays = Math.round((end-start)/(1000*60*60*24))+1;
-    for (let i = 0; i < diffDays; i++) {
-      const d = new Date(start); d.setDate(d.getDate()+i);
-      const ds = d.toISOString().slice(0,10);
-      if (ds > today()) break;
-      const r = await authFetch(`/api/attendance?date=${ds}&emp_code=${currentEmpCode}`);
-      const j = await r.json();
-      allLogs.push(...((j.logs ?? j) || []).filter(l => l.emp_code === currentEmpCode));
-    }
-
-    // Count unique days with check_in
-    const workDays = new Set(allLogs.filter(l=>l.check_type==='check_in').map(l=>(l.timestamp||'').slice(0,10)));
-    document.getElementById('statMonthDays').textContent = workDays.size || '0';
-  } catch {}
-}
-
-// ══ Leave request ══
-const LEAVE_KEY = 'my_leave_requests';
-
-function saveLeave(req) {
-  const all = getLeaves();
-  all.unshift(req);
-  localStorage.setItem(LEAVE_KEY, JSON.stringify(all.slice(0,50)));
-}
-
-function getLeaves() {
-  try { return JSON.parse(localStorage.getItem(LEAVE_KEY) || '[]'); } catch { return []; }
-}
-
-async function submitLeave() {
-  const from   = document.getElementById('leaveFrom').value;
-  const to     = document.getElementById('leaveTo').value;
-  const type   = document.getElementById('leaveType').value;
-  const reason = document.getElementById('leaveReason').value.trim();
-
-  if (!from || !to)   { showToast('Vui lòng chọn ngày nghỉ', 'error'); return; }
-  if (from > to)      { showToast('Ngày bắt đầu phải trước ngày kết thúc', 'error'); return; }
-  if (!type)          { showToast('Vui lòng chọn loại nghỉ', 'error'); return; }
-
-  const btn = document.getElementById('btnLeave');
-  btn.innerHTML = '<div class="spinner"></div> Đang gửi...';
-  btn.disabled = true;
-
-  try {
-    // Gửi email thông báo qua API notify (nếu có), hoặc lưu local + hiện thông báo
-    const typeLabel = {annual:'Nghỉ phép năm',sick:'Nghỉ ốm',unpaid:'Nghỉ không lương',
-      personal:'Việc cá nhân',other:'Lý do khác'}[type] || type;
-
-    const user = getUser ? getUser() : null;
-    const empName = document.getElementById('profileName').textContent;
-    const empCode = currentEmpCode || '—';
-
-    // Cố gắng gọi API notify nếu backend có
-    try {
-      await authFetch('/api/leave-request', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ emp_code: empCode, name: empName, from_date: from, to_date: to,
-          leave_type: type, reason, email: user?.email })
-      });
-    } catch {
-      // API không tồn tại — OK, lưu local
-    }
-
-    const req = {
-      id: Date.now(),
-      submitted: new Date().toISOString(),
-      from, to, type: typeLabel, reason,
-      status: 'pending'
-    };
-    saveLeave(req);
+// ── Leave history ──
+async function loadLeaveHistory(){
+  try{
+    const r=await authFetch('/api/leave');
+    myLeaves=await r.json();
     renderLeaveHistory();
+  }catch{}
+}
+function renderLeaveHistory(){
+  const tbody=document.getElementById('leaveHistBody');
+  if(!myLeaves.length){tbody.innerHTML='<tr><td colspan="6" class="empty-msg">Chưa có đơn nào</td></tr>';return;}
+  const smap={pending:'ls-pending|Chờ duyệt',approved:'ls-approved|Đã duyệt',
+    rejected:'ls-rejected|Từ chối',cancelled:'ls-cancelled|Đã hủy'};
+  tbody.innerHTML=myLeaves.map(l=>{
+    const[scls,stxt]=(smap[l.status]||'ls-cancelled|?').split('|');
+    const rtype=l.request_type==='remote'?'🏠 Remote':'📅 Nghỉ phép';
+    const dates=l.dates.map(d=>{let s=d.date;if(d.half==='am')s+='(S)';else if(d.half==='pm')s+='(C)';return s;}).join(', ');
+    return`<tr>
+      <td style="font-family:var(--font-mono);font-size:11px">${fmtDate(l.submitted_at)}</td>
+      <td>${rtype}</td>
+      <td style="font-family:var(--font-mono);font-size:10px">${dates}</td>
+      <td style="font-size:11px;color:var(--muted)">${l.reason||'—'}</td>
+      <td><span class="s-badge ${scls}">${stxt}</span></td>
+      <td>${l.status==='pending'?`<button onclick="cancelLeave(${l.id})" style="background:none;border:1px solid rgba(255,77,106,.3);color:var(--red);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:10px">Hủy</button>`:(l.note?`<span style="font-size:10px;color:var(--muted)">${l.note}</span>`:'—')}</td>
+    </tr>`;
+  }).join('');
+}
+async function cancelLeave(id){
+  if(!confirm('Hủy đơn này?'))return;
+  try{
+    const r=await authFetch(`/api/leave/${id}`,{method:'DELETE'});
+    if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');
+    showToast('Đã hủy đơn','success');
+    calCache={};
+    await loadLeaveHistory();
+    renderCalPicker();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+}
 
-    // Reset form
-    document.getElementById('leaveFrom').value = '';
-    document.getElementById('leaveTo').value   = '';
-    document.getElementById('leaveType').value = '';
-    document.getElementById('leaveReason').value = '';
-    showToast('Đã gửi đơn xin nghỉ! Quản lý sẽ xem xét sớm.', 'success');
-  } finally {
-    btn.innerHTML = '✉ Gửi đơn xin nghỉ';
-    btn.disabled = false;
+// ── Calendar Picker ──
+function calPickerNav(dir){pickerOffset+=dir;renderCalPicker();}
+
+async function renderCalPicker(){
+  const body=document.getElementById('calPickerBody');
+  body.innerHTML='<div class="empty-msg"><div class="spinner" style="margin:0 auto"></div></div>';
+
+  const pendingDates=new Set(),approvedDates=new Set();
+  myLeaves.forEach(l=>{
+    if(l.status==='pending')l.dates.forEach(d=>pendingDates.add(d.date));
+    if(l.status==='approved')l.dates.forEach(d=>approvedDates.add(d.date));
+  });
+
+  const todayStr=today();
+  const minDate=addDays(todayStr,1);
+  const mnNames=['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+
+  const now=new Date();
+  let html='';
+  for(let mi=0;mi<3;mi++){
+    let y=now.getFullYear(),m=now.getMonth()+1+mi+pickerOffset;
+    while(m>12){m-=12;y++;}while(m<1){m+=12;y--;}
+    const key=`${y}-${m}`;
+    if(!calCache[key]){
+      try{const r=await authFetch(`/api/calendar?year=${y}&month=${m}`);const d=await r.json();calCache[key]=d.days||[];}
+      catch{calCache[key]=[];}
+    }
+    const calDays=calCache[key];
+    const firstDay=new Date(y,m-1,1).getDay();
+    const daysInMonth=new Date(y,m,0).getDate();
+    html+=`<div style="${mi<2?'border-bottom:1px solid var(--border)':''}padding-bottom:6px">
+      <div style="text-align:center;padding:8px 0 4px;font-size:12px;font-weight:700;color:var(--text)">${mnNames[m]} ${y}</div>
+      <div class="cal-grid">
+        <div class="cal-dow">CN</div><div class="cal-dow">T2</div><div class="cal-dow">T3</div>
+        <div class="cal-dow">T4</div><div class="cal-dow">T5</div><div class="cal-dow">T6</div>
+        <div class="cal-dow">T7</div>`;
+    for(let i=0;i<firstDay;i++)html+='<div class="cal-day empty-slot"></div>';
+    for(let day=1;day<=daysInMonth;day++){
+      const ds=`${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const cal=calDays.find(c=>c.date===ds)||{day_type:'full'};
+      const dtype=cal.day_type;
+      const isToday=ds===todayStr,isPast=ds<minDate;
+      const isOff=dtype==='off'||dtype==='holiday';
+      const hasPend=pendingDates.has(ds),hasAppr=approvedDates.has(ds);
+      const isSel=selectedDates.some(x=>x.date===ds);
+      let cls='cal-day';
+      if(isToday)cls+=' today';
+      if(dtype==='off')cls+=' is-off';
+      if(dtype==='holiday')cls+=' is-holiday';
+      if(dtype==='overtime')cls+=' is-overtime';
+      if(dtype==='half_am'||dtype==='half_pm')cls+=' is-half';
+      if(hasPend)cls+=' has-pending';
+      if(hasAppr)cls+=' has-approved';
+      if(isSel)cls+=' selected';
+      const canSel=!isPast&&!isOff&&!hasPend&&!hasAppr;
+      if(canSel)cls+=' selectable';
+      else if(isPast||isOff)cls+=' past-locked';
+      const oc=canSel?`onclick="toggleDate('${ds}')"`:'';
+      const tip=cal.label?`title="${cal.label}"`:'';
+      html+=`<div class="${cls}" ${oc} ${tip}>${day}</div>`;
+    }
+    html+='</div></div>';
   }
+  body.innerHTML=html;
 }
 
-function renderLeaveHistory() {
-  const leaves = getLeaves();
-  const panel = document.getElementById('leaveHistoryPanel');
-  if (!leaves.length) { panel.style.display = 'none'; return; }
-  panel.style.display = '';
-
-  const statusMap = {
-    pending:  '<span class="leave-status ls-pending">⏳ Chờ duyệt</span>',
-    approved: '<span class="leave-status ls-approved">✓ Đã duyệt</span>',
-    rejected: '<span class="leave-status ls-rejected">✕ Từ chối</span>',
-  };
-
-  document.getElementById('leaveTableBody').innerHTML = leaves.map(l => `
-    <tr>
-      <td>${fmtDate(l.submitted)}</td>
-      <td>${fmtDate(l.from)}</td>
-      <td>${fmtDate(l.to)}</td>
-      <td>${l.type}</td>
-      <td>${statusMap[l.status] || l.status}</td>
-    </tr>
-  `).join('');
+function toggleDate(ds){
+  const idx=selectedDates.findIndex(x=>x.date===ds);
+  if(idx>=0){
+    selectedDates.splice(idx,1);
+    if(lastClickedDate===ds){lastClickedDate=null;document.getElementById('halfPickerWrap').style.display='none';}
+  } else {
+    if(selectedDates.length>=3){showToast('Tối đa 3 ngày/đơn','error');return;}
+    selectedDates.push({date:ds,half:null});
+    lastClickedDate=ds;
+    document.getElementById('halfPickerWrap').style.display='';
+    document.querySelectorAll('.half-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.half-btn[data-half="null"]').classList.add('active');
+  }
+  renderChips();
+  renderCalPicker();
+}
+function setHalf(btn,half){
+  if(!lastClickedDate)return;
+  const e=selectedDates.find(x=>x.date===lastClickedDate);
+  if(!e)return;
+  e.half=half==='null'?null:half;
+  document.querySelectorAll('.half-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChips();
+}
+function renderChips(){
+  const wrap=document.getElementById('datesChips');
+  document.getElementById('selCount').textContent=`(${selectedDates.length}/3)`;
+  if(!selectedDates.length){wrap.innerHTML='<span style="color:var(--muted);font-size:11px">Bấm vào lịch để chọn ngày...</span>';return;}
+  wrap.innerHTML=selectedDates.map(d=>{
+    const hl=d.half==='am'?'Sáng':d.half==='pm'?'Chiều':'';
+    return`<span class="date-chip">${fmtDate(d.date)}${hl?` <span class="chip-half">${hl}</span>`:''}<span class="rm" onclick="toggleDate('${d.date}')">×</span></span>`;
+  }).join('');
+}
+async function submitLeave(){
+  if(!selectedDates.length){showToast('Chọn ít nhất 1 ngày','error');return;}
+  const type=document.getElementById('leaveType').value;
+  const reason=document.getElementById('leaveReason').value.trim();
+  const btn=document.getElementById('btnSubmit');
+  btn.innerHTML='<div class="spinner"></div> Đang gửi...';btn.disabled=true;
+  try{
+    const r=await authFetch('/api/leave',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({request_type:type,dates:selectedDates,reason})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.detail||'Lỗi gửi đơn');
+    showToast('Đã gửi đơn thành công!','success');
+    selectedDates=[];lastClickedDate=null;
+    document.getElementById('leaveReason').value='';
+    document.getElementById('halfPickerWrap').style.display='none';
+    renderChips();calCache={};
+    await loadLeaveHistory();renderCalPicker();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.innerHTML='✉ Gửi đơn';btn.disabled=false;}
 }
 
-// ══ Init ══
-const defaultFrom = new Date(); defaultFrom.setDate(defaultFrom.getDate() - 6);
-document.getElementById('filterFrom').value = defaultFrom.toISOString().slice(0,10);
-document.getElementById('filterTo').value   = today();
+// ── Schedule tab ──
+const mnNames2=['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+function scheduleNav(dir){schedMonth+=dir;if(schedMonth>12){schedMonth=1;schedYear++;}if(schedMonth<1){schedMonth=12;schedYear--;}renderSchedule();}
+async function renderSchedule(){
+  document.getElementById('scheduleLabel').textContent=`${mnNames2[schedMonth]} ${schedYear}`;
+  const body=document.getElementById('scheduleBody');
+  body.innerHTML='<div class="empty-msg"><div class="spinner" style="margin:0 auto"></div></div>';
+  try{
+    const key=`${schedYear}-${schedMonth}`;
+    if(!calCache[key]){const r=await authFetch(`/api/calendar?year=${schedYear}&month=${schedMonth}`);const d=await r.json();calCache[key]=d.days||[];}
+    const calDays=calCache[key];
+    const firstDay=new Date(schedYear,schedMonth-1,1).getDay();
+    const daysInMonth=new Date(schedYear,schedMonth,0).getDate();
+    const todayStr=today();
+    const dtCol={full:'var(--teal)',half_am:'var(--blue)',half_pm:'var(--blue)',off:'rgba(90,122,154,.3)',holiday:'#f6c90e',overtime:'#a78bfa'};
+    let html=`<div class="cal-grid" style="padding:8px">
+      <div class="cal-dow">CN</div><div class="cal-dow">T2</div><div class="cal-dow">T3</div>
+      <div class="cal-dow">T4</div><div class="cal-dow">T5</div><div class="cal-dow">T6</div>
+      <div class="cal-dow">T7</div>`;
+    for(let i=0;i<firstDay;i++)html+='<div class="cal-day empty-slot"></div>';
+    for(let day=1;day<=daysInMonth;day++){
+      const ds=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const cal=calDays.find(c=>c.date===ds)||{day_type:'full',label:''};
+      const col=dtCol[cal.day_type]||'var(--muted)';
+      const isToday=ds===todayStr;
+      const tip=cal.label?`title="${cal.label}"`:'';
+      html+=`<div class="cal-day" style="border:${isToday?'1px solid var(--teal)':'none'};flex-direction:column;gap:1px" ${tip}>
+        <span style="color:${col};font-weight:${isToday?700:400}">${day}</span>
+        ${cal.label?`<span style="font-size:7px;color:${col};text-align:center;line-height:1.1">${cal.label.slice(0,10)}</span>`:''}
+      </div>`;
+    }
+    html+='</div>';
+    body.innerHTML=html;
+    await renderMyStatus();
+  }catch{body.innerHTML='<div class="empty-msg">Lỗi tải lịch</div>';}
+}
+async function renderMyStatus(){
+  if(!currentEmp)return;
+  const tbody=document.getElementById('myStatusBody');
+  tbody.innerHTML='<tr><td colspan="4" class="empty-msg"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+  try{
+    const r=await authFetch(`/api/reports/employee/${currentEmp.emp_code}/stats?year=${schedYear}&month=${schedMonth}`);
+    const d=await r.json();
+    const todayStr=today();
+    const sClass={present:'sb-present',late:'sb-late',approved_leave:'sb-leave',approved_leave_half:'sb-leave',
+      approved_remote:'sb-remote',pending_leave:'sb-pending',pending_remote:'sb-pending',
+      absent:'sb-absent',day_off:'sb-off',holiday:'sb-off',future:'sb-off',overtime_absent:'sb-off'};
+    const dtLabel={full:'Ngày làm',half_am:'Buổi sáng',half_pm:'Buổi chiều',off:'Ngày nghỉ',holiday:'Ngày lễ',overtime:'Tăng ca'};
+    const days=(d.days||[]).filter(x=>{
+      const ds=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(x.day).padStart(2,'0')}`;
+      return ds<=todayStr&&x.day_type!=='off'&&x.day_type!=='holiday';
+    });
+    if(!days.length){tbody.innerHTML='<tr><td colspan="4" class="empty-msg">Chưa có dữ liệu trong tháng này</td></tr>';return;}
+    tbody.innerHTML=days.map(x=>{
+      const ds=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(x.day).padStart(2,'0')}`;
+      return`<tr>
+        <td style="font-family:var(--font-mono)">${fmtDate(ds)}</td>
+        <td style="font-size:11px;color:var(--muted)">${dtLabel[x.day_type]||x.day_type}</td>
+        <td><span class="s-badge ${sClass[x.status]||'sb-off'}">${x.label||x.status}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${x.detail||''}</td>
+      </tr>`;
+    }).join('');
+  }catch{tbody.innerHTML='<tr><td colspan="4" class="empty-msg">Lỗi tải dữ liệu</td></tr>';}
+}
 
-// Set default leave dates
-const tmrw = new Date(); tmrw.setDate(tmrw.getDate()+1);
-document.getElementById('leaveFrom').value = tmrw.toISOString().slice(0,10);
-document.getElementById('leaveTo').value   = tmrw.toISOString().slice(0,10);
-
-loadProfile();
-renderLeaveHistory();
+init();
 </script>
+<script src="/static/js/toast.js"></script>
 </body>
 </html>

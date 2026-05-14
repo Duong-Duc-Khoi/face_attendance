@@ -15,8 +15,32 @@
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
   }
 
+  function getRefreshToken() {
+    return localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token') || '';
+  }
+
+  function getAuthStorage() {
+    return localStorage.getItem('refresh_token') ? localStorage : sessionStorage;
+  }
+
   function getUser() {
     try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null'); } catch { return null; }
+  }
+
+  function getJwtPayload(token) {
+    try {
+      const payload = token.split('.')[1];
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+      return JSON.parse(atob(normalized));
+    } catch {
+      return null;
+    }
+  }
+
+  function isAccessExpired(token, skewSeconds) {
+    const payload = getJwtPayload(token);
+    if (!payload || !payload.exp) return true;
+    return payload.exp * 1000 <= Date.now() + (skewSeconds || 0) * 1000;
   }
 
   function clearAuth() {
@@ -28,12 +52,6 @@
   function redirectLogin() {
     clearAuth();
     window.location.href = LOGIN_PAGE + '?next=' + encodeURIComponent(window.location.pathname);
-  }
-
-  // Kiểm tra ngay khi trang load
-  if (!getToken()) {
-    redirectLogin();
-    throw new Error('Redirecting to login');
   }
 
   // Kiểm tra role — staff không được vào trang quản lý
@@ -48,18 +66,75 @@
   window.getToken = getToken;
   window.getUser  = getUser;
 
+  let refreshPromise = null;
+
+  async function refreshAuth() {
+    const rt = getRefreshToken();
+    if (!rt) return false;
+
+    if (!refreshPromise) {
+      refreshPromise = fetch('/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt })
+      })
+        .then(async function (res) {
+          if (!res.ok) return false;
+          const data = await res.json();
+          if (!data.access_token || !data.refresh_token) return false;
+          const storage = getAuthStorage();
+          storage.setItem('access_token', data.access_token);
+          storage.setItem('refresh_token', data.refresh_token);
+          return true;
+        })
+        .catch(function () { return false; })
+        .finally(function () { refreshPromise = null; });
+    }
+
+    return refreshPromise;
+  }
+
+  async function ensureFreshAccess() {
+    const token = getToken();
+    if (token && !isAccessExpired(token, 30)) return true;
+    return refreshAuth();
+  }
+
+  // Kiểm tra ngay khi trang load. Nếu chỉ còn refresh token thì giữ trang lại
+  // để authFetch có cơ hội lấy access token mới.
+  if (!getToken() && !getRefreshToken()) {
+    redirectLogin();
+    throw new Error('Redirecting to login');
+  }
+
   window.authHeaders = function (extra) {
     return Object.assign({ 'Authorization': 'Bearer ' + getToken() }, extra || {});
   };
 
-  // Wrapper fetch tự động xử lý 401
+  // Wrapper fetch tự động refresh access token khi gần hết hạn rồi retry 1 lần nếu vẫn gặp 401
   window.authFetch = async function (url, options) {
     options = options || {};
+    const fresh = await ensureFreshAccess();
+    if (!fresh) {
+      redirectLogin();
+      throw new Error('Unauthorized');
+    }
     options.headers = Object.assign(
       { 'Authorization': 'Bearer ' + getToken() },
       options.headers || {}
     );
-    const res = await fetch(url, options);
+
+    let res = await fetch(url, options);
+    if (res.status === 401) {
+      const refreshed = await refreshAuth();
+      if (refreshed) {
+        options.headers = Object.assign({}, options.headers, {
+          'Authorization': 'Bearer ' + getToken()
+        });
+        res = await fetch(url, options);
+      }
+    }
+
     if (res.status === 401 || res.status === 403) {
       redirectLogin();
       throw new Error('Unauthorized');

@@ -7,6 +7,8 @@ Fix: Lazy engine initialization để tránh lỗi import khi thiếu psycopg2
 hoặc chưa cấu hình .env.
 """
 
+from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
@@ -53,7 +55,37 @@ def init_db():
     """Tạo tất cả bảng. Gọi khi app khởi động."""
     from app.models import Base  # noqa — import để SQLAlchemy nhận diện tất cả models
     Base.metadata.create_all(bind=get_engine())
+    _run_restaurant_schema_migration()
+    db = get_session_factory()()
+    try:
+        from app.services.shift_service import seed_default_shifts
+        seed_default_shifts(db)
+    finally:
+        db.close()
 #     _seed_sample_data()
+
+
+def _run_restaurant_schema_migration():
+    """
+    create_all() không ALTER bảng đã tồn tại. Chạy migration idempotent để DB cũ
+    có đủ cột/bảng trước khi ORM query các model mới.
+    """
+    migration_path = Path(__file__).resolve().parents[2] / "scripts" / "migrate_restaurant_schema.sql"
+    if not migration_path.exists():
+        return
+
+    sql = migration_path.read_text(encoding="utf-8")
+    conn = get_engine().raw_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+        conn.commit()
+        print("  ✓ Restaurant schema migration sẵn sàng")
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 # def _seed_sample_data():

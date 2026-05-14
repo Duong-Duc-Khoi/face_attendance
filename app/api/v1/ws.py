@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.services.camera import get_camera
-from app.services.attendance import process_attendance
+from app.services.attendance import process_attendance,update_capture_path
 from app.services.notify import notify_late_async
 
 _ai_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="face_ai")
@@ -32,7 +32,7 @@ class ConnectionManager:
             try:
                 await ws.send_json(data)
             except Exception:
-                self.active.discard(ws) if hasattr(self.active, "discard") else None
+                self.active.remove(ws) if hasattr(self.active, "discard") else None
 
 
 manager = ConnectionManager()
@@ -84,17 +84,24 @@ async def ws_attendance(websocket: WebSocket):
                     continue
                 emp_code   = r["emp_code"]
                 confidence = r["similarity"]
-
+               
                 try:
                     log = await loop.run_in_executor(
-                        _ai_executor, process_attendance, emp_code, confidence, capture
+                        _ai_executor, process_attendance, emp_code, confidence
                     )
                 except Exception as e:
                     print(f"  ✗ process_attendance lỗi [{emp_code}]: {e}")
                     continue
 
                 if log:
-                    capture = await loop.run_in_executor(_ai_executor, cam.capture_snapshot, emp_code, frame)
+                    capture = await loop.run_in_executor(
+                        _ai_executor, cam.capture_snapshot, emp_code, frame
+                    )
+                    # Update path vào DB (non-blocking, không cần await kết quả)
+                    if capture:
+                        async def _update(lid=log["id"], cp=capture, eid=log.get("event_id")):
+                            await loop.run_in_executor(_ai_executor, update_capture_path, lid, cp, eid)
+                        asyncio.create_task(_update())
                     print(f"  → {log.get('name')} {log.get('check_type')}")
                     await manager.broadcast({**log, "type": "attendance"})
 

@@ -6,16 +6,22 @@ Endpoints báo cáo, thống kê và xuất Excel.
 import os
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.attendance import AttendanceLog
-from app.services.attendance import get_logs_by_date, get_summary_today
+from app.models.attendance import AttendanceEvent, AttendanceLog
+from app.services.attendance import (
+    get_logs_by_date, get_summary_today,
+    get_log_by_id, update_attendance_log,
+    delete_attendance_log, create_manual_attendance_log,
+)
 
 
 router = APIRouter(prefix="/api", tags=["reports"])
@@ -153,3 +159,192 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename=f"BaoCaoChamCong_{from_date}_{to_date}.xlsx",
     )
+
+
+# ── GET /api/reports/employee/{emp_code}/stats ───────────────────
+
+@router.get("/reports/employee/{emp_code}/stats")
+def employee_stats(
+    emp_code: str,
+    year: int = 0,
+    month: int = 0,
+    db: Session = Depends(get_db),
+    current_user=Depends(_optional_user),
+):
+    from app.services.work_calendar import get_employee_stats, get_employee_stats_month
+    from datetime import date as _date
+    y = year  or _date.today().year
+    m = month or 0
+
+    if m:
+        return get_employee_stats_month(emp_code, y, m, db)
+    return get_employee_stats(emp_code, y, db)
+
+
+# ── Schemas điểm danh thủ công ────────────────────────────────────
+
+class AttendanceUpdateRequest(BaseModel):
+    check_type:    Optional[str] = None   # "check_in" | "check_out"
+    timestamp:     Optional[str] = None   # "YYYY-MM-DD HH:MM:SS" hoặc ISO
+    note:          Optional[str] = None
+
+
+class AttendanceCreateRequest(BaseModel):
+    emp_code:   str
+    check_type: str                       # "check_in" | "check_out"
+    timestamp:  str                       # "YYYY-MM-DD HH:MM:SS" hoặc ISO
+    note:       Optional[str] = ""
+
+
+# ── GET /api/attendance/sessions/{session_id}/events ─────────────
+
+@router.get("/attendance/sessions/{session_id}/events")
+def get_attendance_session_events(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Lấy các event/bằng chứng ảnh của một phiên làm việc."""
+    rows = (
+        db.query(AttendanceEvent)
+          .filter_by(session_id=session_id)
+          .order_by(AttendanceEvent.event_time.asc())
+          .all()
+    )
+    return {
+        "session_id": session_id,
+        "events": [
+            {
+                "id": e.id,
+                "event_type": e.event_type,
+                "event_time": e.event_time.isoformat() if e.event_time else None,
+                "confidence": e.confidence,
+                "capture_path": e.capture_path,
+                "source": e.source,
+                "note": e.note,
+            }
+            for e in rows
+        ],
+    }
+
+
+# ── GET /api/attendance/{log_id} ─────────────────────────────────
+
+@router.get("/attendance/{log_id}")
+def get_attendance_log(
+    log_id: int,
+    current_user=Depends(get_current_user),
+):
+    """Lấy thông tin 1 bản ghi điểm danh theo ID."""
+    log = get_log_by_id(log_id)
+    if not log:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    return log
+
+
+# ── PUT /api/attendance/{log_id} ─────────────────────────────────
+
+@router.put("/attendance/{log_id}")
+def edit_attendance_log(
+    log_id: int,
+    body: AttendanceUpdateRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    Chỉnh sửa bản ghi điểm danh.
+    Yêu cầu quyền manager hoặc admin.
+    """
+    from app.services.auth_service import require_manager
+    # Kiểm tra quyền manager/admin
+    if current_user.role not in ("admin", "manager"):
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ quản lý (manager/admin) mới được chỉnh sửa điểm danh",
+        )
+
+    if body.check_type and body.check_type not in ("check_in", "check_out"):
+        raise HTTPException(status_code=422, detail="check_type phải là 'check_in' hoặc 'check_out'")
+
+    try:
+        updated = update_attendance_log(
+            log_id       = log_id,
+            check_type   = body.check_type,
+            timestamp_str= body.timestamp,
+            note         = body.note,
+            updated_by   = current_user.full_name or current_user.email,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+
+    return {"success": True, "message": "Đã cập nhật bản ghi điểm danh", "log": updated}
+
+
+# ── DELETE /api/attendance/{log_id} ──────────────────────────────
+
+@router.delete("/attendance/{log_id}")
+def remove_attendance_log(
+    log_id: int,
+    current_user=Depends(get_current_user),
+):
+    """
+    Xoá bản ghi điểm danh.
+    Yêu cầu quyền admin.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ admin mới được xoá bản ghi điểm danh",
+        )
+
+    try:
+        deleted = delete_attendance_log(log_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+
+    return {"success": True, "message": f"Đã xoá bản ghi #{log_id}"}
+
+
+# ── POST /api/attendance/manual ──────────────────────────────────
+
+@router.post("/attendance/manual")
+def add_manual_attendance(
+    body: AttendanceCreateRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    Tạo thủ công bản ghi điểm danh bù (quản lý thêm khi nhân viên quên chấm).
+    Yêu cầu quyền manager hoặc admin.
+    """
+    if current_user.role not in ("admin", "manager"):
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ quản lý (manager/admin) mới được tạo điểm danh thủ công",
+        )
+
+    if body.check_type not in ("check_in", "check_out"):
+        raise HTTPException(status_code=422, detail="check_type phải là 'check_in' hoặc 'check_out'")
+
+    try:
+        new_log = create_manual_attendance_log(
+            emp_code    = body.emp_code,
+            check_type  = body.check_type,
+            timestamp_str = body.timestamp,
+            note        = body.note or "",
+            created_by  = current_user.full_name or current_user.email,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    if new_log is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy nhân viên với mã '{body.emp_code}' hoặc tài khoản đã bị vô hiệu hoá",
+        )
+
+    return {"success": True, "message": "Đã tạo bản ghi điểm danh thủ công", "log": new_log}
