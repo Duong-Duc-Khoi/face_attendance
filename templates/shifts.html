@@ -370,6 +370,11 @@ body::after{
       <input type="hidden" id="shiftId">
       <div class="field"><label class="field-label">Tên ca</label><input class="input" id="shiftName" placeholder="Ca tối"></div>
       <div class="code-note" id="shiftCodeNote">Mã nội bộ sẽ được hệ thống tự tạo khi lưu ca mới.</div>
+      <div class="field">
+        <label class="field-label">Vị trí áp dụng</label>
+        <input class="input" id="shiftRequiredPosition" placeholder="VD: Đầu bếp, Phụ bếp, Phục vụ" list="positionList">
+        <datalist id="positionList"></datalist>
+      </div>
       <div class="field-row">
         <div class="field"><label class="field-label">Giờ vào</label><input class="input" type="time" id="shiftStart" value="16:00"></div>
         <div class="field"><label class="field-label">Giờ ra</label><input class="input" type="time" id="shiftEnd" value="22:00"></div>
@@ -550,6 +555,7 @@ function renderShifts(){
       </div>
       <div class="shift-meta">
         <span class="pill ${s.is_active ? "active" : ""}">${s.is_active ? "Đang dùng" : "Đã tắt"}</span>
+        ${s.required_position ? `<span class="pill">${esc(s.required_position)}</span>` : ""}
         <span class="pill">Muộn ${s.late_threshold_minutes ?? 0}p</span>
         <span class="pill">Nghỉ ${s.break_minutes ?? 0}p</span>
         ${s.is_overnight ? `<span class="pill warn">Qua ngày</span>` : ""}
@@ -648,6 +654,8 @@ function fillShiftSelects(){
   const html = active.map(s => `<option value="${s.id}">${esc(s.name)} · ${esc(s.work_start)}-${esc(s.work_end)}</option>`).join("");
   document.getElementById("bulkShiftSelect").innerHTML = html;
   document.getElementById("dayShiftSelect").innerHTML = html;
+  const positions = [...new Set(employees.map(e => e.position).filter(Boolean))].sort();
+  document.getElementById("positionList").innerHTML = positions.map(p => `<option value="${esc(p)}"></option>`).join("");
 }
 
 function monthLabel(){
@@ -718,6 +726,7 @@ function openShiftModal(id = null){
   document.getElementById("shiftModalTitle").textContent = s ? "Sửa ca làm" : "Tạo ca làm";
   document.getElementById("shiftName").value = s?.name || "";
   document.getElementById("shiftCodeNote").textContent = s ? `Mã nội bộ: ${s.code}` : "Mã nội bộ sẽ được hệ thống tự tạo khi lưu ca mới.";
+  document.getElementById("shiftRequiredPosition").value = s?.required_position || "";
   document.getElementById("shiftStart").value = s?.work_start || "16:00";
   document.getElementById("shiftEnd").value = s?.work_end || "22:00";
   document.getElementById("shiftEarly").value = s?.early_checkin_minutes ?? 30;
@@ -737,6 +746,7 @@ async function saveShift(){
   const id = document.getElementById("shiftId").value;
   const body = {
     name: document.getElementById("shiftName").value.trim(),
+    required_position: document.getElementById("shiftRequiredPosition").value.trim(),
     work_start: document.getElementById("shiftStart").value,
     work_end: document.getElementById("shiftEnd").value,
     early_checkin_minutes: parseInt(document.getElementById("shiftEarly").value) || 0,

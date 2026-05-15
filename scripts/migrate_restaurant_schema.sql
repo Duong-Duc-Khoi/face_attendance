@@ -28,6 +28,7 @@ ALTER TABLE shifts ADD COLUMN IF NOT EXISTS early_checkin_minutes INTEGER DEFAUL
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS auto_checkout_minutes INTEGER DEFAULT 180;
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS break_minutes INTEGER DEFAULT 0;
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS is_overnight BOOLEAN DEFAULT FALSE;
+ALTER TABLE shifts ADD COLUMN IF NOT EXISTS required_position VARCHAR(100) DEFAULT '';
 CREATE UNIQUE INDEX IF NOT EXISTS ux_shifts_branch_code ON shifts(COALESCE(branch_id, 0), code);
 CREATE INDEX IF NOT EXISTS ix_shifts_branch_id ON shifts(branch_id);
 

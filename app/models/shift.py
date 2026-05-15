@@ -22,6 +22,7 @@ class Shift(Base):
     code        = Column(String(20),  index=True, nullable=False)  # "morning", "afternoon"
     work_start  = Column(String(5),   nullable=False)        # "08:00"
     work_end    = Column(String(5),   nullable=False)        # "12:00"
+    required_position = Column(String(100), default="")      # VD: "Đầu bếp", "Phục vụ"
     late_threshold_minutes = Column(Integer, default=15)     # phút trễ cho phép
     early_checkin_minutes  = Column(Integer, default=30)     # cho phép vào sớm trước ca
     auto_checkout_minutes  = Column(Integer, default=180)    # cửa sổ ra sau ca, dùng auto/match ca

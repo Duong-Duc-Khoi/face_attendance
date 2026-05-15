@@ -27,6 +27,7 @@ def _shift_to_dict(s: Shift) -> dict:
         "code":                  s.code,
         "work_start":            s.work_start,
         "work_end":              s.work_end,
+        "required_position":      s.required_position or "",
         "late_threshold_minutes": s.late_threshold_minutes,
         "early_checkin_minutes":  s.early_checkin_minutes,
         "auto_checkout_minutes":  s.auto_checkout_minutes,
@@ -98,6 +99,7 @@ def create_shift(data: dict, db: Session) -> dict:
         code       = code,
         work_start = data["work_start"],
         work_end   = data["work_end"],
+        required_position      = data.get("required_position", ""),
         late_threshold_minutes = data.get("late_threshold_minutes", 15),
         early_checkin_minutes  = data.get("early_checkin_minutes", 30),
         auto_checkout_minutes  = data.get("auto_checkout_minutes", 180),
@@ -118,6 +120,7 @@ def update_shift(shift_id: int, data: dict, db: Session) -> Optional[dict]:
         return None
     for field in (
         "branch_id", "name", "work_start", "work_end",
+        "required_position",
         "late_threshold_minutes", "early_checkin_minutes",
         "auto_checkout_minutes", "break_minutes", "is_overnight",
         "note", "is_active",

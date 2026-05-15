@@ -8,6 +8,7 @@ explicitly applies the draft.
 import json
 import urllib.error
 import urllib.request
+import unicodedata
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
@@ -43,6 +44,7 @@ def _shift_dict(s: Shift) -> dict:
         "code": s.code,
         "work_start": s.work_start,
         "work_end": s.work_end,
+        "required_position": s.required_position or "",
         "is_overnight": bool(s.is_overnight),
         "break_minutes": s.break_minutes or 0,
     }
@@ -292,9 +294,17 @@ def _heuristic_plan(context: dict) -> dict:
         for shift in shifts:
             shift_id = int(shift["id"])
             need = max(per_shift.get(shift_id, default_min + weekend_boost) - existing_by_date_shift.get((work_date, shift_id), 0), 0)
+            required_position = _normalize_role(shift.get("required_position", ""))
             for _ in range(need):
+                pool = [
+                    e for e in employees
+                    if not required_position or required_position in _normalize_role(e.get("position", ""))
+                ]
+                if required_position and not pool:
+                    warnings.append(f"Không có nhân viên vị trí {shift.get('required_position')} cho {shift['name']}")
+                    break
                 candidates = sorted(
-                    employees,
+                    pool,
                     key=lambda e: (daily_count.get((e["emp_code"], work_date), 0), load.get(e["emp_code"], 0), e["emp_code"]),
                 )
                 chosen = None
@@ -353,11 +363,20 @@ def _planner_schema() -> dict:
     }
 
 
+def _normalize_role(value: str) -> str:
+    raw = (value or "").replace("đ", "d").replace("Đ", "D")
+    return "".join(
+        ch for ch in unicodedata.normalize("NFKD", raw.lower())
+        if not unicodedata.combining(ch)
+    ).strip()
+
+
 def _planner_instruction() -> str:
     return (
         "Bạn là trợ lý lập lịch ca nhà hàng. Chỉ tạo bản nháp phân ca, "
         "không xoá lịch hiện có. Ưu tiên đủ người mỗi ca, chia đều tải, "
-        "không xếp quá 2 ca/người/ngày và tôn trọng dữ liệu đầu vào. "
+        "không xếp quá 2 ca/người/ngày, chỉ gán nhân viên có position phù hợp "
+        "khi ca có required_position, và tôn trọng dữ liệu đầu vào. "
         "Chỉ trả JSON đúng schema."
     )
 

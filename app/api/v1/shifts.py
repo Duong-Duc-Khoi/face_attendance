@@ -36,6 +36,7 @@ class ShiftCreate(BaseModel):
     code:       Optional[str] = None
     work_start: str   # "HH:MM"
     work_end:   str
+    required_position: Optional[str] = ""
     late_threshold_minutes: int = 15
     early_checkin_minutes:  int = 30
     auto_checkout_minutes:  int = 180
@@ -68,6 +69,7 @@ class ShiftUpdate(BaseModel):
     name:       Optional[str]  = None
     work_start: Optional[str]  = None
     work_end:   Optional[str]  = None
+    required_position: Optional[str] = None
     late_threshold_minutes: Optional[int] = None
     early_checkin_minutes:  Optional[int] = None
     auto_checkout_minutes:  Optional[int] = None
