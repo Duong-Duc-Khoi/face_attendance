@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.employee import Employee
 from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
+from app.models.shift import Shift
 from app.services.shift_service import (
     calc_status_for_shift,
     find_shift_assignment_for_time,
@@ -403,50 +404,35 @@ def update_capture_path(log_id: int, capture_path: str, event_id: int | None = N
         print(f"  ✗ update_capture_path lỗi: {e}")
     finally:
         db.close()
+
+
+def _fallback_shift_end(work_date, now: datetime) -> tuple[datetime, datetime]:
+    h, m = map(int, settings.WORK_END.split(":"))
+    shift_end = datetime.combine(work_date, datetime.min.time()).replace(hour=h, minute=m)
+    auto_until = shift_end + timedelta(minutes=180)
+    return shift_end, auto_until
+
+
+def _auto_checkout_note(shift_name: str = "") -> str:
+    suffix = f" ({shift_name})" if shift_name else ""
+    return f"Tự động chấm ra theo giờ kết thúc ca{suffix} - nhân viên quên check out"
+
+
 def auto_checkout_missing(auto_time: datetime = None) -> int:
     """
-    Quét tất cả nhân viên có log lẻ (check_in chưa có check_out) trong ngày.
-    Tự tạo log check_out với note = "Tự động - không check out".
-    Trả về số lượng log được tạo.
+    Auto checkout thông minh theo ca:
+    - Với session có shift_id: chỉ đóng khi now >= shift_end + auto_checkout_minutes.
+    - Giờ check_out được ghi theo shift_end, không theo giờ job chạy, để không tính
+      overtime khi không có bằng chứng chấm ra.
+    - Fallback cho log cũ không có session dùng WORK_END + 180 phút.
+    Trả về số lượng session/log được đóng tự động.
     """
     db = SessionLocal()
     try:
         now         = auto_time or datetime.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # Lấy tất cả emp_code có log hôm nay
-        emp_codes = (
-            db.query(AttendanceLog.emp_code)
-              .filter(AttendanceLog.timestamp >= today_start)
-              .distinct()
-              .all()
-        )
-
+        closed_session_codes: set[str] = set()
         count = 0
-        for (emp_code,) in emp_codes:
-            today_logs = (
-                db.query(AttendanceLog)
-                  .filter_by(emp_code=emp_code)
-                  .filter(AttendanceLog.timestamp >= today_start)
-                  .order_by(AttendanceLog.timestamp.asc())
-                  .all()
-            )
-            # Số log lẻ → có check_in chưa có check_out
-            if len(today_logs) % 2 == 1:
-                emp = db.query(Employee).filter_by(emp_code=emp_code).first()
-                log = AttendanceLog(
-                    employee_id  = emp.id if emp else today_logs[-1].employee_id,
-                    emp_code     = emp_code,
-                    emp_name     = today_logs[-1].emp_name,
-                    department   = today_logs[-1].department,
-                    check_type   = "check_out",
-                    timestamp    = now,
-                    confidence   = 0.0,
-                    capture_path = "",
-                    note         = "Tự động - không check out",
-                )
-                db.add(log)
-                count += 1
 
         open_sessions = (
             db.query(AttendanceSession)
@@ -459,12 +445,43 @@ def auto_checkout_missing(auto_time: datetime = None) -> int:
               .all()
         )
         for session in open_sessions:
+            shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
+            if shift:
+                _start, shift_end, _from, auto_until = shift_window(session.work_date, shift)
+                checkout_at = shift_end
+                note = _auto_checkout_note(shift.name)
+            else:
+                checkout_at, auto_until = _fallback_shift_end(session.work_date, now)
+                note = _auto_checkout_note()
+
+            if now < auto_until:
+                continue
+
+            emp = db.query(Employee).filter_by(id=session.employee_id).first()
             session.status = "missing_checkout"
-            session.check_out_at = now
+            session.check_out_at = checkout_at
             session.check_out_status = "auto"
+            session.early_leave_minutes = 0
+            session.overtime_minutes = 0
             if session.check_in_at:
-                gross_minutes = int((now - session.check_in_at).total_seconds() / 60)
+                gross_minutes = int((checkout_at - session.check_in_at).total_seconds() / 60)
                 session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+            session.note = note
+
+            if emp:
+                db.add(AttendanceLog(
+                    employee_id=emp.id,
+                    emp_code=emp.emp_code,
+                    emp_name=emp.name,
+                    department=emp.department,
+                    check_type="check_out",
+                    timestamp=checkout_at,
+                    confidence=0.0,
+                    capture_path="",
+                    note=note,
+                ))
+                closed_session_codes.add(emp.emp_code)
+
             db.add(AttendanceEvent(
                 session_id=session.id,
                 employee_id=session.employee_id,
@@ -473,11 +490,51 @@ def auto_checkout_missing(auto_time: datetime = None) -> int:
                 event_time=now,
                 confidence=0.0,
                 source="auto",
-                note="Tự động - không check out",
+                note=note,
             ))
+            count += 1
+
+        # Fallback cho dữ liệu/log cũ chưa tạo AttendanceSession.
+        emp_codes = (
+            db.query(AttendanceLog.emp_code)
+              .filter(AttendanceLog.timestamp >= today_start)
+              .distinct()
+              .all()
+        )
+
+        for (emp_code,) in emp_codes:
+            if emp_code in closed_session_codes:
+                continue
+            today_logs = (
+                db.query(AttendanceLog)
+                  .filter_by(emp_code=emp_code)
+                  .filter(AttendanceLog.timestamp >= today_start)
+                  .order_by(AttendanceLog.timestamp.asc())
+                  .all()
+            )
+            # Số log lẻ → có check_in chưa có check_out
+            if len(today_logs) % 2 == 1:
+                checkout_at, auto_until = _fallback_shift_end(now.date(), now)
+                if now < auto_until:
+                    continue
+                emp = db.query(Employee).filter_by(emp_code=emp_code).first()
+                note = _auto_checkout_note()
+                log = AttendanceLog(
+                    employee_id  = emp.id if emp else today_logs[-1].employee_id,
+                    emp_code     = emp_code,
+                    emp_name     = today_logs[-1].emp_name,
+                    department   = today_logs[-1].department,
+                    check_type   = "check_out",
+                    timestamp    = checkout_at,
+                    confidence   = 0.0,
+                    capture_path = "",
+                    note         = note,
+                )
+                db.add(log)
+                count += 1
 
         db.commit()
-        return count + len(open_sessions)
+        return count
     except Exception as e:
         db.rollback()
         print(f"  ✗ auto_checkout_missing lỗi: {e}")

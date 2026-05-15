@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from app.api.v1.shifts import router as shifts_router
 from app.core.config import settings
 from app.core.database import init_db
@@ -60,10 +61,10 @@ async def lifespan(app: FastAPI):
 
     scheduler.add_job(_daily_report, CronTrigger(hour=18, minute=0),
                       id="daily_report", replace_existing=True)
-    scheduler.add_job(_auto_checkout, CronTrigger(hour=23, minute=59),
+    scheduler.add_job(_auto_checkout, IntervalTrigger(minutes=15),
                       id="auto_checkout", replace_existing=True)
     scheduler.start()
-    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00, auto checkout lúc 23:59")
+    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00, auto checkout quét mỗi 15 phút")
     yield
     scheduler.shutdown(wait=False)
     release_camera()
