@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
 
@@ -187,6 +188,9 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
         db.commit()
         db.refresh(a)
 
+    _reconcile_assignment_attendance(a, shift, emp, db)
+    db.commit()
+    db.refresh(a)
     return _assignment_to_dict(a, shift)
 
 
@@ -316,6 +320,147 @@ def shift_window(work_date: date, shift: Shift) -> tuple[datetime, datetime, dat
     checkin_from   = start - timedelta(minutes=shift.early_checkin_minutes or 0)
     checkout_until = end + timedelta(minutes=shift.auto_checkout_minutes or 0)
     return start, end, checkin_from, checkout_until
+
+
+def _session_note_for_reconcile(session: AttendanceSession) -> str:
+    if session.check_in_at and session.check_out_at:
+        return "Đồng bộ từ log chấm công sau khi bổ sung ca"
+    if session.check_in_at:
+        return "Đồng bộ check-in từ log chấm công sau khi bổ sung ca"
+    return session.note or ""
+
+
+def _link_or_create_reconciled_event(
+    log: AttendanceLog,
+    session: AttendanceSession,
+    emp: Employee,
+    db: Session,
+) -> None:
+    event = (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == emp.id,
+              AttendanceEvent.event_type == log.check_type,
+              AttendanceEvent.event_time == log.timestamp,
+          )
+          .first()
+    )
+    if event:
+        event.session_id = session.id
+        event.branch_id = session.branch_id
+        if not event.capture_path:
+            event.capture_path = log.capture_path or ""
+        if not event.note:
+            event.note = session.note or log.note or ""
+        return
+
+    db.add(AttendanceEvent(
+        session_id=session.id,
+        employee_id=emp.id,
+        branch_id=session.branch_id,
+        event_type=log.check_type,
+        event_time=log.timestamp,
+        confidence=log.confidence or 0.0,
+        capture_path=log.capture_path or "",
+        source="reconciled",
+        note=session.note or log.note or "",
+    ))
+
+
+def _reconcile_assignment_attendance(
+    assignment: ShiftAssignment,
+    shift: Shift,
+    emp: Employee | None,
+    db: Session,
+) -> None:
+    """
+    Khi quản lý bổ sung ca sau khi nhân viên đã chấm công, chuyển log cũ vào
+    session của ca đó để báo công và auto-checkout xử lý tiếp như ca bình thường.
+    """
+    if not emp:
+        return
+
+    shift_start, shift_end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+    logs = (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.emp_code == assignment.emp_code,
+              AttendanceLog.timestamp >= checkin_from,
+              AttendanceLog.timestamp <= checkout_until,
+          )
+          .order_by(AttendanceLog.timestamp.asc())
+          .all()
+    )
+    if not logs:
+        return
+
+    check_in_log = next((log for log in logs if log.check_type == "check_in"), None)
+    check_out_candidates = [
+        log for log in logs
+        if log.check_type == "check_out"
+        and (not check_in_log or log.timestamp >= check_in_log.timestamp)
+    ]
+    check_out_log = check_out_candidates[-1] if check_out_candidates else None
+    if not check_in_log and not check_out_log:
+        return
+
+    session = (
+        db.query(AttendanceSession)
+          .filter_by(shift_assignment_id=assignment.id)
+          .first()
+    )
+    if not session:
+        session = AttendanceSession(
+            employee_id=emp.id,
+            branch_id=assignment.branch_id or shift.branch_id or emp.branch_id,
+            shift_assignment_id=assignment.id,
+            shift_id=shift.id,
+            work_date=assignment.work_date,
+            status="open",
+            source="reconciled",
+            break_minutes=shift.break_minutes or 0,
+        )
+        db.add(session)
+        db.flush()
+
+    session.employee_id = emp.id
+    session.branch_id = assignment.branch_id or shift.branch_id or emp.branch_id
+    session.shift_id = shift.id
+    session.work_date = assignment.work_date
+    session.break_minutes = shift.break_minutes or 0
+    session.source = session.source or "reconciled"
+
+    if check_in_log:
+        session.check_in_at = check_in_log.timestamp
+        raw_late_minutes = max(0, int((check_in_log.timestamp - shift_start).total_seconds() / 60))
+        grace_minutes = shift.late_threshold_minutes or 0
+        session.late_minutes = max(0, raw_late_minutes - grace_minutes)
+        session.check_in_status = "late" if raw_late_minutes > grace_minutes else "on_time"
+
+    if check_out_log:
+        session.check_out_at = check_out_log.timestamp
+        session.status = "completed"
+        session.early_leave_minutes = max(0, int((shift_end - check_out_log.timestamp).total_seconds() / 60))
+        session.overtime_minutes = max(0, int((check_out_log.timestamp - shift_end).total_seconds() / 60))
+        if session.early_leave_minutes > 0:
+            session.check_out_status = "early_leave"
+        elif session.overtime_minutes > 0:
+            session.check_out_status = "overtime"
+        else:
+            session.check_out_status = "normal"
+    elif check_in_log and session.check_out_at is None:
+        session.status = "open"
+
+    if session.check_in_at and session.check_out_at:
+        gross_minutes = int((session.check_out_at - session.check_in_at).total_seconds() / 60)
+        session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+
+    session.note = session.note or _session_note_for_reconcile(session)
+
+    if check_in_log:
+        _link_or_create_reconciled_event(check_in_log, session, emp, db)
+    if check_out_log:
+        _link_or_create_reconciled_event(check_out_log, session, emp, db)
 
 
 def find_shift_assignment_for_time(emp_code: str, moment: datetime, db: Session) -> tuple[Optional[ShiftAssignment], Optional[Shift]]:
