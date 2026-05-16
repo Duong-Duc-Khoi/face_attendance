@@ -723,6 +723,70 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
+// ── Success sounds ──
+let audioCtx = null;
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!audioCtx) audioCtx = new AudioContextClass();
+  return audioCtx;
+}
+
+function unlockAudio() {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+
+['pointerdown', 'keydown', 'touchstart'].forEach((eventName) => {
+  window.addEventListener(eventName, unlockAudio, { once: true, passive: true });
+});
+
+function playToneSequence(notes) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') {
+    ctx.resume()
+      .then(() => scheduleToneSequence(ctx, notes))
+      .catch(() => {});
+    return;
+  }
+  scheduleToneSequence(ctx, notes);
+}
+
+function scheduleToneSequence(ctx, notes) {
+  const now = ctx.currentTime;
+  notes.forEach((note) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(note.freq, now + note.start);
+    gain.gain.setValueAtTime(0.0001, now + note.start);
+    gain.gain.exponentialRampToValueAtTime(note.volume, now + note.start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + note.start + note.duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now + note.start);
+    osc.stop(now + note.start + note.duration + 0.03);
+  });
+}
+
+function playAttendanceSound(checkType) {
+  if (checkType === 'check_in') {
+    playToneSequence([
+      { freq: 660, start: 0.00, duration: 0.11, volume: 0.16 },
+      { freq: 880, start: 0.12, duration: 0.14, volume: 0.14 },
+    ]);
+    return;
+  }
+  if (checkType === 'check_out') {
+    playToneSequence([
+      { freq: 880, start: 0.00, duration: 0.10, volume: 0.15 },
+      { freq: 660, start: 0.11, duration: 0.16, volume: 0.13 },
+    ]);
+  }
+}
+
 // ── Stats counter ──
 let statIn = 0, statOut = 0;
 function updateStats(type) {
@@ -784,6 +848,7 @@ function showResult(data) {
 
   // Update log
   if (!isUnknown) {
+    playAttendanceSound(data.check_type);
     updateStats(data.check_type);
     addLogItem(data);
     setTimeout(loadTodayHistory, 800);
