@@ -13,6 +13,7 @@ from app.services.attendance import process_attendance,update_capture_path
 from app.services.notify import notify_late_async
 
 _ai_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="face_ai")
+PRESENCE_RESET_SECONDS = 3.0
 
 
 class ConnectionManager:
@@ -49,6 +50,8 @@ async def _safe_send(websocket: WebSocket, data: dict) -> bool:
 async def ws_attendance(websocket: WebSocket):
     await manager.connect(websocket)
     loop = asyncio.get_running_loop()
+    processed_until_absent: set[str] = set()
+    last_seen_by_emp: dict[str, float] = {}
     try:
         while True:
             cam = get_camera()
@@ -59,24 +62,21 @@ async def ws_attendance(websocket: WebSocket):
                 await asyncio.sleep(2.0)
                 continue
 
-            frame, results, emp_map = await loop.run_in_executor(
+            frame, results, _emp_map = await loop.run_in_executor(
                 _ai_executor, cam.run_recognition
             )
 
-            # Broadcast bbox lên canvas client
-            if results:
-                fw = frame.shape[1] if frame is not None else 1280
-                fh = frame.shape[0] if frame is not None else 720
-                faces_payload = [
-                    {
-                        "bbox":       [fw - r["bbox"][2], r["bbox"][1], fw - r["bbox"][0], r["bbox"][3]],
-                        "recognized": r["recognized"],
-                        "name":       emp_map.get(r["emp_code"], r["emp_code"]) if r["recognized"] else "",
-                        "confidence": r["similarity"],
-                    }
-                    for r in results
-                ]
-                await manager.broadcast({"type": "faces", "faces": faces_payload, "fw": fw, "fh": fh})
+            now_seen = loop.time()
+            recognized_codes = {
+                r["emp_code"] for r in (results or [])
+                if r.get("recognized") and r.get("emp_code")
+            }
+            for emp_code in recognized_codes:
+                last_seen_by_emp[emp_code] = now_seen
+            for emp_code in list(processed_until_absent):
+                if now_seen - last_seen_by_emp.get(emp_code, 0) >= PRESENCE_RESET_SECONDS:
+                    processed_until_absent.remove(emp_code)
+                    last_seen_by_emp.pop(emp_code, None)
 
             # Xử lý chấm công
             for r in (results or []):
@@ -84,6 +84,8 @@ async def ws_attendance(websocket: WebSocket):
                     continue
                 emp_code   = r["emp_code"]
                 confidence = r["similarity"]
+                if emp_code in processed_until_absent:
+                    continue
                
                 try:
                     log = await loop.run_in_executor(
@@ -93,7 +95,7 @@ async def ws_attendance(websocket: WebSocket):
                     print(f"  ✗ process_attendance lỗi [{emp_code}]: {e}")
                     continue
 
-                if log:
+                if log and log.get("ok", True):
                     capture = await loop.run_in_executor(
                         _ai_executor, cam.capture_snapshot, emp_code, frame
                     )
@@ -104,6 +106,7 @@ async def ws_attendance(websocket: WebSocket):
                         asyncio.create_task(_update())
                     print(f"  → {log.get('name')} {log.get('check_type')}")
                     await manager.broadcast({**log, "type": "attendance"})
+                    processed_until_absent.add(emp_code)
 
                     status = log.get("status", "")
                     if status and "muộn" in status:
@@ -112,8 +115,13 @@ async def ws_attendance(websocket: WebSocket):
                             log["name"], log["emp_code"], log["department"],
                             minutes_late, log.get("email", ""),
                         ))
+                elif log:
+                    print(f"  ⚠ {log.get('message', 'Không chấm công')} [{emp_code}]")
+                    await manager.broadcast({**log, "type": "attendance_error"})
+                    processed_until_absent.add(emp_code)
                 else:
                     print(f"  ⚠ Cooldown hoặc lỗi logic [{emp_code}]")
+                    processed_until_absent.add(emp_code)
 
             await asyncio.sleep(1.0)
 

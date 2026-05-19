@@ -19,13 +19,22 @@ from app.services.shift_service import (
 def process_attendance(emp_code: str, confidence: float, capture_path: str = "") -> dict | None:
     """
     Xử lý 1 sự kiện chấm công từ kết quả nhận diện.
-    Trả về dict nếu ghi log thành công, None nếu cooldown / lỗi.
+    Trả về dict nếu ghi log thành công hoặc cần báo lỗi cho kiosk, None nếu bỏ qua im lặng.
     """
     db = SessionLocal()
     try:
         emp = db.query(Employee).filter_by(emp_code=emp_code, is_active=True).first()
         if not emp:
-            return None
+            return {
+                "ok": False,
+                "reason": "employee_not_found",
+                "emp_code": emp_code,
+                "name": "",
+                "department": "",
+                "confidence": round(confidence, 4),
+                "message": "Không tìm thấy nhân viên",
+                "voice_message": "Có lỗi. Không tìm thấy nhân viên.",
+            }
 
         now = datetime.now()
 
@@ -37,7 +46,31 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
               .first()
         )
         if last_log and (now - last_log.timestamp) < timedelta(minutes=settings.COOLDOWN_MINUTES):
-            return None
+            last_type_label = "check in" if last_log.check_type == "check_in" else "check out"
+            remaining_seconds = max(
+                0,
+                int((timedelta(minutes=settings.COOLDOWN_MINUTES) - (now - last_log.timestamp)).total_seconds()),
+            )
+            remaining_minutes = max(1, (remaining_seconds + 59) // 60)
+            return {
+                "ok": False,
+                "reason": "cooldown",
+                "emp_code": emp_code,
+                "name": emp.name,
+                "department": emp.department,
+                "position": emp.position,
+                "email": emp.email or "",
+                "check_type": last_log.check_type,
+                "time": now.strftime("%H:%M:%S"),
+                "date": now.strftime("%d/%m/%Y"),
+                "timestamp": now.isoformat(),
+                "confidence": round(confidence, 4),
+                "cooldown_minutes": settings.COOLDOWN_MINUTES,
+                "remaining_seconds": remaining_seconds,
+                "message": f"Bạn đã {last_type_label} trong {settings.COOLDOWN_MINUTES} phút trước",
+                "voice_message": f"Bạn đã {last_type_label} trong {settings.COOLDOWN_MINUTES} phút trước. Vui lòng thử lại sau khoảng {remaining_minutes} phút.",
+                "avatar_url": emp.avatar_url or "",
+            }
 
         assignment, shift = find_shift_assignment_for_time(emp_code, now, db)
         session = None
@@ -53,7 +86,22 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         if assignment:
             if session and session.check_in_at and session.check_out_at:
-                return None
+                return {
+                    "ok": False,
+                    "reason": "shift_completed",
+                    "emp_code": emp_code,
+                    "name": emp.name,
+                    "department": emp.department,
+                    "position": emp.position,
+                    "email": emp.email or "",
+                    "time": now.strftime("%H:%M:%S"),
+                    "date": now.strftime("%d/%m/%Y"),
+                    "timestamp": now.isoformat(),
+                    "confidence": round(confidence, 4),
+                    "message": "Ca làm đã hoàn tất check in và check out",
+                    "voice_message": "Ca làm đã hoàn tất check in và check out.",
+                    "avatar_url": emp.avatar_url or "",
+                }
             check_type = "check_out" if session and session.check_in_at else "check_in"
         else:
             today_count = (
@@ -144,6 +192,7 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
         db.commit()
 
         return {
+            "ok":         True,
             "id":         log.id,
             "session_id": session.id if session else None,
             "event_id":   event.id,
@@ -166,7 +215,16 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
     except Exception as e:
         db.rollback()
         print(f"  ✗ process_attendance lỗi: {e}")
-        return None
+        return {
+            "ok": False,
+            "reason": "error",
+            "emp_code": emp_code,
+            "name": "",
+            "department": "",
+            "confidence": round(confidence, 4),
+            "message": "Có lỗi khi xử lý chấm công",
+            "voice_message": "Có lỗi khi xử lý chấm công.",
+        }
     finally:
         db.close()
 
