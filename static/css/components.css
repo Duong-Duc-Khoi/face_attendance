@@ -15,9 +15,9 @@
   font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   color:var(--muted);background:var(--panel);border-bottom:1px solid var(--border);
 }
-.data-table td{padding:11px 16px;border-bottom:1px solid rgba(26,47,80,.5);vertical-align:middle}
+.data-table td{padding:11px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
 .data-table tr:last-child td{border-bottom:none}
-.data-table tbody tr:hover{background:rgba(0,212,170,.04)}
+.data-table tbody tr:hover{background:var(--row-hover)}
 
 /* ── Badges ── */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
@@ -35,7 +35,7 @@
   cursor:pointer;border:none;transition:all .2s;
   text-decoration:none;letter-spacing:.04em;
 }
-.btn-teal{background:var(--teal);color:#000}
+.btn-teal{background:var(--teal);color:var(--teal-contrast)}
 .btn-teal:hover{background:#00f0c0}
 .btn-outline{background:transparent;color:var(--muted);border:1px solid var(--border)}
 .btn-outline:hover{color:var(--text);border-color:var(--blue)}
@@ -44,7 +44,7 @@
 
 /* ── Filter input ── */
 .filter-input{
-  background:var(--panel);border:1px solid var(--border);
+  background:var(--control-bg);border:1px solid var(--border);
   color:var(--text);font-family:var(--font-sans);
   font-size:12px;padding:7px 12px;border-radius:7px;
   outline:none;transition:border-color .2s;

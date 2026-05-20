@@ -4,8 +4,9 @@ header{
   display:flex;align-items:center;justify-content:space-between;
   height:64px;padding:0 32px;
   border-bottom:1px solid var(--border);
-  background:rgba(6,12,23,.9);
+  background:var(--header-bg);
   backdrop-filter:blur(8px);
+  box-shadow:0 1px 0 rgba(255,255,255,.02);
 }
 
 .brand{display:flex;align-items:center;gap:12px}
@@ -20,7 +21,7 @@ header{
   color:var(--teal);letter-spacing:.12em;text-transform:uppercase;
 }
 
-.nav-links{display:flex;gap:8px}
+.nav-links{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .nav-link{
   padding:6px 16px;border-radius:6px;
   font-size:12px;font-weight:600;letter-spacing:.06em;
@@ -29,6 +30,25 @@ header{
 }
 .nav-link:hover{color:var(--text);background:var(--panel)}
 .nav-link.active{color:var(--teal);background:var(--teal-glow)}
+
+.theme-toggle,
+.logout-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:30px;padding:5px 12px;border-radius:7px;
+  font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.04em;
+  background:var(--control-bg);cursor:pointer;transition:all .18s;
+}
+.theme-toggle{border:1px solid var(--border);color:var(--muted)}
+.theme-toggle:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-glow)}
+.theme-toggle-mark{
+  width:10px;height:10px;border-radius:50%;border:1px solid currentColor;
+  box-shadow:inset -3px -2px 0 currentColor;display:inline-block;
+}
+[data-theme="light"] .theme-toggle-mark{box-shadow:inset 0 0 0 3px currentColor}
+.logout-btn{
+  border:1px solid var(--logout-border);color:var(--red);background:var(--logout-bg);
+}
+.logout-btn:hover{background:var(--logout-hover)}
 
 /* ── Page wrapper ── */
 .page{

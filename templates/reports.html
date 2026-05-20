@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Báo cáo — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="/static/js/theme.js"></script>
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/nav.css">
 <link rel="stylesheet" href="/static/css/components.css">
@@ -25,8 +26,12 @@
     <a href="/report" class="nav-link active">Báo cáo</a>
     <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
     <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Chuyển giao diện sáng tối">
+      <span class="theme-toggle-mark" aria-hidden="true"></span>
+      <span data-theme-label>Tối</span>
+    </button>
     <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
-    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
+    <button data-logout class="logout-btn">→ Đăng xuất</button>
 </div>
 </header>
 
@@ -158,6 +163,12 @@
 
 <script>
 let chartDate=null,chartDept=null;
+let lastByDate=[],lastByDept=[];
+const cssVar=name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+window.addEventListener('faceattend:themechange',()=>{
+  if(lastByDate.length)renderDateChart(lastByDate);
+  if(lastByDept.length)renderDeptChart(lastByDept);
+});
 
 // ── Init dates ──
 (function(){
@@ -203,8 +214,10 @@ async function loadReport(){
     document.getElementById('rangeLabel').textContent=from+' → '+to;
 
     // Charts
-    renderDateChart(summ.by_date||[]);
-    renderDeptChart(summ.by_dept||[]);
+    lastByDate=summ.by_date||[];
+    lastByDept=summ.by_dept||[];
+    renderDateChart(lastByDate);
+    renderDeptChart(lastByDept);
 
     // Table
     const allLogs=logs.logs||[];
@@ -236,6 +249,10 @@ function daysBetween(from,to){
 }
 
 function renderDateChart(byDate){
+  const muted=cssVar('--muted');
+  const border=cssVar('--border');
+  const teal=cssVar('--teal');
+  const blue=cssVar('--blue');
   const labels=byDate.map(d=>d.date.split('-').slice(1).join('/'));
   const inData=byDate.map(d=>d.checked_in||0);
   const outData=byDate.map(d=>d.checked_out||0);
@@ -246,25 +263,27 @@ function renderDateChart(byDate){
     data:{
       labels,
       datasets:[
-        {label:'Vào làm',data:inData,backgroundColor:'rgba(0,212,170,.6)',borderColor:'#00d4aa',borderWidth:1,borderRadius:4},
-        {label:'Ra về',data:outData,backgroundColor:'rgba(58,143,255,.5)',borderColor:'#3a8fff',borderWidth:1,borderRadius:4},
+        {label:'Vào làm',data:inData,backgroundColor:'rgba(0,212,170,.45)',borderColor:teal,borderWidth:1,borderRadius:4},
+        {label:'Ra về',data:outData,backgroundColor:'rgba(58,143,255,.38)',borderColor:blue,borderWidth:1,borderRadius:4},
       ]
     },
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:'#5a7a9a',font:{size:11}}}},
+      plugins:{legend:{labels:{color:muted,font:{size:11}}}},
       scales:{
-        x:{ticks:{color:'#5a7a9a',font:{size:10}},grid:{color:'rgba(26,47,80,.5)'}},
-        y:{ticks:{color:'#5a7a9a',font:{size:10}},grid:{color:'rgba(26,47,80,.5)'},beginAtZero:true}
+        x:{ticks:{color:muted,font:{size:10}},grid:{color:border}},
+        y:{ticks:{color:muted,font:{size:10}},grid:{color:border},beginAtZero:true}
       }
     }
   });
 }
 
 function renderDeptChart(byDept){
-  if(!byDept.length)return;
+  if(!byDept.length){if(chartDept)chartDept.destroy();return;}
   if(chartDept)chartDept.destroy();
-  const colors=['#00d4aa','#3a8fff','#f6c90e','#ff4d6a','#a78bfa','#fb923c'];
+  const muted=cssVar('--muted');
+  const surface=cssVar('--surface');
+  const colors=[cssVar('--teal'),cssVar('--blue'),cssVar('--yellow'),cssVar('--red'),'#a78bfa','#fb923c'];
   const ctx=document.getElementById('chartByDept').getContext('2d');
   chartDept=new Chart(ctx,{
     type:'doughnut',
@@ -273,13 +292,13 @@ function renderDeptChart(byDept){
       datasets:[{
         data:byDept.map(d=>d.count),
         backgroundColor:colors.slice(0,byDept.length),
-        borderWidth:2,borderColor:'#0d1626'
+        borderWidth:2,borderColor:surface
       }]
     },
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{
-        legend:{position:'bottom',labels:{color:'#5a7a9a',font:{size:10},padding:10}},
+        legend:{position:'bottom',labels:{color:muted,font:{size:10},padding:10}},
       },
       cutout:'65%'
     }
