@@ -6,7 +6,7 @@
 <title>Phân ca nhà hàng - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-1">
 <link rel="stylesheet" href="/static/css/components.css">
 <script src="/static/js/auth-guard.js"></script>
 <style>
@@ -39,16 +39,16 @@ body::after{
   font-size:12px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .18s;
 }
 .icon-btn svg,.chip-btn svg{width:15px;height:15px;flex:0 0 auto}
-.icon-btn:hover,.chip-btn:hover{border-color:var(--cyan);color:#fff;background:#13243e}
-.icon-btn.primary{background:var(--green);border-color:var(--green);color:#00110d}
-.icon-btn.primary:hover{background:#26e8c1;color:#00110d}
+.icon-btn:hover,.chip-btn:hover{border-color:var(--cyan);color:var(--text);background:var(--panel)}
+.icon-btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.icon-btn.primary:hover{background:var(--green);color:#fff}
 .icon-btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
 .icon-btn.danger:hover{background:rgba(255,77,106,.12);border-color:var(--red)}
 .icon-only{width:34px;padding:0}
 
 .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
 .metric{
-  min-height:82px;background:rgba(13,22,38,.82);border:1px solid var(--border);
+  min-height:82px;background:var(--surface);border:1px solid var(--border);
   border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between;
 }
 .metric-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
@@ -70,14 +70,14 @@ body::after{
   color:var(--text);border-radius:8px;padding:8px 10px;font-family:var(--font-sans);
   font-size:12px;outline:none;transition:border-color .18s,background .18s;
 }
-.input:focus,.select:focus{border-color:var(--green);background:#102039}
+.input:focus,.select:focus{border-color:var(--green);background:var(--surface)}
 .select option{background:var(--surface)}
 .check-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text)}
 .check-row input{accent-color:var(--green)}
 
 .shift-list{display:flex;flex-direction:column;gap:8px;max-height:440px;overflow:auto;padding-right:2px}
 .shift-card{
-  border:1px solid var(--border);background:linear-gradient(180deg,rgba(17,30,52,.94),rgba(13,22,38,.94));
+  border:1px solid var(--border);background:linear-gradient(180deg,var(--surface),var(--panel));
   border-radius:8px;padding:12px;display:grid;gap:10px;transition:all .18s;
 }
 .shift-card:hover{border-color:rgba(58,143,255,.55);transform:translateY(-1px)}
@@ -88,10 +88,10 @@ body::after{
 .shift-dot.evening{background:var(--cyan)}.shift-dot.night{background:var(--violet)}
 .shift-name{font-size:13px;font-weight:700}
 .shift-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
-.code-note{font-family:var(--font-mono);font-size:10px;color:var(--muted);padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:rgba(6,12,23,.22)}
+.code-note{font-family:var(--font-mono);font-size:10px;color:var(--muted);padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:var(--panel)}
 .shift-time{font-family:var(--font-mono);font-size:13px;color:var(--green);white-space:nowrap}
 .shift-meta{display:flex;gap:6px;flex-wrap:wrap}
-.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--muted);background:rgba(6,12,23,.35)}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--muted);background:var(--surface)}
 .pill.active{color:var(--green);border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.08)}
 .pill.warn{color:var(--amber);border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08)}
 .shift-actions{display:flex;gap:6px;justify-content:flex-end}
@@ -112,7 +112,7 @@ body::after{
 
 .schedule-toolbar{
   display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
-  padding:14px;border-bottom:1px solid var(--border);background:rgba(17,30,52,.7)
+  padding:14px;border-bottom:1px solid var(--border);background:var(--panel)
 }
 .month-nav{display:flex;align-items:center;gap:8px}
 .month-label{font-size:15px;font-weight:700;min-width:145px;text-align:center}
@@ -131,13 +131,13 @@ body::after{
 .dow.weekend{color:var(--amber)}
 .day{
   position:relative;min-height:116px;border:1px solid var(--border);border-radius:8px;
-  background:rgba(13,22,38,.82);padding:9px;display:flex;flex-direction:column;gap:6px;
+  background:var(--surface);padding:9px;display:flex;flex-direction:column;gap:6px;
   cursor:pointer;transition:border-color .16s,background .16s;
 }
-.day:hover{border-color:var(--cyan);background:#102039}
+.day:hover{border-color:var(--cyan);background:var(--panel)}
 .day.empty{visibility:hidden;pointer-events:none}
 .day.today{border-color:var(--green);box-shadow:0 0 0 1px rgba(0,212,170,.18) inset}
-.day.weekend{background:rgba(17,30,52,.58)}
+.day.weekend{background:var(--panel)}
 .day-num{display:flex;justify-content:space-between;align-items:center;gap:6px}
 .date-badge{
   min-width:30px;height:30px;border-radius:8px;
@@ -147,7 +147,7 @@ body::after{
   border:1px solid rgba(90,122,154,.32);
 }
 .day.weekend .date-badge{color:var(--amber);border-color:rgba(246,201,14,.28);background:rgba(246,201,14,.08)}
-.day.today .date-badge{color:#00110d;background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(0,212,170,.12)}
+.day.today .date-badge{color:#fff;background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(0,212,170,.12)}
 .today-mark{font-size:9px;color:var(--green);font-family:var(--font-sans);font-weight:700}
 .assignment-chip{
   border-radius:6px;padding:5px 7px;font-size:10px;line-height:1.25;
@@ -162,11 +162,11 @@ body::after{
 .empty-slot{font-size:10px;color:var(--muted);margin-top:auto}
 
 .bulk-panel{display:grid;grid-template-columns:1.2fr .8fr auto;gap:12px;align-items:end}
-.selected-strip{display:flex;gap:6px;flex-wrap:wrap;min-height:36px;padding:8px;border:1px dashed var(--border);border-radius:8px;background:rgba(6,12,23,.25)}
+.selected-strip{display:flex;gap:6px;flex-wrap:wrap;min-height:36px;padding:8px;border:1px dashed var(--border);border-radius:8px;background:var(--surface)}
 .selected-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);font-size:11px;color:var(--green);font-weight:700}
 .selected-tag button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:14px;line-height:1}
 
-.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px}
+.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px}
 .modal-overlay.open{display:flex}
 .modal-box{width:min(560px,100%);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;animation:modalIn .18s ease}
 @keyframes modalIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -178,7 +178,7 @@ body::after{
 .assigned-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
 .assigned-title{font-size:12px;font-weight:700}.assigned-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
 .ai-box{display:grid;gap:10px}
-.ai-status{border:1px solid var(--border);border-radius:8px;background:rgba(6,12,23,.28);padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.55}
+.ai-status{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.55}
 .ai-status strong{color:var(--text)}
 .ai-warning{border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08);color:var(--amber)}
 .ai-draft-list{display:grid;gap:8px;max-height:280px;overflow:auto}
@@ -208,7 +208,7 @@ body::after{
 }
 </style>
 </head>
-<body>
+<body class="admin-shell">
 <header>
   <div class="brand">
     <div class="brand-icon">

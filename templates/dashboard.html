@@ -6,14 +6,14 @@
 <title>Dashboard — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-1">
 <link rel="stylesheet" href="/static/css/components.css">
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
 .panel-body{padding:0}
 .dash-tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
 .dash-tab{flex:1;position:relative;padding:9px 12px;border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.05em;cursor:pointer;border-radius:7px;transition:all .2s;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px}
-.dash-tab.active{background:var(--teal);color:#000}
+.dash-tab.active{background:var(--teal);color:#fff}
 .dash-tab:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
 .tab-badge{background:#ff4d6a;color:#fff;border-radius:999px;font-size:9px;font-weight:700;padding:1px 5px;line-height:14px;min-width:14px;text-align:center;display:none}
 .tab-badge.show{display:inline-block}
@@ -41,13 +41,13 @@
 .dtype-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .dtype-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font-sans);background:none;color:var(--muted);transition:all .15s}
 .dtype-btn:hover{border-color:var(--teal);color:var(--teal)}
-.dtype-btn.active{background:var(--teal);color:#000;border-color:var(--teal);font-weight:700}
+.dtype-btn.active{background:var(--teal);color:#fff;border-color:var(--teal);font-weight:700}
 .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .cfg-group{display:flex;flex-direction:column;gap:4px}
 .cfg-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase}
 .cfg-input{background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:12px;padding:8px 12px;border-radius:7px;outline:none;transition:border-color .2s}
 .cfg-input:focus{border-color:var(--teal)}
-.btn-save{padding:8px 20px;border-radius:7px;background:var(--teal);color:#000;font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em}
+.btn-save{padding:8px 20px;border-radius:7px;background:var(--teal);color:#fff;font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em}
 .btn-save:hover{background:#00f0c0}
 .stat-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .sdg-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
@@ -58,7 +58,7 @@
 .roster-date-btn:hover{border-color:var(--teal);color:var(--teal)}
 .roster-view-toggle{display:flex;align-items:center;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px}
 .roster-view-btn{border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:700;padding:7px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
-.roster-view-btn.active{background:var(--teal);color:#00110d}
+.roster-view-btn.active{background:var(--teal);color:#fff}
 .roster-range-label{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap;padding:0 2px}
 .roster-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
 .roster-metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
@@ -125,7 +125,7 @@
 @media(max-width:860px){.roster-toolbar{grid-template-columns:auto 1fr auto}.roster-toolbar .roster-search,.roster-toolbar .roster-dept,.roster-toolbar .roster-refresh,.roster-toolbar .roster-view-toggle,.roster-toolbar .roster-range-label{grid-column:1/-1;width:100%}.roster-view-btn{flex:1}.roster-summary{grid-template-columns:1fr 1fr}}
 
 /* ── Attendance modals ── */
-.atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(4px);align-items:center;justify-content:center}
 .atd-ovl.open{display:flex}
 .atd-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:460px;padding:26px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.6);animation:atdUp .2s ease}
 @keyframes atdUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -154,7 +154,7 @@
 </style>
 <script src="/static/js/auth-guard.js"></script>
 </head>
-<body>
+<body class="admin-shell">
 <header>
   <div class="brand">
     <div class="brand-icon">
@@ -232,7 +232,7 @@
         <input type="date" class="filter-input" id="logDate" onchange="loadLogs()" style="font-size:12px">
         <input class="filter-input" id="logSearch" placeholder="Tìm mã NV..." oninput="filterLogs()" style="width:130px">
         <button id="btnAddLog" onclick="openAtdAdd()"
-          style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#000;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
+          style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Thêm bù
         </button>
@@ -501,7 +501,7 @@
     </div>
     <div class="atd-foot">
       <button class="btn btn-outline" onclick="closeAtd('atdAddOvl')">Huỷ</button>
-      <button class="btn" id="atdAddBtn" onclick="saveAtdAdd()" style="background:#a78bfa;border-color:#a78bfa;color:#000;font-weight:700">
+      <button class="btn" id="atdAddBtn" onclick="saveAtdAdd()" style="background:#a78bfa;border-color:#a78bfa;color:#111827;font-weight:700">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Thêm bản ghi
       </button>

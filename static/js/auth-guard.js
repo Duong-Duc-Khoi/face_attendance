@@ -144,6 +144,10 @@
 
   // Nút logout nếu có + hiện tên user
   document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('mainNav')) {
+      document.body.classList.add('admin-shell');
+    }
+
     // Hiện tên user ở nav nếu có element #navUserName
     const nameEl = document.getElementById('navUserName');
     if (nameEl && user) {

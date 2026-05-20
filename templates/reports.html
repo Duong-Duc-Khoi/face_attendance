@@ -6,13 +6,13 @@
 <title>Báo cáo — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-1">
 <link rel="stylesheet" href="/static/css/components.css">
 <link rel="stylesheet" href="/static/css/reports.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="/static/js/auth-guard.js"></script>
 </head>
-<body>
+<body class="admin-shell">
 <header>
   <div class="brand">
     <div class="brand-icon">
@@ -127,7 +127,7 @@
         </select>
         <input type="number" id="statsYear" value="2026" min="2020" max="2030"
           style="width:70px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
-        <button onclick="loadEmpStats()" style="padding:5px 13px;border-radius:6px;background:var(--teal);color:#000;font-size:11px;font-weight:700;cursor:pointer;border:none">Xem</button>
+        <button onclick="loadEmpStats()" style="padding:5px 13px;border-radius:6px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none">Xem</button>
       </div>
     </div>
     <div id="empStatsPanel" style="padding:16px;display:none">
