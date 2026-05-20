@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tích hợp AI - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="/static/js/theme.js"></script>
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/nav.css">
 <link rel="stylesheet" href="/static/css/components.css">
@@ -18,7 +17,7 @@
 .sub{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px;max-width:680px}
 .provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .provider-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-.provider-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.provider-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid var(--border);background:rgba(17,30,52,.68)}
 .provider-name{font-size:15px;font-weight:800}
 .provider-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:4px}
 .status-pill{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
@@ -33,7 +32,7 @@
 .actions{display:flex;gap:8px;justify-content:flex-end;padding-top:4px}
 .btn{min-height:34px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:8px;padding:0 12px;font-family:var(--font-sans);font-size:12px;font-weight:800;cursor:pointer}
 .btn:hover{border-color:#3a8fff}
-.btn.primary{background:var(--teal);border-color:var(--teal);color:var(--teal-contrast)}
+.btn.primary{background:#00d4aa;border-color:#00d4aa;color:#00110d}
 .btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
 .notice{border:1px solid rgba(246,201,14,.32);background:rgba(246,201,14,.08);border-radius:8px;padding:12px 14px;color:#f6c90e;font-size:12px;line-height:1.6;margin-bottom:14px}
 .admin-only{display:none;border:1px solid rgba(255,77,106,.35);background:rgba(255,77,106,.08);border-radius:8px;padding:16px;color:var(--red);font-size:13px}
@@ -54,12 +53,8 @@
     <a href="/report" class="nav-link">Báo cáo</a>
     <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
     <a href="/integrations" class="nav-link active" id="navIntegrations">Tích hợp</a>
-    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Chuyển giao diện sáng tối">
-      <span class="theme-toggle-mark" aria-hidden="true"></span>
-      <span data-theme-label>Tối</span>
-    </button>
     <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
-    <button data-logout class="logout-btn">Đăng xuất</button>
+    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">Đăng xuất</button>
   </div>
 </header>
 

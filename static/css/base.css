@@ -2,74 +2,33 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 /* ── Design tokens ── */
-:root,
-:root[data-theme="dark"]{
+:root{
   --bg:#060c17;
   --surface:#0d1626;
   --panel:#111e34;
   --border:#1a2f50;
-  --grid-line:#1a2f50;
-  --grid-opacity:.2;
-  --header-bg:rgba(6,12,23,.9);
-  --shadow:0 22px 70px rgba(0,0,0,.35);
   --teal:#00d4aa;
   --teal-dim:#007a63;
   --teal-glow:rgba(0,212,170,0.15);
-  --teal-contrast:#00110d;
   --blue:#3a8fff;
   --red:#ff4d6a;
   --yellow:#f6c90e;
   --text:#e8f0fe;
   --muted:#5a7a9a;
-  --row-hover:rgba(0,212,170,.04);
-  --control-bg:#111e34;
-  --logout-bg:transparent;
-  --logout-border:rgba(255,77,106,.35);
-  --logout-hover:rgba(255,77,106,.1);
   --font-sans:'Sora',sans-serif;
   --font-mono:'Space Mono',monospace;
 }
 
-:root[data-theme="light"]{
-  --bg:#f5f7fb;
-  --surface:#ffffff;
-  --panel:#eef3f8;
-  --border:#d9e2ee;
-  --grid-line:#d9e2ee;
-  --grid-opacity:.42;
-  --header-bg:rgba(255,255,255,.92);
-  --shadow:0 18px 48px rgba(25,48,77,.12);
-  --teal:#087f6f;
-  --teal-dim:#0c665b;
-  --teal-glow:rgba(8,127,111,.1);
-  --teal-contrast:#ffffff;
-  --blue:#2563eb;
-  --red:#dc2749;
-  --yellow:#b77905;
-  --text:#172033;
-  --muted:#64748b;
-  --row-hover:rgba(8,127,111,.055);
-  --control-bg:#ffffff;
-  --logout-bg:#fff5f7;
-  --logout-border:rgba(220,39,73,.28);
-  --logout-hover:rgba(220,39,73,.1);
-}
-
 /* ── Base body ── */
-html{color-scheme:dark}
-html[data-theme="light"]{color-scheme:light}
 html,body{background:var(--bg);color:var(--text);font-family:var(--font-sans)}
-body{transition:background-color .18s ease,color .18s ease}
 
 /* ── Grid background ── */
 body::before{
   content:'';position:fixed;inset:0;z-index:0;
   background-image:
-    linear-gradient(var(--grid-line) 1px,transparent 1px),
-    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+    linear-gradient(var(--border) 1px,transparent 1px),
+    linear-gradient(90deg,var(--border) 1px,transparent 1px);
   background-size:40px 40px;
-  opacity:var(--grid-opacity);
+  opacity:.2;
   pointer-events:none;
 }
-
-::selection{background:var(--teal-glow);color:var(--text)}
