@@ -11,13 +11,53 @@
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
 .panel-body{padding:0}
-.dash-tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
-.dash-tab{flex:1;position:relative;padding:9px 12px;border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.05em;cursor:pointer;border-radius:7px;transition:all .2s;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px}
+.dash-tabs{display:none;flex-wrap:wrap;gap:4px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
+.dash-tab{flex:1 1 130px;position:relative;padding:9px 12px;border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.05em;cursor:pointer;border-radius:7px;transition:all .2s;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .dash-tab.active{background:var(--teal);color:#fff}
 .dash-tab:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
 .tab-badge{background:#ff4d6a;color:#fff;border-radius:999px;font-size:9px;font-weight:700;padding:1px 5px;line-height:14px;min-width:14px;text-align:center;display:none}
 .tab-badge.show{display:inline-block}
 .dash-tab-content{display:none}.dash-tab-content.active{display:block}
+.overview-head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;margin-bottom:16px}
+.overview-kicker{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);margin-bottom:6px}
+.overview-title{font-size:26px;font-weight:800;letter-spacing:0;line-height:1.15;color:var(--text)}
+.overview-sub{font-size:13px;color:var(--muted);margin-top:6px}
+.overview-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.overview-action{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-decoration:none;font-family:var(--font-sans);font-size:12px;font-weight:800;cursor:pointer}
+.overview-action.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.ops-alert-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.ops-alert-card{position:relative;min-height:118px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px;overflow:hidden}
+.ops-alert-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--teal)}
+.ops-alert-card.warn::before{background:var(--yellow)}.ops-alert-card.danger::before{background:var(--red)}.ops-alert-card.info::before{background:var(--blue)}
+.ops-alert-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
+.ops-alert-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ops-alert-icon{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--panel);color:var(--teal);font-weight:900}
+.ops-alert-card.warn .ops-alert-icon{color:var(--yellow)}.ops-alert-card.danger .ops-alert-icon{color:var(--red)}.ops-alert-card.info .ops-alert-icon{color:var(--blue)}
+.ops-alert-value{font-family:var(--font-mono);font-size:30px;font-weight:800;color:var(--text);line-height:1}
+.ops-alert-note{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.45}
+.overview-workspace{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(420px,.88fr);gap:16px;align-items:start}
+.overview-workspace .panel{min-width:0}
+.overview-log-panel{position:sticky;top:18px}
+.ops-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px}
+.ops-module-card{display:flex;align-items:flex-start;gap:12px;text-align:left;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);cursor:pointer;font-family:var(--font-sans);transition:border-color .18s,background .18s,transform .18s}
+.ops-module-card:hover{border-color:rgba(0,212,170,.42);background:rgba(0,212,170,.045);transform:translateY(-1px)}
+.ops-module-icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);flex:0 0 auto}
+.ops-module-card b{display:block;font-size:13px;color:var(--text);margin-bottom:4px}
+.ops-module-card small{display:block;font-size:11px;color:var(--muted);line-height:1.45}
+.quick-list{display:flex;flex-direction:column;padding:8px}
+.quick-row{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid rgba(26,47,80,.45);background:transparent;color:var(--text);text-decoration:none;font-family:var(--font-sans);cursor:pointer}
+.quick-row:last-child{border-bottom:0}
+.quick-row:hover{background:rgba(255,255,255,.025)}
+.quick-row b{font-size:13px}
+.quick-row span{font-size:11px;color:var(--muted)}
+.work-table{width:100%;border-collapse:collapse;font-size:12px}
+.work-table td{padding:11px 14px;border-bottom:1px solid rgba(26,47,80,.45);vertical-align:middle;color:var(--text)}
+.work-table tr:last-child td{border-bottom:none}
+.work-table b{display:block;font-size:13px;margin-bottom:3px}
+.work-table small{color:var(--muted);font-size:11px}
+.work-count{font-family:var(--font-mono);font-size:18px;font-weight:800;text-align:right;color:var(--teal)}
+.work-count.warn{color:var(--yellow)}.work-count.danger{color:var(--red)}.work-count.info{color:var(--blue)}
+.preview-foot{display:flex;justify-content:flex-end;padding:10px 14px;border-top:1px solid rgba(26,47,80,.45)}
 .lv-table{width:100%;border-collapse:collapse;font-size:12px}
 .lv-table th{text-align:left;padding:8px 12px;font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border)}
 .lv-table td{padding:9px 12px;border-bottom:1px solid rgba(26,47,80,.4);color:var(--text)}
@@ -123,6 +163,8 @@
 .roster-shift-card.shift-tone-evening .roster-count-pill{background:rgba(77,166,255,.12);border-color:rgba(77,166,255,.28);color:var(--blue)}
 .roster-shift-card.shift-tone-night .roster-count-pill{background:rgba(167,139,250,.13);border-color:rgba(167,139,250,.3);color:#a78bfa}
 @media(max-width:860px){.roster-toolbar{grid-template-columns:auto 1fr auto}.roster-toolbar .roster-search,.roster-toolbar .roster-dept,.roster-toolbar .roster-refresh,.roster-toolbar .roster-view-toggle,.roster-toolbar .roster-range-label{grid-column:1/-1;width:100%}.roster-view-btn{flex:1}.roster-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:1120px){.ops-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-workspace{grid-template-columns:1fr}.overview-log-panel{position:static}}
+@media(max-width:680px){.overview-head{grid-template-columns:1fr}.overview-actions{justify-content:flex-start}.ops-alert-grid,.ops-module-grid{grid-template-columns:1fr}}
 
 /* ── Attendance modals ── */
 .atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(4px);align-items:center;justify-content:center}
@@ -166,9 +208,14 @@
     </div>
   </div>
   <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
-    <a href="/dashboard" class="nav-link active">Quản lý</a>
+    <span class="nav-section-title">Vận hành</span>
+    <a href="/dashboard" class="nav-link active" data-dashboard-tab="tab-overview">Tổng quan</a>
+    <a href="/dashboard?tab=attendance" class="nav-link" data-dashboard-tab="tab-attendance">Chấm công</a>
+    <a href="/dashboard?tab=employees" class="nav-link" data-dashboard-tab="tab-employees">Nhân viên</a>
     <a href="/shifts" class="nav-link">Ca làm</a>
+    <a href="/dashboard?tab=leave" class="nav-link" data-dashboard-tab="tab-leave">Nghỉ phép</a>
     <a href="/report" class="nav-link">Báo cáo</a>
+    <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
     <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
     <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
   </nav>
@@ -181,6 +228,8 @@
 <div class="page">
   <div class="dash-tabs">
     <button class="dash-tab active" onclick="switchDashTab('tab-overview',this)">📊 Tổng quan</button>
+    <button class="dash-tab" onclick="switchDashTab('tab-attendance',this)">⏱ Chấm công</button>
+    <button class="dash-tab" onclick="switchDashTab('tab-employees',this)">👥 Nhân viên</button>
     <button class="dash-tab" onclick="switchDashTab('tab-leave',this)">
       ✉ Duyệt nghỉ phép
       <span class="tab-badge" id="leaveBadge">0</span>
@@ -190,6 +239,43 @@
 
   <!-- TAB: Overview -->
   <div class="dash-tab-content active" id="tab-overview">
+  <section class="overview-head">
+    <div>
+      <div class="overview-kicker">Restaurant Operations</div>
+      <h1 class="overview-title">Tổng quan hôm nay</h1>
+      <div class="overview-sub" id="overviewToday">Đang tải dữ liệu vận hành...</div>
+    </div>
+    <div class="overview-actions">
+      <a class="overview-action" href="/">Mở kiosk</a>
+      <a class="overview-action primary" href="/shifts">Chia ca</a>
+      <button class="overview-action" onclick="switchDashTabById('tab-leave')">Duyệt nghỉ</button>
+      <button class="overview-action" onclick="switchDashTabById('tab-attendance')">Xem chấm công</button>
+    </div>
+  </section>
+
+  <section class="ops-alert-grid" aria-label="Cảnh báo vận hành">
+    <article class="ops-alert-card danger" id="opsMissingCheckout">
+      <div class="ops-alert-top"><div class="ops-alert-label">Chưa checkout</div><div class="ops-alert-icon">!</div></div>
+      <div class="ops-alert-value" id="opsMissingCheckoutVal">—</div>
+      <div class="ops-alert-note" id="opsMissingCheckoutNote">Nhân viên đã vào ca nhưng chưa ra.</div>
+    </article>
+    <article class="ops-alert-card warn" id="opsLate">
+      <div class="ops-alert-top"><div class="ops-alert-label">Đi muộn</div><div class="ops-alert-icon">⏱</div></div>
+      <div class="ops-alert-value" id="opsLateVal">—</div>
+      <div class="ops-alert-note" id="opsLateNote">Lượt check-in có trạng thái đi muộn.</div>
+    </article>
+    <article class="ops-alert-card info" id="opsLeave">
+      <div class="ops-alert-top"><div class="ops-alert-label">Đơn chờ duyệt</div><div class="ops-alert-icon">↗</div></div>
+      <div class="ops-alert-value" id="opsLeaveVal">—</div>
+      <div class="ops-alert-note" id="opsLeaveNote">Đơn nghỉ phép/remote cần xử lý.</div>
+    </article>
+    <article class="ops-alert-card" id="opsAbsent">
+      <div class="ops-alert-top"><div class="ops-alert-label">Vắng mặt</div><div class="ops-alert-icon">•</div></div>
+      <div class="ops-alert-value" id="opsAbsentVal">—</div>
+      <div class="ops-alert-note" id="opsAbsentNote">Theo số nhân viên chưa check-in.</div>
+    </article>
+  </section>
+
   <div class="stats-row" id="statsRow">
     <div class="stat-card"><div class="stat-label">Tổng nhân viên</div><div class="stat-value" id="statTotal">—</div><div class="stat-sub">đang hoạt động</div></div>
     <div class="stat-card"><div class="stat-label">Đã vào làm hôm nay</div><div class="stat-value teal" id="statIn">—</div><div class="stat-sub">check-in hôm nay</div></div>
@@ -197,8 +283,66 @@
     <div class="stat-card"><div class="stat-label">Vắng mặt</div><div class="stat-value red" id="statAbsent">—</div><div class="stat-sub" id="statDate">hôm nay</div></div>
   </div>
 
-  <div class="grid-2">
-    <div class="panel" style="grid-column:1/-1">
+  <div class="overview-workspace">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Việc cần xử lý</div>
+      </div>
+      <table class="work-table">
+        <tbody id="workItemsBody">
+          <tr><td><b>Đang tải dữ liệu</b><small>Hệ thống đang tổng hợp tình trạng hôm nay</small></td><td class="work-count">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel overview-log-panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Chấm công gần đây</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Nhân viên</th><th>Loại</th><th>Thời gian</th><th>Trạng thái</th></tr></thead>
+          <tbody id="recentLogPreviewBody"><tr><td colspan="4" class="empty">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="preview-foot">
+        <button class="log-btn" onclick="switchDashTabById('tab-attendance')">Xem tất cả</button>
+      </div>
+    </div>
+  </div>
+  </div><!-- /tab-overview -->
+
+  <!-- TAB: Chấm công -->
+  <div class="dash-tab-content" id="tab-attendance">
+    <div class="panel" id="logPanel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Lịch sử chấm công</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" class="filter-input" id="logDate" onchange="loadLogs()" style="font-size:12px">
+          <input class="filter-input" id="logSearch" placeholder="Tìm mã NV..." oninput="filterLogs()" style="width:160px">
+          <button id="btnAddLog" onclick="openAtdAdd()"
+            style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm bù
+          </button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:620px;overflow-y:auto">
+        <table class="data-table" id="logTable">
+          <thead><tr>
+            <th>Nhân viên</th><th>Loại</th><th>Thời gian</th>
+            <th>Phòng ban</th><th>Trạng thái</th><th>Độ chính xác</th>
+            <th class="col-act" style="text-align:right">Thao tác</th>
+          </tr></thead>
+          <tbody id="logTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Nhân viên -->
+  <div class="dash-tab-content" id="tab-employees">
+    <div class="panel">
       <div class="panel-header">
         <div class="panel-header-left"><span class="dot"></span> Danh sách nhân viên</div>
         <button class="btn btn-teal" onclick="openAddModal()">+ Thêm nhân viên</button>
@@ -206,7 +350,7 @@
       <div class="filter-bar">
         <input class="filter-input" id="searchEmp" placeholder="Tìm theo tên, mã NV..." oninput="filterEmployees()" style="flex:1">
         <select class="filter-input" id="filterDept" onchange="filterEmployees()"><option value="">Tất cả phòng ban</option></select>
-        <select class="filter-input" id="filterStatus" onchange="filterEmployees()">
+        <select class="filter-input" id="filterStatus" onchange="loadEmployees()">
           <option value="true">Đang làm việc</option>
           <option value="">Tất cả</option>
           <option value="false">Đã nghỉ</option>
@@ -223,33 +367,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Lịch sử chấm công -->
-  <div class="panel" id="logPanel">
-    <div class="panel-header">
-      <div class="panel-header-left"><span class="dot"></span> Lịch sử chấm công</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="date" class="filter-input" id="logDate" onchange="loadLogs()" style="font-size:12px">
-        <input class="filter-input" id="logSearch" placeholder="Tìm mã NV..." oninput="filterLogs()" style="width:130px">
-        <button id="btnAddLog" onclick="openAtdAdd()"
-          style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Thêm bù
-        </button>
-      </div>
-    </div>
-    <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
-      <table class="data-table" id="logTable">
-        <thead><tr>
-          <th>Nhân viên</th><th>Loại</th><th>Thời gian</th>
-          <th>Phòng ban</th><th>Trạng thái</th><th>Độ chính xác</th>
-          <th class="col-act" style="text-align:right">Thao tác</th>
-        </tr></thead>
-        <tbody id="logTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-  </div><!-- /tab-overview -->
 
   <!-- TAB: Nghỉ phép -->
   <div class="dash-tab-content" id="tab-leave">
@@ -515,6 +632,7 @@
 let employees=[],allLogs=[],editingId=null;
 let _isMgr=false,_isAdmin=false;
 let _atdEditId=null,_atdDelId=null;
+let dashboardSummary={},pendingLeaveCount=0;
 
 // ── Init ──
 (async function init(){
@@ -536,18 +654,72 @@ let _atdEditId=null,_atdDelId=null;
 
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('logDate').value=today;
-  await Promise.all([loadSummary(),loadEmployees(),loadLogs()]);
+  await Promise.all([loadSummary(),loadEmployees(),loadLogs(),loadPendingLeaveCount()]);
+  applyInitialDashboardTab();
 })();
 
 async function loadSummary(){
   try{
     const r=await authFetch('/api/summary');const d=await r.json();
+    dashboardSummary=d||{};
     document.getElementById('statTotal').textContent=d.total_emp||0;
     document.getElementById('statIn').textContent=d.checked_in||0;
     document.getElementById('statOut').textContent=d.checked_out||0;
     document.getElementById('statAbsent').textContent=d.absent||0;
     document.getElementById('statDate').textContent='hôm nay '+d.date;
+    document.getElementById('overviewToday').textContent=`${d.date||'Hôm nay'} · Theo dõi tình trạng vào ca, ra ca và các việc cần duyệt.`;
+    updateOperationsOverview();
   }catch(e){console.error(e);}
+}
+
+async function loadPendingLeaveCount(){
+  try{
+    const r=await authFetch('/api/leave/pending-count');
+    const d=await r.json();
+    pendingLeaveCount=d.count||0;
+    const badge=document.getElementById('leaveBadge');
+    badge.textContent=pendingLeaveCount;
+    badge.classList.toggle('show',pendingLeaveCount>0);
+    updateOperationsOverview();
+  }catch{}
+}
+
+function setOpsCard(id,value,note,state){
+  const card=document.getElementById(id);
+  if(!card)return;
+  card.classList.remove('danger','warn','info');
+  if(state)card.classList.add(state);
+  document.getElementById(id+'Val').textContent=value;
+  document.getElementById(id+'Note').textContent=note;
+}
+
+function updateOperationsOverview(){
+  const checkedIn=dashboardSummary.checked_in||0;
+  const checkedOut=dashboardSummary.checked_out||0;
+  const absent=dashboardSummary.absent||0;
+  const missingCheckout=Math.max(checkedIn-checkedOut,0);
+  const lateCount=allLogs.filter(l=>l.check_type==='check_in'&&l.status&&l.status.toLowerCase().includes('muộn')).length;
+  setOpsCard('opsMissingCheckout',missingCheckout,missingCheckout?'Cần nhắc nhân viên ra ca hoặc kiểm tra auto checkout.':'Không có nhân viên đang mở ca.',missingCheckout?'danger':'');
+  setOpsCard('opsLate',lateCount,lateCount?'Có lượt vào ca bị đánh dấu đi muộn.':'Chưa ghi nhận lượt đi muộn hôm nay.',lateCount?'warn':'');
+  setOpsCard('opsLeave',pendingLeaveCount,pendingLeaveCount?'Đơn nghỉ phép/remote đang chờ quản lý duyệt.':'Không có đơn chờ duyệt.',pendingLeaveCount?'info':'');
+  setOpsCard('opsAbsent',absent,absent?'Nhân viên chưa check-in theo dữ liệu hôm nay.':'Tất cả nhân viên đã có check-in.',absent?'danger':'');
+  renderWorkItems({missingCheckout,lateCount,pendingLeaveCount,absent});
+}
+
+function renderWorkItems(data){
+  const tbody=document.getElementById('workItemsBody');
+  if(!tbody)return;
+  const rows=[
+    {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',tab:'tab-attendance'},
+    {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',tab:'tab-attendance'},
+    {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép/remote đang chờ xử lý',count:data.pendingLeaveCount,state:'info',tab:'tab-leave'},
+    {label:'Theo dõi vắng mặt',note:'Nhân viên chưa check-in trong ngày',count:data.absent,state:'danger',tab:'tab-attendance'}
+  ];
+  tbody.innerHTML=rows.map(r=>`
+    <tr style="cursor:pointer" onclick="switchDashTabById('${r.tab}')">
+      <td><b>${r.label}</b><small>${r.note}</small></td>
+      <td class="work-count ${r.count?r.state:''}">${r.count}</td>
+    </tr>`).join('');
 }
 
 async function loadEmployees(){
@@ -604,11 +776,13 @@ async function loadLogs(){
   try{
     const r=await authFetch('/api/attendance?date='+date);const d=await r.json();
     allLogs=d.logs||[];renderLogs(allLogs);
+    updateOperationsOverview();
   }catch(e){showToast('Lỗi tải lịch sử','error');}
 }
 
 function renderLogs(list){
   const tbody=document.getElementById('logTableBody');
+  renderRecentLogPreview(list);
   const cols=_isMgr?7:6;
   if(!list.length){tbody.innerHTML=`<tr><td colspan="${cols}" class="empty">Không có dữ liệu chấm công</td></tr>`;return;}
   tbody.innerHTML=list.map(l=>`
@@ -696,9 +870,49 @@ setInterval(loadSummary,30000);
 function switchDashTab(id,btn){
   document.querySelectorAll('.dash-tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.dash-tab').forEach(b=>b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');btn.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  updateDashboardNavActive(id);
+  updateDashboardUrl(id);
+  if(id==='tab-employees')renderEmployees(employees);
+  if(id==='tab-attendance')renderLogs(allLogs);
   if(id==='tab-leave')loadLeaveRequests();
   if(id==='tab-calendar')loadShiftRoster();
+}
+
+function renderRecentLogPreview(list){
+  const tbody=document.getElementById('recentLogPreviewBody');
+  if(!tbody)return;
+  const rows=(list||[]).slice(0,5);
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="4" class="empty">Chưa có lượt chấm công hôm nay</td></tr>';
+    return;
+  }
+  tbody.innerHTML=rows.map(l=>`
+    <tr>
+      <td><div style="font-weight:700;font-size:12px">${l.name||'—'}</div><div style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.emp_code||''}</div></td>
+      <td><span class="badge ${l.check_type==='check_in'?'badge-in':'badge-out'}">${l.check_type==='check_in'?'Vào':'Ra'}</span></td>
+      <td style="font-family:var(--font-mono);font-size:11px">${l.time||'—'}</td>
+      <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
+    </tr>`).join('');
+}
+function switchDashTabById(id){
+  const btn=[...document.querySelectorAll('.dash-tab')].find(b=>b.getAttribute('onclick')?.includes("'"+id+"'"));
+  switchDashTab(id,btn);
+}
+function updateDashboardNavActive(id){
+  document.querySelectorAll('[data-dashboard-tab]').forEach(a=>a.classList.toggle('active',a.dataset.dashboardTab===id));
+}
+function updateDashboardUrl(id){
+  const tabMap={'tab-overview':'','tab-attendance':'attendance','tab-employees':'employees','tab-leave':'leave','tab-calendar':'calendar'};
+  const tab=tabMap[id]||'';
+  const search=tab?`?tab=${tab}`:'';
+  if(location.pathname==='/dashboard'&&location.search!==search)history.replaceState(null,'','/dashboard'+search);
+}
+function applyInitialDashboardTab(){
+  const tab=new URLSearchParams(location.search).get('tab');
+  const map={attendance:'tab-attendance',employees:'tab-employees',leave:'tab-leave',calendar:'tab-calendar'};
+  switchDashTabById(map[tab]||'tab-overview');
 }
 
 // ── Leave management ──
@@ -710,7 +924,9 @@ async function loadLeaveRequests(){
     const r=await authFetch(`/api/leave?status=${status}&request_type=${rtype}`);
     leaveRequests=await r.json();renderLeaveTable();
     const cnt=leaveRequests.filter(l=>l.status==='pending').length;
+    pendingLeaveCount=cnt;
     const badge=document.getElementById('leaveBadge');badge.textContent=cnt;badge.classList.toggle('show',cnt>0);
+    updateOperationsOverview();
   }catch(e){showToast('Lỗi tải đơn nghỉ','error');}
 }
 function renderLeaveTable(){
@@ -771,7 +987,7 @@ async function submitRejectLeave(){
   finally{btn.disabled=false;btn.textContent='✕ Từ chối';}
 }
 setInterval(async()=>{
-  try{const r=await authFetch('/api/leave/pending-count');const d=await r.json();const badge=document.getElementById('leaveBadge');if(d.count>0){badge.textContent=d.count;badge.classList.add('show');}else badge.classList.remove('show');}catch{}
+  await loadPendingLeaveCount();
 },60000);
 
 // ── Shift roster ──
@@ -1186,7 +1402,7 @@ async function saveConfig(){
   const payload={work_days:days||'1,2,3,4,5',work_start:document.getElementById('cfgStart').value,work_end:document.getElementById('cfgEnd').value,late_threshold_minutes:parseInt(document.getElementById('cfgLate').value)||15,half_day_cutoff:document.getElementById('cfgHalfCutoff').value};
   try{const r=await authFetch('/api/calendar/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');showToast('Đã lưu cấu hình','success');}catch(e){showToast('Lỗi: '+e.message,'error');}
 }
-(async()=>{try{const r=await authFetch('/api/leave/pending-count');const d=await r.json();if(d.count>0){const badge=document.getElementById('leaveBadge');badge.textContent=d.count;badge.classList.add('show');}}catch{}})();
+(async()=>{await loadPendingLeaveCount();})();
 
 // ════════════════════════════════════════════════════
 // QUẢN LÝ ĐIỂM DANH (manager / admin)

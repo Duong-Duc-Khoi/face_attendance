@@ -117,9 +117,14 @@ select.form-input option { background: var(--surface); }
     </div>
   </div>
   <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
-    <a href="/dashboard" class="nav-link">Quản lý</a>
+    <span class="nav-section-title">Vận hành</span>
+    <a href="/dashboard" class="nav-link">Tổng quan</a>
+    <a href="/dashboard?tab=attendance" class="nav-link">Chấm công</a>
+    <a href="/dashboard?tab=employees" class="nav-link">Nhân viên</a>
     <a href="/shifts" class="nav-link">Ca làm</a>
+    <a href="/dashboard?tab=leave" class="nav-link">Nghỉ phép</a>
     <a href="/report" class="nav-link">Báo cáo</a>
+    <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
     <a href="/users" class="nav-link active" id="navUsers">Tài khoản</a>
     <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
   </nav>

@@ -187,6 +187,10 @@
     if (navIntegrations && user && user.role !== 'admin') {
       navIntegrations.style.display = 'none';
     }
+    const navSystemTitle = document.getElementById('navSystemTitle');
+    if (navSystemTitle && user && user.role !== 'admin') {
+      navSystemTitle.style.display = 'none';
+    }
 
     document.querySelectorAll('[data-logout]').forEach(function (el) {
       el.addEventListener('click', function () {

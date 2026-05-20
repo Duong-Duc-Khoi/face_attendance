@@ -77,51 +77,65 @@ header{
 
 /* ── Admin dashboard shell ── */
 body.admin-shell{
-  --bg:#f5f7fb;
-  --surface:#ffffff;
-  --panel:#f8fafc;
-  --border:#dbe3ef;
-  --text:#111827;
-  --muted:#64748b;
-  --teal:#126d88;
-  --teal-glow:rgba(18,109,136,.11);
-  --blue:#2563eb;
-  --red:#dc2749;
-  --yellow:#b77905;
+  --admin-nav-bg:#060c17;
+  --admin-nav-surface:#0d1626;
+  --admin-nav-panel:#111e34;
+  --admin-nav-border:#1a2f50;
+  --admin-nav-teal:#00d4aa;
+  --admin-nav-teal-glow:rgba(0,212,170,.15);
+  --admin-nav-text:#e8f0fe;
+  --admin-nav-muted:#5a7a9a;
+  --bg:#060c17;
+  --surface:#0d1626;
+  --panel:#111e34;
+  --border:#1a2f50;
+  --text:#e8f0fe;
+  --muted:#5a7a9a;
+  --teal:#00d4aa;
+  --teal-glow:rgba(0,212,170,.15);
+  --blue:#3a8fff;
+  --red:#ff4d6a;
+  --yellow:#f6c90e;
   min-height:100vh;
   padding-left:260px;
   background:var(--bg);
   color:var(--text);
 }
 body.admin-shell::before{display:none}
+body.admin-shell::after{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 55% 45% at 18% 0%,rgba(0,212,170,.055),transparent 70%),
+    radial-gradient(ellipse 55% 42% at 100% 8%,rgba(58,143,255,.045),transparent 72%);
+}
 
 .admin-shell header{
   position:fixed;inset:0 auto 0 0;z-index:20;
   width:260px;height:100vh;min-height:0;
   display:flex;flex-direction:column;align-items:stretch;gap:0;
   padding:0;
-  border-right:1px solid rgba(255,255,255,.12);
+  border-right:1px solid var(--admin-nav-border);
   border-bottom:none;
-  background:#0b2870;
+  background:var(--admin-nav-bg);
   backdrop-filter:none;
-  box-shadow:8px 0 26px rgba(15,23,42,.16);
+  box-shadow:8px 0 34px rgba(0,0,0,.28);
 }
 .admin-shell .brand{
   min-height:168px;
   align-items:center;justify-content:center;flex-direction:column;gap:12px;
   padding:28px 20px 24px;
-  border-bottom:1px solid rgba(255,255,255,.12);
+  border-bottom:1px solid var(--admin-nav-border);
 }
 .admin-shell .brand-icon{
   width:50px;height:50px;border-radius:12px;
-  border-color:rgba(255,255,255,.45);
-  background:rgba(255,255,255,.08);
+  border-color:var(--admin-nav-teal);
+  background:var(--admin-nav-teal-glow);
 }
 .admin-shell .brand-name{
-  color:#fff;font-size:24px;letter-spacing:.04em;text-align:center;
+  color:var(--admin-nav-teal);font-size:24px;letter-spacing:.04em;text-align:center;
 }
 .admin-shell .brand-section{
-  color:rgba(255,255,255,.74);
+  color:var(--admin-nav-muted);
   text-align:center;font-size:12px;letter-spacing:.08em;
 }
 .admin-shell .nav-links{
@@ -131,6 +145,12 @@ body.admin-shell::before{display:none}
   padding:24px 16px;
   border:none;border-radius:0;background:transparent;
   overflow-y:auto;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.admin-shell .nav-links::-webkit-scrollbar{
+  width:0;height:0;
+  display:none;
 }
 .admin-shell .nav-link{
   position:relative;
@@ -138,8 +158,17 @@ body.admin-shell::before{display:none}
   min-height:42px;
   padding:0 14px;
   border-radius:8px;
-  color:rgba(255,255,255,.86);
+  color:var(--admin-nav-muted);
   font-size:14px;font-weight:600;letter-spacing:0;
+}
+.admin-shell .nav-section-title{
+  display:block;
+  padding:10px 14px 4px;
+  color:rgba(90,122,154,.7);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
 }
 .admin-shell .nav-link::before{
   content:"";
@@ -150,17 +179,20 @@ body.admin-shell::before{display:none}
   mask:var(--nav-icon) center / 18px 18px no-repeat;
 }
 .admin-shell .nav-link[href="/dashboard"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1'/%3E%3C/svg%3E")}
+.admin-shell .nav-link[href="/dashboard?tab=attendance"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E")}
+.admin-shell .nav-link[href="/dashboard?tab=employees"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E")}
 .admin-shell .nav-link[href="/shifts"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 2v4M17 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'/%3E%3C/svg%3E")}
+.admin-shell .nav-link[href="/dashboard?tab=leave"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4M16 2v4M3 10h18'/%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M8 15l2 2 5-5'/%3E%3C/svg%3E")}
 .admin-shell .nav-link[href="/report"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19V5a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z'/%3E%3Cpath d='M14 3v6h6M8 14h8M8 17h5'/%3E%3C/svg%3E")}
 .admin-shell .nav-link[href="/users"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E")}
 .admin-shell .nav-link[href="/integrations"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.38.36.72.65 1 .29.29.63.51 1 .65H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z'/%3E%3C/svg%3E")}
 .admin-shell .nav-link:hover{
-  color:#fff;background:rgba(255,255,255,.09);
+  color:var(--admin-nav-text);background:rgba(255,255,255,.04);
 }
 .admin-shell .nav-link.active{
-  color:#fff;
-  background:rgba(42,130,188,.72);
-  box-shadow:none;
+  color:#00110d;
+  background:var(--admin-nav-teal);
+  box-shadow:0 8px 20px rgba(0,212,170,.14);
 }
 .admin-shell .nav-link.active::before{
   opacity:1;
@@ -168,40 +200,40 @@ body.admin-shell::before{display:none}
 .admin-shell .nav-account{
   display:flex;flex-direction:column;align-items:stretch;gap:10px;
   padding:16px;
-  border-top:1px solid rgba(255,255,255,.12);
+  border-top:1px solid var(--admin-nav-border);
 }
 .admin-shell .user-chip{
   max-width:none;
-  border-color:rgba(255,255,255,.18);
-  background:rgba(255,255,255,.08);
-  color:#fff;
+  border-color:var(--admin-nav-border);
+  background:var(--admin-nav-surface);
+  color:var(--admin-nav-text);
   text-align:center;
 }
 .admin-shell .logout-btn{
   width:100%;
   min-height:38px;
-  border-color:rgba(255,255,255,.32);
-  background:rgba(255,255,255,.08);
-  color:#fff;
+  border-color:rgba(255,77,106,.3);
+  background:rgba(255,77,106,.08);
+  color:#ff4d6a;
 }
 .admin-shell .logout-btn:hover{
-  background:rgba(255,255,255,.14);
-  border-color:rgba(255,255,255,.58);
+  background:rgba(255,77,106,.14);
+  border-color:#ff4d6a;
 }
 .sidebar-collapse-btn{
   width:40px;height:40px;
   margin:0 auto 16px;
   display:grid;place-items:center;
-  border:1px solid rgba(255,255,255,.36);
+  border:1px solid var(--admin-nav-border);
   border-radius:50%;
-  background:rgba(255,255,255,.08);
-  color:#fff;
+  background:var(--admin-nav-surface);
+  color:var(--admin-nav-teal);
   cursor:pointer;
   transition:background .18s,transform .18s,border-color .18s;
 }
 .sidebar-collapse-btn:hover{
-  background:rgba(255,255,255,.15);
-  border-color:rgba(255,255,255,.68);
+  background:var(--admin-nav-teal-glow);
+  border-color:var(--admin-nav-teal);
 }
 .sidebar-collapse-btn span{
   font-size:22px;line-height:1;
@@ -219,7 +251,37 @@ body.admin-shell .panel,
 body.admin-shell .stat-card,
 body.admin-shell .mini-stat,
 body.admin-shell .provider-card{
-  box-shadow:0 8px 26px rgba(15,23,42,.05);
+  box-shadow:0 18px 46px rgba(0,0,0,.18);
+}
+body.admin-shell .panel-header,
+body.admin-shell .data-table th,
+body.admin-shell .stat-label,
+body.admin-shell .filter-label,
+body.admin-shell .form-label,
+body.admin-shell .field-label,
+body.admin-shell .metric-label,
+body.admin-shell .mini-stat-label,
+body.admin-shell .chart-title{
+  text-transform:none;
+  letter-spacing:.01em;
+}
+body.admin-shell .data-table th,
+body.admin-shell .panel-header{
+  font-weight:700;
+}
+body.admin-shell .btn,
+body.admin-shell button,
+body.admin-shell input,
+body.admin-shell select,
+body.admin-shell textarea{
+  font-family:var(--font-sans);
+}
+body.admin-shell .btn-teal,
+body.admin-shell .overview-action.primary,
+body.admin-shell .icon-btn.primary,
+body.admin-shell .btn.primary,
+body.admin-shell button[style*="background:var(--teal)"]{
+  color:#00110d!important;
 }
 
 body.admin-shell.nav-collapsed{
@@ -242,6 +304,9 @@ body.admin-shell.nav-collapsed{
 .admin-shell.nav-collapsed .nav-links{
   padding:14px 10px;
   align-items:center;
+}
+.admin-shell.nav-collapsed .nav-section-title{
+  display:none;
 }
 .admin-shell.nav-collapsed .nav-link{
   width:46px;
