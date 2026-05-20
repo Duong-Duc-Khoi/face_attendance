@@ -56,6 +56,13 @@ class Settings:
     FACE_THRESHOLD:  float = float(os.getenv("FACE_THRESHOLD",  "0.50"))
     MIN_FACE_SIZE:   int   = 40     # px — bỏ qua khuôn mặt quá nhỏ
 
+    # ── Presentation attack guard ──────────────────────
+    PRESENTATION_GUARD_ENABLED: bool = os.getenv("PRESENTATION_GUARD_ENABLED", "true").lower() == "true"
+    PRESENTATION_GUARD_ACTION: str = os.getenv("PRESENTATION_GUARD_ACTION", os.getenv("PASSIVE_LIVENESS_ACTION", "block")).lower()
+    PRESENTATION_GUARD_RISK_THRESHOLD: float = float(os.getenv("PRESENTATION_GUARD_RISK_THRESHOLD", "0.45"))
+    PRESENTATION_GUARD_MIN_FRAMES: int = int(os.getenv("PRESENTATION_GUARD_MIN_FRAMES", "3"))
+    PRESENTATION_GUARD_WINDOW_SECONDS: float = float(os.getenv("PRESENTATION_GUARD_WINDOW_SECONDS", "3.5"))
+
     # ── Chấm công ──────────────────────────────────────
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))
     WORK_START:             str  = os.getenv("WORK_START", "08:30")

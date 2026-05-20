@@ -11,6 +11,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from app.services.camera import get_camera
 from app.services.attendance import process_attendance,update_capture_path
 from app.services.notify import notify_late_async
+from app.services.presentation_guard import presentation_guard_service
 
 _ai_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="face_ai")
 PRESENCE_RESET_SECONDS = 3.0
@@ -86,6 +87,33 @@ async def ws_attendance(websocket: WebSocket):
                 confidence = r["similarity"]
                 if emp_code in processed_until_absent:
                     continue
+
+                presentation = presentation_guard_service.check(frame, r, emp_code, now_seen)
+                if presentation.get("enabled") and presentation["reason"] == "collecting_frames":
+                    print(
+                        f"  … Presentation guard [{emp_code}]: "
+                        f"đang lấy mẫu {presentation['metrics']['frames']}/{presentation['metrics']['needed_frames']}"
+                    )
+                    continue
+                if presentation.get("enabled") and presentation["reason"] != "clear":
+                    print(
+                        f"  ⚠ Presentation guard {presentation['action']} [{emp_code}]: "
+                        f"{presentation['reason']} risk={presentation['risk']} metrics={presentation['metrics']}"
+                    )
+                if presentation.get("should_block"):
+                    await manager.broadcast({
+                        "type": "attendance_error",
+                        "ok": False,
+                        "reason": "presentation_attack",
+                        "emp_code": emp_code,
+                        "confidence": round(confidence, 4),
+                        "presentation_guard": presentation,
+                        "message": "Phát hiện ảnh hoặc màn hình gần khuôn mặt",
+                        "voice_message": "Không thể chấm công. Vui lòng đứng trực tiếp trước camera.",
+                    })
+                    processed_until_absent.add(emp_code)
+                    presentation_guard_service.reset(emp_code)
+                    continue
                
                 try:
                     log = await loop.run_in_executor(
@@ -107,6 +135,7 @@ async def ws_attendance(websocket: WebSocket):
                     print(f"  → {log.get('name')} {log.get('check_type')}")
                     await manager.broadcast({**log, "type": "attendance"})
                     processed_until_absent.add(emp_code)
+                    presentation_guard_service.reset(emp_code)
 
                     status = log.get("status", "")
                     if status and "muộn" in status:
@@ -119,9 +148,11 @@ async def ws_attendance(websocket: WebSocket):
                     print(f"  ⚠ {log.get('message', 'Không chấm công')} [{emp_code}]")
                     await manager.broadcast({**log, "type": "attendance_error"})
                     processed_until_absent.add(emp_code)
+                    presentation_guard_service.reset(emp_code)
                 else:
                     print(f"  ⚠ Cooldown hoặc lỗi logic [{emp_code}]")
                     processed_until_absent.add(emp_code)
+                    presentation_guard_service.reset(emp_code)
 
             await asyncio.sleep(1.0)
 
