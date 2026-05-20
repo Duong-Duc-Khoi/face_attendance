@@ -186,6 +186,22 @@
 .atd-foot{display:flex;gap:9px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 .atd-warn{background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.25);border-radius:9px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.65}
 .atd-warn strong{color:var(--red)}
+.atd-review{display:none;background:rgba(246,201,14,.08);border:1px solid rgba(246,201,14,.32);border-radius:8px;color:#f6c90e;padding:9px 12px;margin-bottom:12px;font-size:12px;line-height:1.5}
+.atd-review.show{display:block}
+.atd-capture-box{background:#070d17;border:1px solid var(--border);border-radius:9px;min-height:260px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px}
+.atd-capture-box img{width:100%;height:auto;display:block}
+.atd-capture-empty{color:var(--muted);font-size:12px;padding:28px;text-align:center}
+.atd-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+.atd-meta-item{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 10px}
+.atd-meta-item b{display:block;font-size:10px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px}
+.atd-meta-item span{font-size:12px;color:var(--text);font-family:var(--font-mono)}
+.log-review-row{background:rgba(246,201,14,.045)}
+.log-review-row td{border-bottom-color:rgba(246,201,14,.18)!important}
+.confidence-pill{display:inline-flex;align-items:center;justify-content:center;min-width:45px;height:22px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:var(--teal);font-family:var(--font-mono);font-size:11px;font-weight:800}
+.confidence-pill.low{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.4);color:#f6c90e}
+.evidence-empty{font-size:11px;color:var(--muted)}
+.evidence-btn.warn{border-color:rgba(246,201,14,.42);color:#f6c90e;background:rgba(246,201,14,.08)}
+.evidence-btn[disabled]{opacity:.5;cursor:not-allowed}
 /* Table extras */
 .log-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;text-decoration:none}
 .log-btn:hover{border-color:var(--teal);color:var(--teal)}
@@ -334,9 +350,10 @@
           <thead><tr>
             <th>Nhân viên</th><th>Loại</th><th>Thời gian</th>
             <th>Phòng ban</th><th>Trạng thái</th><th>Độ chính xác</th>
+            <th>Bằng chứng</th>
             <th class="col-act" style="text-align:right">Thao tác</th>
           </tr></thead>
-          <tbody id="logTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
+          <tbody id="logTableBody"><tr><td colspan="8" class="empty">Đang tải...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -521,6 +538,28 @@
   </div>
 </div>
 
+<!-- ══ Modal: Ảnh bằng chứng chấm công ══ -->
+<div class="atd-ovl" id="atdCaptureOvl">
+  <div class="atd-box" style="max-width:760px">
+    <button class="atd-x" onclick="closeAtd('atdCaptureOvl')">✕</button>
+    <div class="atd-ttl">
+      <span style="width:7px;height:7px;border-radius:50%;background:#f6c90e;display:inline-block;flex-shrink:0"></span>
+      Bằng chứng chấm công
+    </div>
+    <div class="atd-review" id="atdCaptureReview">Cần kiểm tra: độ chính xác nhận diện dưới 70%.</div>
+    <div class="atd-capture-box" id="atdCaptureBox">
+      <div class="atd-capture-empty">Đang tải ảnh bằng chứng...</div>
+    </div>
+    <div class="atd-meta-grid">
+      <div class="atd-meta-item"><b>Nhân viên</b><span id="atdCaptureName">—</span></div>
+      <div class="atd-meta-item"><b>Loại</b><span id="atdCaptureType">—</span></div>
+      <div class="atd-meta-item"><b>Thời gian</b><span id="atdCaptureTime">—</span></div>
+      <div class="atd-meta-item"><b>Độ chính xác</b><span id="atdCaptureConf">—</span></div>
+      <div class="atd-meta-item" style="grid-column:1/-1"><b>Hash ảnh</b><span id="atdCaptureHash">—</span></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ Modal: Sửa điểm danh ══ -->
 <div class="atd-ovl" id="atdEditOvl">
   <div class="atd-box">
@@ -634,6 +673,7 @@
 let employees=[],allLogs=[],editingId=null;
 let _isMgr=false,_isAdmin=false;
 let _atdEditId=null,_atdDelId=null;
+let _captureObjectUrl='';
 let dashboardSummary={},pendingLeaveCount=0;
 
 // ── Init ──
@@ -648,9 +688,9 @@ let dashboardSummary={},pendingLeaveCount=0;
   _isAdmin=!!(user&&user.role==='admin');
 
   // Close atd overlays on backdrop click
-  ['atdEditOvl','atdDelOvl','atdAddOvl'].forEach(id=>{
+  ['atdCaptureOvl','atdEditOvl','atdDelOvl','atdAddOvl'].forEach(id=>{
     document.getElementById(id).addEventListener('click',function(e){
-      if(e.target===this)this.classList.remove('open');
+      if(e.target===this)closeAtd(id);
     });
   });
 
@@ -795,13 +835,28 @@ async function loadLogs(){
   }catch(e){showToast('Lỗi tải lịch sử','error');}
 }
 
+function _confidenceText(log){
+  return log.confidence ? (log.confidence*100).toFixed(0)+'%' : '—';
+}
+function _confidenceCell(log){
+  if(!log.confidence)return '—';
+  return `<span class="confidence-pill ${log.is_low_confidence?'low':''}" title="${log.is_low_confidence?'Cần kiểm tra: dưới 70%':'Độ chính xác nhận diện'}">${_confidenceText(log)}</span>`;
+}
+function _evidenceCell(log){
+  if(!log.capture_available)return '<span class="evidence-empty">Không có ảnh</span>';
+  return `<button class="log-btn evidence-btn ${log.is_low_confidence?'warn':''}" onclick="openCaptureModal(${log.id})" title="${log.is_low_confidence?'Cần kiểm tra ảnh bằng chứng':'Xem ảnh bằng chứng'}">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-1.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+    Xem ảnh
+  </button>`;
+}
+
 function renderLogs(list){
   const tbody=document.getElementById('logTableBody');
   renderRecentLogPreview(list);
-  const cols=_isMgr?7:6;
+  const cols=_isMgr?8:7;
   if(!list.length){tbody.innerHTML=`<tr><td colspan="${cols}" class="empty">Không có dữ liệu chấm công</td></tr>`;return;}
   tbody.innerHTML=list.map(l=>`
-    <tr id="lr-${l.id}">
+    <tr id="lr-${l.id}" class="${l.is_low_confidence?'log-review-row':''}">
       <td><div class="emp-cell">
         <div style="font-weight:600">${l.name||'—'}</div>
         <div style="font-size:11px;color:var(--muted)">${l.emp_code}</div>
@@ -810,7 +865,8 @@ function renderLogs(list){
       <td style="font-family:var(--font-mono);font-size:12px">${l.time}<br><span style="color:var(--muted);font-size:10px">${l.date}</span></td>
       <td>${l.department||'—'}</td>
       <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
-      <td style="font-family:var(--font-mono);font-size:12px">${l.confidence?(l.confidence*100).toFixed(0)+'%':'—'}</td>
+      <td>${_confidenceCell(l)}</td>
+      <td>${_evidenceCell(l)}</td>
       <td class="col-act" style="text-align:right">
         <div style="display:flex;gap:5px;justify-content:flex-end">
           <button class="log-btn" onclick="openAtdEdit(${l.id})">
@@ -1424,7 +1480,36 @@ async function saveConfig(){
 // ════════════════════════════════════════════════════
 function _dtLocal(iso){if(!iso)return '';const d=new Date(iso),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
 function _tsApi(v){return v.replace('T',' ')+':00';}
-function closeAtd(id){document.getElementById(id).classList.remove('open');}
+function closeAtd(id){
+  document.getElementById(id).classList.remove('open');
+  if(id==='atdCaptureOvl'&&_captureObjectUrl){
+    URL.revokeObjectURL(_captureObjectUrl);
+    _captureObjectUrl='';
+  }
+}
+
+async function openCaptureModal(logId){
+  const log=allLogs.find(l=>l.id===logId);if(!log)return;
+  const box=document.getElementById('atdCaptureBox');
+  if(_captureObjectUrl){URL.revokeObjectURL(_captureObjectUrl);_captureObjectUrl='';}
+  document.getElementById('atdCaptureName').textContent=`${log.name||'—'} (${log.emp_code})`;
+  document.getElementById('atdCaptureType').textContent=log.check_type==='check_in'?'Vào làm':'Ra về';
+  document.getElementById('atdCaptureTime').textContent=`${log.time} ${log.date}`;
+  document.getElementById('atdCaptureConf').textContent=_confidenceText(log);
+  document.getElementById('atdCaptureHash').textContent=log.image_hash?`${log.image_hash.slice(0,16)}...${log.image_hash.slice(-8)}`:'—';
+  document.getElementById('atdCaptureReview').classList.toggle('show',!!log.is_low_confidence);
+  box.innerHTML='<div class="atd-capture-empty">Đang tải ảnh bằng chứng...</div>';
+  document.getElementById('atdCaptureOvl').classList.add('open');
+  try{
+    const res=await authFetch(`/api/attendance/${logId}/capture`);
+    if(!res.ok)throw new Error((await res.json()).detail||'Không tải được ảnh');
+    const blob=await res.blob();
+    _captureObjectUrl=URL.createObjectURL(blob);
+    box.innerHTML=`<img src="${_captureObjectUrl}" alt="Ảnh bằng chứng chấm công">`;
+  }catch(e){
+    box.innerHTML=`<div class="atd-capture-empty">Không tải được ảnh bằng chứng: ${e.message}</div>`;
+  }
+}
 
 // Sửa
 function openAtdEdit(logId){

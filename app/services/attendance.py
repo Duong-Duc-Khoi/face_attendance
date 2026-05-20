@@ -4,6 +4,7 @@ Business logic chấm công: xử lý sự kiện, tính trạng thái, query he
 """
 from sqlalchemy import or_
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import SessionLocal
@@ -15,6 +16,8 @@ from app.services.shift_service import (
     find_shift_assignment_for_time,
     shift_window,
 )
+
+LOW_CONFIDENCE_THRESHOLD = 0.70
 
 def process_attendance(emp_code: str, confidence: float, capture_path: str = "") -> dict | None:
     """
@@ -251,7 +254,8 @@ def get_logs_by_date(date_str: str, emp_code: str = None) -> list:
         )
         if emp_code:
             q = q.filter_by(emp_code=emp_code)
-        return [_log_to_dict(l) for l in q.order_by(AttendanceLog.timestamp.desc()).all()]
+        logs = q.order_by(AttendanceLog.timestamp.desc()).all()
+        return [_log_to_dict(log, _matching_event(db, log)) for log in logs]
     finally:
         db.close()
 
@@ -283,7 +287,38 @@ def get_summary_today() -> dict:
         db.close()
 
 
-def _log_to_dict(log: AttendanceLog) -> dict:
+def _capture_file_exists(capture_path: str) -> bool:
+    if not capture_path:
+        return False
+    try:
+        capture_root = Path(settings.CAPTURES_DIR).resolve()
+        resolved = Path(capture_path).resolve()
+        resolved.relative_to(capture_root)
+        return resolved.is_file()
+    except OSError:
+        return False
+    except ValueError:
+        return False
+
+
+def _matching_event(db, log: AttendanceLog) -> AttendanceEvent | None:
+    if not log or not log.employee_id:
+        return None
+    return (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == log.employee_id,
+              AttendanceEvent.event_type == log.check_type,
+              AttendanceEvent.event_time == log.timestamp,
+          )
+          .order_by(AttendanceEvent.id.desc())
+          .first()
+    )
+
+
+def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> dict:
+    confidence = float(log.confidence or 0.0)
+    capture_available = _capture_file_exists(log.capture_path)
     return {
         "id":          log.id,
         "emp_code":    log.emp_code,
@@ -294,7 +329,10 @@ def _log_to_dict(log: AttendanceLog) -> dict:
         "date":        log.timestamp.strftime("%d/%m/%Y"),
         "timestamp":   log.timestamp.isoformat(),
         "confidence":  log.confidence,
-        "capture_path": log.capture_path,
+        "capture_available": capture_available,
+        "capture_url": f"/api/attendance/{log.id}/capture" if capture_available else "",
+        "image_hash": event.image_hash if event and event.image_hash else "",
+        "is_low_confidence": 0 < confidence < LOW_CONFIDENCE_THRESHOLD,
         "status":      log.note,
     }
 
@@ -303,7 +341,7 @@ def get_log_by_id(log_id: int) -> dict | None:
     db = SessionLocal()
     try:
         log = db.query(AttendanceLog).filter_by(id=log_id).first()
-        return _log_to_dict(log) if log else None
+        return _log_to_dict(log, _matching_event(db, log)) if log else None
     finally:
         db.close()
 
@@ -438,7 +476,12 @@ def create_manual_attendance_log(
         db.close()
 
 
-def update_capture_path(log_id: int, capture_path: str, event_id: int | None = None) -> None:
+def update_capture_path(
+    log_id: int,
+    capture_path: str,
+    event_id: int | None = None,
+    image_hash: str = "",
+) -> None:
     """Cập nhật đường dẫn ảnh sau khi capture xong."""
     db = SessionLocal()
     try:
@@ -454,8 +497,10 @@ def update_capture_path(log_id: int, capture_path: str, event_id: int | None = N
                       .order_by(AttendanceEvent.event_time.desc())
                       .first()
                 )
-            if event and not event.capture_path:
+            if event:
                 event.capture_path = capture_path
+                if image_hash:
+                    event.image_hash = image_hash
             db.commit()
     except Exception as e:
         db.rollback()

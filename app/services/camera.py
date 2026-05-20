@@ -5,14 +5,34 @@ CameraStream — đọc frame từ webcam và stream MJPEG.
 Tách singleton quản lý (start/stop/get) ra cuối file thành module-level functions.
 """
 
+import hashlib
+import os
 import time
 import threading
+from datetime import datetime
 
 import cv2
 import numpy as np
 
 from app.core.config import settings
 from app.services.face_engine import face_engine
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+
+    _capture_font = _capture_font_small = None
+    for _font_path in [
+        r"C:\Windows\Fonts\arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ]:
+        if os.path.exists(_font_path):
+            _capture_font = ImageFont.truetype(_font_path, 20)
+            _capture_font_small = ImageFont.truetype(_font_path, 16)
+            break
+    PIL_AVAILABLE = _capture_font is not None
+except ImportError:
+    PIL_AVAILABLE = False
 
 _EMP_MAP_TTL = 30.0  # giây — làm mới employee map từ DB
 
@@ -154,15 +174,98 @@ class CameraStream:
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (60, 60, 80), 2)
         return img
 
-    def capture_snapshot(self, emp_code: str, frame: np.ndarray | None = None) -> str:
+    @staticmethod
+    def _safe_name(value: str) -> str:
+        safe = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in str(value or ""))
+        return safe.strip("_") or "unknown"
+
+    @staticmethod
+    def _metadata_datetime(metadata: dict) -> datetime:
+        raw = str((metadata or {}).get("timestamp") or "")
+        try:
+            return datetime.fromisoformat(raw)
+        except ValueError:
+            return datetime.now()
+
+    @staticmethod
+    def _draw_capture_overlay(frame: np.ndarray, metadata: dict, captured_at: datetime) -> np.ndarray:
+        name = metadata.get("name") or metadata.get("emp_code") or ""
+        emp_code = metadata.get("emp_code") or ""
+        check_type = "Vào làm" if metadata.get("check_type") == "check_in" else "Ra về"
+        confidence = metadata.get("confidence")
+        try:
+            confidence_text = f"{float(confidence) * 100:.0f}%"
+        except (TypeError, ValueError):
+            confidence_text = "--"
+        lines = [
+            "FaceAttend - Bang chung cham cong",
+            f"Thoi gian: {captured_at.strftime('%H:%M:%S %d/%m/%Y')}",
+            f"Nhan vien: {name} ({emp_code})",
+            f"Loai: {check_type}   Do chinh xac: {confidence_text}",
+        ]
+
+        if PIL_AVAILABLE:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(rgb).convert("RGBA")
+            overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
+            x, y = 24, 22
+            line_height = 25
+            panel_w = min(image.width - 32, 620)
+            panel_h = 28 + line_height * len(lines)
+            draw.rounded_rectangle(
+                (16, 14, 16 + panel_w, 14 + panel_h),
+                radius=10,
+                fill=(8, 18, 32, 205),
+                outline=(0, 212, 170, 190),
+                width=2,
+            )
+            for i, text in enumerate(lines):
+                font = _capture_font if i == 0 else _capture_font_small
+                color = (0, 212, 170, 255) if i == 0 else (245, 248, 252, 255)
+                draw.text((x, y + i * line_height), text, font=font, fill=color)
+            image = Image.alpha_composite(image, overlay).convert("RGB")
+            return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+        out = frame.copy()
+        cv2.rectangle(out, (16, 14), (636, 138), (8, 18, 32), -1)
+        cv2.rectangle(out, (16, 14), (636, 138), (0, 212, 170), 2)
+        for i, text in enumerate(lines):
+            color = (0, 212, 170) if i == 0 else (245, 248, 252)
+            cv2.putText(out, text, (24, 42 + i * 27), cv2.FONT_HERSHEY_SIMPLEX, 0.58, color, 1, cv2.LINE_AA)
+        return out
+
+    def capture_snapshot(
+        self,
+        emp_code: str,
+        frame: np.ndarray | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
         if frame is None:
             ret, frame = self.read()
             if not ret or frame is None:
-                return ""
-        ts   = time.strftime("%Y%m%d_%H%M%S")
-        path = str(settings.CAPTURES_DIR / f"{emp_code}_{ts}.jpg")
-        cv2.imwrite(path, frame)
-        return path
+                return {}
+        metadata = metadata or {}
+        captured_at = self._metadata_datetime(metadata)
+        day_dir = settings.CAPTURES_DIR / captured_at.strftime("%Y-%m-%d")
+        day_dir.mkdir(parents=True, exist_ok=True)
+
+        log_id = self._safe_name(metadata.get("log_id") or metadata.get("id") or "noid")
+        safe_emp = self._safe_name(emp_code)
+        safe_type = self._safe_name(metadata.get("check_type") or "attendance")
+        ts = captured_at.strftime("%Y%m%d_%H%M%S")
+        path = day_dir / f"{log_id}_{safe_emp}_{safe_type}_{ts}.jpg"
+
+        evidence = self._draw_capture_overlay(frame.copy(), metadata | {"emp_code": emp_code}, captured_at)
+        ok = cv2.imwrite(str(path), evidence, [cv2.IMWRITE_JPEG_QUALITY, 92])
+        if not ok:
+            return {}
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        return {
+            "path": str(path),
+            "image_hash": digest,
+            "captured_at": captured_at.isoformat(),
+        }
 
     def release(self):
         self.running = False

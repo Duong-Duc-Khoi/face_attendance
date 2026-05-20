@@ -125,12 +125,28 @@ async def ws_attendance(websocket: WebSocket):
 
                 if log and log.get("ok", True):
                     capture = await loop.run_in_executor(
-                        _ai_executor, cam.capture_snapshot, emp_code, frame
+                        _ai_executor,
+                        cam.capture_snapshot,
+                        emp_code,
+                        frame,
+                        {
+                            "log_id": log.get("id"),
+                            "emp_code": emp_code,
+                            "name": log.get("name", ""),
+                            "check_type": log.get("check_type", ""),
+                            "timestamp": log.get("timestamp", ""),
+                            "confidence": confidence,
+                        },
                     )
                     # Update path vào DB (non-blocking, không cần await kết quả)
                     if capture:
-                        async def _update(lid=log["id"], cp=capture, eid=log.get("event_id")):
-                            await loop.run_in_executor(_ai_executor, update_capture_path, lid, cp, eid)
+                        async def _update(
+                            lid=log["id"],
+                            cp=capture.get("path", ""),
+                            eid=log.get("event_id"),
+                            ih=capture.get("image_hash", ""),
+                        ):
+                            await loop.run_in_executor(_ai_executor, update_capture_path, lid, cp, eid, ih)
                         asyncio.create_task(_update())
                     print(f"  → {log.get('name')} {log.get('check_type')}")
                     await manager.broadcast({**log, "type": "attendance"})
