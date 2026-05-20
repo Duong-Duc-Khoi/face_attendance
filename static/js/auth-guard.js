@@ -142,6 +142,31 @@
     return res;
   };
 
+  window.updateLeaveNavBadge = function (count) {
+    const n = Number(count) || 0;
+    document.querySelectorAll('a.nav-link[href="/dashboard?tab=leave"]').forEach(function (link) {
+      let badge = link.querySelector('.nav-alert-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'nav-alert-badge';
+        link.appendChild(badge);
+      }
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.classList.toggle('show', n > 0);
+      link.setAttribute('aria-label', n > 0 ? 'Nghỉ phép, có ' + n + ' đơn chờ duyệt' : 'Nghỉ phép');
+    });
+  };
+
+  async function refreshLeaveNavBadge() {
+    if (!user || (user.role !== 'admin' && user.role !== 'manager')) return;
+    if (!document.querySelector('a.nav-link[href="/dashboard?tab=leave"]')) return;
+    try {
+      const res = await window.authFetch('/api/leave/pending-count');
+      const data = await res.json();
+      window.updateLeaveNavBadge(data.count || 0);
+    } catch {}
+  }
+
   // Nút logout nếu có + hiện tên user
   document.addEventListener('DOMContentLoaded', function () {
     if (document.getElementById('mainNav')) {
@@ -191,6 +216,7 @@
     if (navSystemTitle && user && user.role !== 'admin') {
       navSystemTitle.style.display = 'none';
     }
+    refreshLeaveNavBadge();
 
     document.querySelectorAll('[data-logout]').forEach(function (el) {
       el.addEventListener('click', function () {

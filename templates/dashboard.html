@@ -25,6 +25,8 @@
 .overview-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .overview-action{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-decoration:none;font-family:var(--font-sans);font-size:12px;font-weight:800;cursor:pointer}
 .overview-action.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.overview-action .action-badge{display:none;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--red);color:#fff;font-size:10px;font-weight:900;line-height:18px;box-shadow:0 0 0 3px rgba(255,77,106,.14)}
+.overview-action .action-badge.show{display:inline-flex;align-items:center;justify-content:center}
 .ops-alert-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
 .ops-alert-card{position:relative;min-height:118px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px;overflow:hidden}
 .ops-alert-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--teal)}
@@ -248,7 +250,7 @@
     <div class="overview-actions">
       <a class="overview-action" href="/">Mở kiosk</a>
       <a class="overview-action primary" href="/shifts">Chia ca</a>
-      <button class="overview-action" onclick="switchDashTabById('tab-leave')">Duyệt nghỉ</button>
+      <button class="overview-action" onclick="switchDashTabById('tab-leave')">Duyệt nghỉ <span class="action-badge" id="overviewLeaveActionBadge">0</span></button>
       <button class="overview-action" onclick="switchDashTabById('tab-attendance')">Xem chấm công</button>
     </div>
   </section>
@@ -677,11 +679,24 @@ async function loadPendingLeaveCount(){
     const r=await authFetch('/api/leave/pending-count');
     const d=await r.json();
     pendingLeaveCount=d.count||0;
-    const badge=document.getElementById('leaveBadge');
-    badge.textContent=pendingLeaveCount;
-    badge.classList.toggle('show',pendingLeaveCount>0);
+    updateLeaveBadges(pendingLeaveCount);
     updateOperationsOverview();
   }catch{}
+}
+
+function updateLeaveBadges(count){
+  const n=Number(count)||0;
+  const badge=document.getElementById('leaveBadge');
+  if(badge){
+    badge.textContent=n;
+    badge.classList.toggle('show',n>0);
+  }
+  const actionBadge=document.getElementById('overviewLeaveActionBadge');
+  if(actionBadge){
+    actionBadge.textContent=n>99?'99+':String(n);
+    actionBadge.classList.toggle('show',n>0);
+  }
+  if(window.updateLeaveNavBadge)window.updateLeaveNavBadge(n);
 }
 
 function setOpsCard(id,value,note,state){
@@ -925,7 +940,7 @@ async function loadLeaveRequests(){
     leaveRequests=await r.json();renderLeaveTable();
     const cnt=leaveRequests.filter(l=>l.status==='pending').length;
     pendingLeaveCount=cnt;
-    const badge=document.getElementById('leaveBadge');badge.textContent=cnt;badge.classList.toggle('show',cnt>0);
+    updateLeaveBadges(cnt);
     updateOperationsOverview();
   }catch(e){showToast('Lỗi tải đơn nghỉ','error');}
 }

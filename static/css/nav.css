@@ -161,6 +161,22 @@ body.admin-shell::after{
   color:var(--admin-nav-muted);
   font-size:14px;font-weight:600;letter-spacing:0;
 }
+.admin-shell .nav-alert-badge{
+  position:absolute;
+  top:5px;left:27px;
+  margin-left:0;
+  min-width:18px;height:18px;
+  padding:0 5px;
+  border-radius:999px;
+  display:none;align-items:center;justify-content:center;
+  background:var(--red);
+  color:#fff;
+  font-family:var(--font-sans);
+  font-size:10px;font-weight:800;
+  line-height:18px;
+  box-shadow:0 0 0 3px rgba(255,77,106,.16);
+}
+.admin-shell .nav-alert-badge.show{display:inline-flex}
 .admin-shell .nav-section-title{
   display:block;
   padding:10px 14px 4px;
@@ -315,6 +331,16 @@ body.admin-shell.nav-collapsed{
   padding:0;
   gap:0;
   font-size:0;
+}
+.admin-shell.nav-collapsed .nav-alert-badge{
+  position:absolute;
+  top:6px;right:5px;
+  left:auto;
+  margin-left:0;
+  min-width:16px;height:16px;
+  padding:0 4px;
+  font-size:9px;line-height:16px;
+  box-shadow:0 0 0 2px var(--admin-nav-bg);
 }
 .admin-shell.nav-collapsed .nav-link::before{
   width:20px;height:20px;
