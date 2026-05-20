@@ -143,10 +143,17 @@ body.admin-shell::before{display:none}
 }
 .admin-shell .nav-link::before{
   content:"";
-  width:18px;height:18px;border-radius:5px;
-  border:1.5px solid rgba(255,255,255,.74);
-  opacity:.9;flex:0 0 auto;
+  width:18px;height:18px;
+  opacity:.92;flex:0 0 auto;
+  background:currentColor;
+  -webkit-mask:var(--nav-icon) center / 18px 18px no-repeat;
+  mask:var(--nav-icon) center / 18px 18px no-repeat;
 }
+.admin-shell .nav-link[href="/dashboard"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1'/%3E%3C/svg%3E")}
+.admin-shell .nav-link[href="/shifts"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 2v4M17 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'/%3E%3C/svg%3E")}
+.admin-shell .nav-link[href="/report"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19V5a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z'/%3E%3Cpath d='M14 3v6h6M8 14h8M8 17h5'/%3E%3C/svg%3E")}
+.admin-shell .nav-link[href="/users"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E")}
+.admin-shell .nav-link[href="/integrations"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.38.36.72.65 1 .29.29.63.51 1 .65H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z'/%3E%3C/svg%3E")}
 .admin-shell .nav-link:hover{
   color:#fff;background:rgba(255,255,255,.09);
 }
@@ -156,7 +163,7 @@ body.admin-shell::before{display:none}
   box-shadow:none;
 }
 .admin-shell .nav-link.active::before{
-  border-color:#fff;background:rgba(255,255,255,.16);
+  opacity:1;
 }
 .admin-shell .nav-account{
   display:flex;flex-direction:column;align-items:stretch;gap:10px;
@@ -181,6 +188,25 @@ body.admin-shell::before{display:none}
   background:rgba(255,255,255,.14);
   border-color:rgba(255,255,255,.58);
 }
+.sidebar-collapse-btn{
+  width:40px;height:40px;
+  margin:0 auto 16px;
+  display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.36);
+  border-radius:50%;
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  cursor:pointer;
+  transition:background .18s,transform .18s,border-color .18s;
+}
+.sidebar-collapse-btn:hover{
+  background:rgba(255,255,255,.15);
+  border-color:rgba(255,255,255,.68);
+}
+.sidebar-collapse-btn span{
+  font-size:22px;line-height:1;
+  transform:translateX(-1px);
+}
 body.admin-shell .page,
 body.admin-shell .ops-page{
   position:relative;z-index:1;
@@ -196,6 +222,62 @@ body.admin-shell .provider-card{
   box-shadow:0 8px 26px rgba(15,23,42,.05);
 }
 
+body.admin-shell.nav-collapsed{
+  padding-left:76px;
+}
+.admin-shell.nav-collapsed header{
+  width:76px;
+}
+.admin-shell.nav-collapsed .brand{
+  min-height:86px;
+  padding:18px 12px;
+}
+.admin-shell.nav-collapsed .brand-icon{
+  width:42px;height:42px;
+}
+.admin-shell.nav-collapsed .brand > div:not(.brand-icon),
+.admin-shell.nav-collapsed .user-chip{
+  display:none;
+}
+.admin-shell.nav-collapsed .nav-links{
+  padding:14px 10px;
+  align-items:center;
+}
+.admin-shell.nav-collapsed .nav-link{
+  width:46px;
+  min-height:46px;
+  justify-content:center;
+  padding:0;
+  gap:0;
+  font-size:0;
+}
+.admin-shell.nav-collapsed .nav-link::before{
+  width:20px;height:20px;
+  -webkit-mask-size:20px 20px;
+  mask-size:20px 20px;
+}
+.admin-shell.nav-collapsed .nav-account{
+  padding:12px 10px;
+}
+.admin-shell.nav-collapsed .logout-btn{
+  width:46px;
+  min-height:42px;
+  margin:0 auto;
+  padding:0;
+  font-size:0;
+}
+.admin-shell.nav-collapsed .logout-btn::before{
+  content:"";
+  width:18px;height:18px;
+  background:currentColor;
+  display:block;margin:auto;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5M21 12H9'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5M21 12H9'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+}
+.admin-shell.nav-collapsed .sidebar-collapse-btn span{
+  transform:rotate(180deg) translateX(-1px);
+}
+
 @media(max-width:900px){
   body.admin-shell{padding-left:0;padding-top:0}
   .admin-shell header{
@@ -206,6 +288,12 @@ body.admin-shell .provider-card{
   .admin-shell .brand-section{text-align:left}
   .admin-shell .nav-links{padding:12px 16px;max-height:none}
   .admin-shell .nav-account{flex-direction:row;align-items:center;justify-content:space-between}
+  .sidebar-collapse-btn{display:none}
+  body.admin-shell.nav-collapsed{padding-left:0}
+  .admin-shell.nav-collapsed header{width:auto}
+  .admin-shell.nav-collapsed .brand > div:not(.brand-icon),
+  .admin-shell.nav-collapsed .user-chip{display:block}
+  .admin-shell.nav-collapsed .nav-link{width:auto;font-size:14px;justify-content:flex-start;padding:0 14px;gap:12px}
   body.admin-shell .page,
   body.admin-shell .ops-page{padding:18px 16px}
 }

@@ -148,6 +148,30 @@
       document.body.classList.add('admin-shell');
     }
 
+    const sidebarHeader = document.querySelector('body.admin-shell header');
+    if (sidebarHeader && !document.querySelector('[data-sidebar-toggle]')) {
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'sidebar-collapse-btn';
+      toggle.setAttribute('data-sidebar-toggle', '');
+      toggle.setAttribute('aria-label', 'Thu gọn thanh điều hướng');
+      toggle.innerHTML = '<span aria-hidden="true">‹</span>';
+      sidebarHeader.appendChild(toggle);
+
+      const applySidebarState = function (collapsed) {
+        document.body.classList.toggle('nav-collapsed', collapsed);
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        toggle.setAttribute('aria-label', collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng');
+      };
+
+      applySidebarState(localStorage.getItem('sidebar_collapsed') === '1');
+      toggle.addEventListener('click', function () {
+        const collapsed = !document.body.classList.contains('nav-collapsed');
+        localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0');
+        applySidebarState(collapsed);
+      });
+    }
+
     // Hiện tên user ở nav nếu có element #navUserName
     const nameEl = document.getElementById('navUserName');
     if (nameEl && user) {
