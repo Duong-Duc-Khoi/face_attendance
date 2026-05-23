@@ -150,6 +150,7 @@
   /* ── Camera panel ── */
   .camera-wrap {
     position: relative;
+    isolation: isolate;
     border: 1px solid var(--border);
     border-radius: 16px;
     overflow: hidden;
@@ -158,6 +159,8 @@
   }
 
   .camera-feed {
+    position: relative;
+    z-index: 1;
     width: 100%; height: 100%;
     object-fit: cover;
     display: block;
@@ -166,6 +169,7 @@
   /* Corner brackets */
   .cam-corner {
     position: absolute;
+    z-index: 3;
     width: 28px; height: 28px;
     pointer-events: none;
   }
@@ -181,6 +185,7 @@
   /* Scan line */
   .scan-line {
     position: absolute; left: 16px; right: 16px;
+    z-index: 2;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--teal), transparent);
     box-shadow: 0 0 12px var(--teal);
@@ -197,6 +202,7 @@
   /* Camera label */
   .cam-label {
     position: absolute; bottom: 16px; left: 50%;
+    z-index: 20;
     transform: translateX(-50%);
     font-family: var(--font-mono);
     font-size: 11px; color: var(--teal);
@@ -207,9 +213,84 @@
     border-radius: 4px;
     backdrop-filter: blur(4px);
   }
+  .cam-label.notice-checkin {
+    color: var(--teal);
+    border-color: rgba(0,212,170,0.55);
+    background: rgba(0,32,26,0.86);
+  }
+  .cam-label.notice-checkout {
+    color: var(--blue);
+    border-color: rgba(58,143,255,0.58);
+    background: rgba(9,22,45,0.88);
+  }
+  .cam-label.notice-error {
+    color: var(--red);
+    border-color: rgba(255,77,106,0.58);
+    background: rgba(45,10,17,0.9);
+  }
+
+  .camera-notice {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    z-index: 30;
+    width: min(520px, calc(100% - 72px));
+    transform: translate(-50%, -10px);
+    opacity: 0;
+    pointer-events: none;
+    padding: 16px 20px;
+    border: 1px solid var(--teal-dim);
+    border-radius: 10px;
+    background: rgba(3,8,16,0.88);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.38), 0 0 24px rgba(0,212,170,0.12);
+    backdrop-filter: blur(10px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+  }
+  .camera-notice.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  .camera-notice.checkin {
+    border-color: rgba(0,212,170,0.55);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.38), 0 0 28px rgba(0,212,170,0.18);
+  }
+  .camera-notice.checkout {
+    border-color: rgba(58,143,255,0.58);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.38), 0 0 28px rgba(58,143,255,0.18);
+  }
+  .camera-notice.error {
+    border-color: rgba(255,77,106,0.58);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.38), 0 0 28px rgba(255,77,106,0.18);
+  }
+  .camera-notice-title {
+    font-size: 30px;
+    line-height: 1.12;
+    font-weight: 800;
+    color: var(--text);
+    text-align: center;
+  }
+  .camera-notice-detail {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--muted);
+    text-align: center;
+  }
+  @media (max-width: 900px) {
+    .camera-notice {
+      top: 18px;
+      width: calc(100% - 48px);
+      padding: 14px 16px;
+    }
+    .camera-notice-title {
+      font-size: 22px;
+    }
+  }
 
   /* Camera offline placeholder */
   .cam-offline {
+    position: relative;
+    z-index: 4;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 16px; height: 100%;
@@ -457,6 +538,9 @@
   .footer-left-group {
     display: flex; flex-direction: column; gap: 6px;
   }
+  .footer-controls {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
 
   /* ── Camera toggle button — matches design language ── */
   .cam-toggle-btn {
@@ -516,6 +600,16 @@
     background: var(--teal);
     box-shadow: 0 0 7px var(--teal);
     animation: blink 2s ease-in-out infinite;
+  }
+  .sound-toggle-btn.sound-on {
+    border-color: var(--blue);
+    background: rgba(58,143,255,0.12);
+    color: var(--blue);
+    box-shadow: 0 0 10px rgba(58,143,255,0.14);
+  }
+  .sound-toggle-btn.sound-on .cam-toggle-dot {
+    background: var(--blue);
+    box-shadow: 0 0 7px var(--blue);
   }
   #flash {
     position: fixed; inset: 0; z-index: 100;
@@ -577,8 +671,6 @@
     <div class="camera-wrap" id="camWrap">
       <!-- Live feed: MJPEG stream từ FastAPI backend -->
       <img class="camera-feed" id="camFeed" src="" style="display:none; image-rendering: auto;" alt="Camera stream">
-      <!-- Canvas overlay vẽ bbox từ WebSocket (phải nằm sau img để z-index đúng) -->
-      <canvas id="bboxCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
 
       <!-- Placeholder khi camera tắt -->
       <div class="cam-offline" id="camPlaceholder">
@@ -595,7 +687,11 @@
       <div class="cam-corner bl"></div>
       <div class="cam-corner br"></div>
       <div class="scan-line"></div>
-      <div class="cam-label">● ĐANG QUÉT — ĐỨNG THẲNG TRƯỚC CAMERA</div>
+      <div class="cam-label" id="camNoticeLabel">● ĐANG QUÉT — ĐỨNG THẲNG TRƯỚC CAMERA</div>
+      <div class="camera-notice" id="cameraNotice" aria-live="polite">
+        <div class="camera-notice-title" id="cameraNoticeTitle">—</div>
+        <div class="camera-notice-detail" id="cameraNoticeDetail">—</div>
+      </div>
     </div>
 
     <!-- Right panel -->
@@ -675,10 +771,16 @@
   <footer>
     <div class="footer-left-group">
       <div class="footer-left" id="wsStatus">WS: ĐANG KẾT NỐI...</div>
-      <button class="cam-toggle-btn" id="btnCamToggle" onclick="toggleCamera()">
-        <span class="cam-toggle-dot" id="camDot"></span>
-        <span id="camBtnLabel">CAM: TẮT</span>
-      </button>
+      <div class="footer-controls">
+        <button class="cam-toggle-btn" id="btnCamToggle" onclick="toggleCamera()">
+          <span class="cam-toggle-dot" id="camDot"></span>
+          <span id="camBtnLabel">CAM: TẮT</span>
+        </button>
+        <button class="cam-toggle-btn sound-toggle-btn" id="btnSoundToggle" onclick="toggleSound()">
+          <span class="cam-toggle-dot"></span>
+          <span id="soundBtnLabel">ÂM: TẮT</span>
+        </button>
+      </div>
     </div>
     <div class="footer-stats">
       <div class="stat-item">
@@ -723,6 +825,154 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
+// ── Success sounds ──
+let audioCtx = null;
+const savedSoundPreference = localStorage.getItem('attendanceSound');
+let attendanceSoundEnabled = savedSoundPreference !== 'off';
+const notificationSoundThrottle = {};
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!audioCtx) audioCtx = new AudioContextClass();
+  return audioCtx;
+}
+
+function unlockAudio() {
+  if (!attendanceSoundEnabled) return;
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+
+['pointerdown', 'keydown', 'touchstart'].forEach((eventName) => {
+  window.addEventListener(eventName, unlockAudio, { passive: true });
+});
+
+function updateSoundUI() {
+  const btn = document.getElementById('btnSoundToggle');
+  const label = document.getElementById('soundBtnLabel');
+  if (!btn || !label) return;
+  btn.classList.toggle('sound-on', attendanceSoundEnabled);
+  label.textContent = attendanceSoundEnabled ? 'ÂM: BẬT' : 'ÂM: TẮT';
+}
+
+function setSoundEnabled(enabled, test = false) {
+  attendanceSoundEnabled = enabled;
+  localStorage.setItem('attendanceSound', enabled ? 'on' : 'off');
+  updateSoundUI();
+  if (!enabled) return;
+
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const playTest = () => { if (test) playAttendanceSound('check_in', true); };
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(playTest).catch(() => {});
+    return;
+  }
+  playTest();
+}
+
+function toggleSound() {
+  setSoundEnabled(!attendanceSoundEnabled, true);
+}
+
+function canPlayNotificationSound(key, intervalMs = 4500) {
+  const now = Date.now();
+  if (notificationSoundThrottle[key] && now - notificationSoundThrottle[key] < intervalMs) {
+    return false;
+  }
+  notificationSoundThrottle[key] = now;
+  return true;
+}
+
+function playToneSequence(notes, force = false) {
+  if (!force && !attendanceSoundEnabled) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') {
+    ctx.resume()
+      .then(() => scheduleToneSequence(ctx, notes))
+      .catch(() => {});
+    return;
+  }
+  scheduleToneSequence(ctx, notes);
+}
+
+function scheduleToneSequence(ctx, notes) {
+  const now = ctx.currentTime;
+  notes.forEach((note) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(note.freq, now + note.start);
+    gain.gain.setValueAtTime(0.0001, now + note.start);
+    gain.gain.exponentialRampToValueAtTime(note.volume, now + note.start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + note.start + note.duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now + note.start);
+    osc.stop(now + note.start + note.duration + 0.03);
+  });
+}
+
+function playAttendanceSound(checkType, force = false) {
+  if (!force && !attendanceSoundEnabled) return;
+  const normalizedType = String(checkType || '').toLowerCase();
+  if (normalizedType === 'check_in') {
+    playToneSequence([
+      { freq: 784, start: 0.00, duration: 0.16, volume: 0.48 },
+      { freq: 1047, start: 0.15, duration: 0.22, volume: 0.42 },
+      { freq: 1319, start: 0.34, duration: 0.18, volume: 0.34 },
+    ], force);
+    return;
+  }
+  if (normalizedType === 'check_out') {
+    playToneSequence([
+      { freq: 1047, start: 0.00, duration: 0.16, volume: 0.46 },
+      { freq: 784, start: 0.15, duration: 0.20, volume: 0.40 },
+      { freq: 523, start: 0.33, duration: 0.22, volume: 0.34 },
+    ], force);
+  }
+}
+
+function speakNotification(message, force = false) {
+  if (!message || (!force && !attendanceSoundEnabled)) return;
+  if (!('speechSynthesis' in window)) return;
+
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.lang = 'vi-VN';
+  utterance.rate = 0.98;
+  utterance.pitch = 1;
+  utterance.volume = 1;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+function playAttendanceSuccess(data) {
+  const normalizedType = String(data.check_type || '').toLowerCase();
+  const key = `success:${normalizedType}:${data.emp_code || data.name || ''}`;
+  if (!canPlayNotificationSound(key, 2500)) return;
+
+  playAttendanceSound(normalizedType);
+  const action = normalizedType === 'check_out' ? 'Check out' : 'Check in';
+  speakNotification(`${action} thành công.`);
+}
+
+function playAttendanceError(data) {
+  const reason = data.reason || 'error';
+  const key = `error:${reason}:${data.emp_code || data.name || ''}`;
+  if (!canPlayNotificationSound(key, reason === 'cooldown' ? 8000 : 4500)) return;
+
+  playToneSequence([
+    { freq: 392, start: 0.00, duration: 0.16, volume: 0.46 },
+    { freq: 330, start: 0.18, duration: 0.18, volume: 0.42 },
+    { freq: 262, start: 0.40, duration: 0.28, volume: 0.38 },
+  ]);
+  speakNotification(data.voice_message || data.message || 'Có lỗi khi xử lý chấm công.');
+}
+
+updateSoundUI();
+
 // ── Stats counter ──
 let statIn = 0, statOut = 0;
 function updateStats(type) {
@@ -735,12 +985,91 @@ function updateStats(type) {
 
 // ── Show result card ──
 let hideTimer = null;
+let cameraNoticeTimer = null;
+let cameraLabelTimer = null;
+
+function buildCameraNotice(data) {
+  const normalizedType = String(data.check_type || '').toLowerCase();
+  const isError = data.ok === false || data.type === 'attendance_error';
+  const isCooldown = data.reason === 'cooldown';
+  const isIn = normalizedType === 'check_in';
+  const isOut = normalizedType === 'check_out';
+  const namePart = data.name ? `${data.name}${data.time ? ' · ' + data.time : ''}` : (data.time || '');
+
+  if (isError) {
+    if (isCooldown) {
+      return {
+        tone: 'error',
+        title: isOut ? 'Bạn đã check out trước đó' : 'Bạn đã check in trước đó',
+        detail: data.message || `Vui lòng chờ đủ ${data.cooldown_minutes || 5} phút rồi thử lại`,
+      };
+    }
+    return {
+      tone: 'error',
+      title: 'Có lỗi xảy ra',
+      detail: data.message || 'Vui lòng thử lại',
+    };
+  }
+
+  if (!data.name || data.name === 'Unknown') {
+    return {
+      tone: 'error',
+      title: 'Không nhận ra khuôn mặt',
+      detail: 'Vui lòng nhìn thẳng vào camera và thử lại',
+    };
+  }
+
+  return {
+    tone: isOut ? 'checkout' : 'checkin',
+    title: isOut ? 'Check out thành công' : 'Check in thành công',
+    detail: namePart,
+  };
+}
+
+function showCameraNotice(data) {
+  const notice = document.getElementById('cameraNotice');
+  const title = document.getElementById('cameraNoticeTitle');
+  const detail = document.getElementById('cameraNoticeDetail');
+  const label = document.getElementById('camNoticeLabel');
+
+  const message = buildCameraNotice(data);
+  console.log('[cameraNotice]', message);
+  if (notice && title && detail) {
+    title.textContent = message.title;
+    detail.textContent = message.detail || '';
+    notice.className = `camera-notice visible ${message.tone}`;
+
+    clearTimeout(cameraNoticeTimer);
+    cameraNoticeTimer = setTimeout(() => {
+      notice.classList.remove('visible');
+    }, message.tone === 'error' ? 5200 : 4200);
+  }
+
+  if (label) {
+    const toneClass = message.tone === 'checkin'
+      ? 'notice-checkin'
+      : (message.tone === 'checkout' ? 'notice-checkout' : 'notice-error');
+    label.className = `cam-label ${toneClass}`;
+    label.textContent = message.detail ? `${message.title} — ${message.detail}` : message.title;
+
+    clearTimeout(cameraLabelTimer);
+    cameraLabelTimer = setTimeout(() => {
+      label.className = 'cam-label';
+      label.textContent = '● ĐANG QUÉT — ĐỨNG THẲNG TRƯỚC CAMERA';
+    }, message.tone === 'error' ? 5200 : 4200);
+  }
+}
+
 function showResult(data) {
   console.log('[showResult] gọi với:', data.name, data.check_type);
   console.log('[showResult] data đầy đủ:', JSON.stringify(data));
   console.log('[showResult] name:', data.name, '| check_type:', data.check_type);
-  const isIn      = data.check_type === 'check_in';
+  const normalizedType = String(data.check_type || '').toLowerCase();
+  const isError   = data.ok === false || data.type === 'attendance_error';
+  const isIn      = normalizedType === 'check_in';
   const isUnknown = !data.name || data.name === 'Unknown';
+  const isCooldown = data.reason === 'cooldown';
+  showCameraNotice(data);
 
   const instructionEl = document.getElementById('instructionCard');
   const rc            = document.getElementById('resultCard');
@@ -752,8 +1081,8 @@ function showResult(data) {
   rc.classList.add('visible');
   console.log('[showResult] resultCard.visible:', rc.classList.contains('visible'), 'display:', getComputedStyle(rc).display);
 
-  document.getElementById('resName').textContent    = isUnknown ? 'Không nhận ra' : data.name;
-  document.getElementById('resDept').textContent    = isUnknown ? 'Vui lòng thử lại' : (data.department || '—');
+  document.getElementById('resName').textContent    = isUnknown ? (isError ? 'Lỗi chấm công' : 'Không nhận ra') : data.name;
+  document.getElementById('resDept').textContent    = isError ? (data.message || 'Vui lòng thử lại') : (isUnknown ? 'Vui lòng thử lại' : (data.department || '—'));
   document.getElementById('resCode').textContent    = data.emp_code || '—';
   document.getElementById('resTime').textContent    = data.time || '--:--:--';
   document.getElementById('resDeptVal').textContent = data.department || '—';
@@ -764,9 +1093,11 @@ function showResult(data) {
   document.getElementById('resConfBar').style.width = conf + '%';
 
   const badge = document.getElementById('resBadge');
-  badge.className = 'result-badge ' + (isUnknown ? 'unknown' : (isIn ? 'checkin' : 'checkout'));
-  document.getElementById('resBadgeIcon').textContent = isUnknown ? '✕' : (isIn ? '▲' : '▼');
-  document.getElementById('resBadgeText').textContent = isUnknown ? 'KHÔNG NHẬN RA' : (isIn ? 'CHECK IN' : 'CHECK OUT');
+  badge.className = 'result-badge ' + ((isUnknown || isError) ? 'unknown' : (isIn ? 'checkin' : 'checkout'));
+  document.getElementById('resBadgeIcon').textContent = (isUnknown || isError) ? '✕' : (isIn ? '▲' : '▼');
+  document.getElementById('resBadgeText').textContent = isError
+    ? (isCooldown ? (isIn ? 'ĐÃ CHECK IN' : 'ĐÃ CHECK OUT') : 'CÓ LỖI')
+    : (isUnknown ? 'KHÔNG NHẬN RA' : (isIn ? 'CHECK IN' : 'CHECK OUT'));
 
   // Avatar
   const av = document.getElementById('resAvatar');
@@ -778,12 +1109,15 @@ function showResult(data) {
 
   // Flash overlay
   const flash = document.getElementById('flash');
-  flash.className = isUnknown ? 'red' : 'green';
+  flash.className = (isUnknown || isError) ? 'red' : 'green';
   flash.style.opacity = '1';
   setTimeout(() => { flash.style.opacity = '0'; }, 300);
 
   // Update log
-  if (!isUnknown) {
+  if (isError) {
+    playAttendanceError(data);
+  } else if (!isUnknown) {
+    playAttendanceSuccess(data);
     updateStats(data.check_type);
     addLogItem(data);
     setTimeout(loadTodayHistory, 800);
@@ -840,11 +1174,10 @@ function connectWS() {
     let data;
     try { data = JSON.parse(e.data); } catch(err) { console.error('WS JSON error:', err); return; }
 
-    if (data.type === 'camera_off') return;
-    if (data.type === 'faces') { drawBboxes(data.faces, data.fw, data.fh); return; }
+    if (data.type === 'camera_off' || data.type === 'faces') return;
 
     // attendance event: type='attendance' (server mới) hoặc có check_type (server cũ)
-    if (data.type === 'attendance' || data.check_type) {
+    if (data.type === 'attendance' || data.type === 'attendance_error' || data.check_type) {
       console.log('[WS] attendance nhận được:', data);
       showResult(data);
     }
@@ -881,68 +1214,6 @@ function connectWS() {
 
 // ── Camera toggle ──
 let cameraOn = false;
-let bboxClearTimer = null;
-
-// Vẽ bounding box từ kết quả nhận diện gửi về qua WebSocket
-function drawBboxes(faces, serverW, serverH) {
-  const imgEl  = document.getElementById('camFeed');
-  const canvas = document.getElementById('bboxCanvas');
-  if (!canvas || !imgEl.offsetWidth) return;
-
-  if (canvas.width !== imgEl.offsetWidth || canvas.height !== imgEl.offsetHeight) {
-    canvas.width  = imgEl.offsetWidth;
-    canvas.height = imgEl.offsetHeight;
-  }
-
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!faces || faces.length === 0) return;
-
-  const dw = canvas.width, dh = canvas.height;
-  const imgRatio = serverW / serverH;
-  const elRatio  = dw / dh;
-
-  let renderW, renderH, offsetX = 0, offsetY = 0;
-  if (imgRatio > elRatio) {
-    renderH = dh;  renderW = dh * imgRatio;
-    offsetX = (dw - renderW) / 2;
-  } else {
-    renderW = dw;  renderH = dw / imgRatio;
-    offsetY = (dh - renderH) / 2;
-  }
-
-  const scaleX = renderW / serverW;
-  const scaleY = renderH / serverH;
-
-  for (const f of faces) {
-    const [x1, y1, x2, y2] = f.bbox;
-    const bx = offsetX + x1 * scaleX;
-    const by = offsetY + y1 * scaleY;
-    const bw = (x2 - x1) * scaleX;
-    const bh = (y2 - y1) * scaleY;
-
-    const color = f.recognized ? '#00d4aa' : '#ff4d6a';
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = 2;
-    ctx.strokeRect(bx, by, bw, bh);
-
-    const label = f.recognized
-      ? `${f.name}  ${Math.round(f.confidence * 100)}%`
-      : `Lạ  ${Math.round(f.confidence * 100)}%`;
-    ctx.font = 'bold 13px Sora, sans-serif';
-    const tw = ctx.measureText(label).width;
-    ctx.fillStyle = color;
-    ctx.fillRect(bx, by - 22, tw + 12, 22);
-    ctx.fillStyle = '#060c17';
-    ctx.fillText(label, bx + 6, by - 6);
-  }
-
-  clearTimeout(bboxClearTimer);
-  bboxClearTimer = setTimeout(() => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, 2000);
-}
 
 function showCameraFeed() {
   const feed = document.getElementById('camFeed');
@@ -955,12 +1226,16 @@ function showCameraFeed() {
 function hideCameraFeed() {
   const feed = document.getElementById('camFeed');
   const placeholder = document.getElementById('camPlaceholder');
+  const notice = document.getElementById('cameraNotice');
+  const label = document.getElementById('camNoticeLabel');
   feed.src = '';
   feed.style.display = 'none';
   if (placeholder) placeholder.style.display = 'flex';
-  // Xóa bbox
-  const canvas = document.getElementById('bboxCanvas');
-  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  if (notice) notice.classList.remove('visible');
+  if (label) {
+    label.className = 'cam-label';
+    label.textContent = '● ĐANG QUÉT — ĐỨNG THẲNG TRƯỚC CAMERA';
+  }
 }
 
 async function syncCameraStatus() {
@@ -974,6 +1249,9 @@ async function syncCameraStatus() {
 }
 
 async function toggleCamera() {
+  if (!attendanceSoundEnabled) setSoundEnabled(true);
+  else unlockAudio();
+
   const btn = document.getElementById('btnCamToggle');
   btn.disabled = true;
   try {
@@ -999,15 +1277,6 @@ function updateCamUI() {
     label.textContent = 'CAM: TẮT';
   }
 }
-
-window.addEventListener('resize', () => {
-  const canvas = document.getElementById('bboxCanvas');
-  const imgEl  = document.getElementById('camFeed');
-  if (canvas && imgEl) {
-    canvas.width  = imgEl.offsetWidth;
-    canvas.height = imgEl.offsetHeight;
-  }
-});
 
 // Load lịch sử hôm nay từ DB khi mở trang
 async function loadTodayHistory() {

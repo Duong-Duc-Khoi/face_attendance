@@ -5,6 +5,7 @@ Endpoints báo cáo, thống kê và xuất Excel.
 
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
@@ -43,6 +44,27 @@ def _optional_user(
         return db.query(User).filter_by(id=int(payload["sub"]), is_active=True).first()
     except Exception:
         return None
+
+
+def _require_manager_or_admin(current_user):
+    if current_user.role not in ("admin", "manager"):
+        raise HTTPException(status_code=403, detail="Chỉ quản lý (manager/admin) mới được xem bằng chứng chấm công")
+
+
+def _capture_file_for_log(log: AttendanceLog) -> Path:
+    if not log.capture_path:
+        raise HTTPException(status_code=404, detail="Bản ghi này chưa có ảnh bằng chứng")
+
+    capture_root = Path(settings.CAPTURES_DIR).resolve()
+    capture_path = Path(log.capture_path).resolve()
+    try:
+        capture_path.relative_to(capture_root)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Đường dẫn ảnh bằng chứng không hợp lệ")
+
+    if not capture_path.is_file():
+        raise HTTPException(status_code=404, detail="Không tìm thấy file ảnh bằng chứng")
+    return capture_path
 
 
 @router.get("/attendance")
@@ -219,13 +241,35 @@ def get_attendance_session_events(
                 "event_type": e.event_type,
                 "event_time": e.event_time.isoformat() if e.event_time else None,
                 "confidence": e.confidence,
-                "capture_path": e.capture_path,
+                "capture_available": bool(e.capture_path),
+                "image_hash": e.image_hash or "",
                 "source": e.source,
                 "note": e.note,
             }
             for e in rows
         ],
     }
+
+
+# ── GET /api/attendance/{log_id}/capture ─────────────────────────
+
+@router.get("/attendance/{log_id}/capture")
+def get_attendance_capture(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Trả ảnh bằng chứng chấm công cho manager/admin, không expose thư mục captures."""
+    _require_manager_or_admin(current_user)
+    log = db.query(AttendanceLog).filter_by(id=log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    capture_file = _capture_file_for_log(log)
+    return FileResponse(
+        str(capture_file),
+        media_type="image/jpeg",
+        filename=f"attendance_{log_id}.jpg",
+    )
 
 
 # ── GET /api/attendance/{log_id} ─────────────────────────────────

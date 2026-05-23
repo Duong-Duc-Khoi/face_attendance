@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from app.api.v1.shifts import router as shifts_router
 from app.core.config import settings
 from app.core.database import init_db
@@ -36,6 +37,7 @@ from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
 from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
+from app.api.v1.integrations import router as integrations_router
 from app.services.attendance import get_summary_today, auto_checkout_missing
 scheduler = AsyncIOScheduler()
 
@@ -59,10 +61,10 @@ async def lifespan(app: FastAPI):
 
     scheduler.add_job(_daily_report, CronTrigger(hour=18, minute=0),
                       id="daily_report", replace_existing=True)
-    scheduler.add_job(_auto_checkout, CronTrigger(hour=23, minute=59),
+    scheduler.add_job(_auto_checkout, IntervalTrigger(minutes=15),
                       id="auto_checkout", replace_existing=True)
     scheduler.start()
-    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00, auto checkout lúc 23:59")
+    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00, auto checkout quét mỗi 15 phút")
     yield
     scheduler.shutdown(wait=False)
     release_camera()
@@ -86,7 +88,7 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/data",   StaticFiles(directory="data"),   name="data")
+app.mount("/data/faces", StaticFiles(directory="data/faces"), name="faces")
 
 templates = Jinja2Templates(directory="templates")
 
@@ -98,6 +100,7 @@ app.include_router(reports.router)
 app.include_router(leave_router)
 app.include_router(calendar_router)
 app.include_router(shifts_router)
+app.include_router(integrations_router)
 
 # ── Auth pages ───────────────────────────────────────────────────
 @app.get("/auth/login-page")
@@ -133,6 +136,10 @@ async def users_page(request: Request):
 @app.get("/shifts")
 async def shifts_page(request: Request):
     return templates.TemplateResponse("shifts.html", {"request": request})
+
+@app.get("/integrations")
+async def integrations_page(request: Request):
+    return templates.TemplateResponse("integrations.html", {"request": request})
 
 # ── Camera stream ────────────────────────────────────────────────
 def _placeholder_mjpeg():

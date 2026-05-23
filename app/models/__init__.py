@@ -10,11 +10,13 @@ from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSess
 from app.models.user import User, EmailToken, RefreshToken
 from app.models.leave import LeaveRequest, LeaveRequestDay
 from app.models.calendar import WorkCalendar
-from app.models.shift import Shift, ShiftAssignment
+from app.models.shift import Shift, ShiftAssignment, ShiftPlanDraft, ShiftPlanDraftAssignment
+from app.models.integration import AIProviderSetting
 __all__ = [
     "Base", "Branch", "Employee",
     "AttendanceSession", "AttendanceEvent", "AttendanceLog",
     "User", "EmailToken", "RefreshToken",
     "LeaveRequest", "LeaveRequestDay", "WorkCalendar",
-    "Shift", "ShiftAssignment", 
+    "Shift", "ShiftAssignment", "ShiftPlanDraft", "ShiftPlanDraftAssignment",
+    "AIProviderSetting",
 ]

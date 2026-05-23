@@ -6,27 +6,39 @@
 <title>Báo cáo — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-2">
 <link rel="stylesheet" href="/static/css/components.css">
 <link rel="stylesheet" href="/static/css/reports.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="/static/js/auth-guard.js"></script>
 </head>
-<body>
+<body class="admin-shell">
 <header>
   <div class="brand">
     <div class="brand-icon">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
     </div>
-    <span class="brand-name">FaceAttend</span>
+    <div>
+      <span class="brand-name">FaceAttend</span>
+      <span class="brand-section">Báo cáo</span>
+    </div>
   </div>
-  <div class="nav-links" id="mainNav">
-    <a href="/dashboard" class="nav-link">Quản lý</a>
+  <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
+    <span class="nav-section-title">Vận hành</span>
+    <a href="/dashboard" class="nav-link">Tổng quan</a>
+    <a href="/dashboard?tab=attendance" class="nav-link">Chấm công</a>
+    <a href="/dashboard?tab=employees" class="nav-link">Nhân viên</a>
+    <a href="/shifts" class="nav-link">Ca làm</a>
+    <a href="/dashboard?tab=leave" class="nav-link">Nghỉ phép</a>
     <a href="/report" class="nav-link active">Báo cáo</a>
+    <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
     <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
-    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
-    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">→ Đăng xuất</button>
-</div>
+    <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
+  </nav>
+  <div class="nav-account">
+    <span id="navUserName" class="user-chip"></span>
+    <button data-logout class="logout-btn">Đăng xuất</button>
+  </div>
 </header>
 
 <div class="page">
@@ -120,7 +132,7 @@
         </select>
         <input type="number" id="statsYear" value="2026" min="2020" max="2030"
           style="width:70px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
-        <button onclick="loadEmpStats()" style="padding:5px 13px;border-radius:6px;background:var(--teal);color:#000;font-size:11px;font-weight:700;cursor:pointer;border:none">Xem</button>
+        <button onclick="loadEmpStats()" style="padding:5px 13px;border-radius:6px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none">Xem</button>
       </div>
     </div>
     <div id="empStatsPanel" style="padding:16px;display:none">

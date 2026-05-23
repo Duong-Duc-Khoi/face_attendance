@@ -9,7 +9,7 @@
 
 (function () {
   const LOGIN_PAGE = '/auth/login-page';
-  const MANAGER_ONLY = ['/dashboard', '/report', '/users'];
+  const MANAGER_ONLY = ['/dashboard', '/shifts', '/report', '/users', '/integrations'];
 
   function getToken() {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
@@ -142,8 +142,61 @@
     return res;
   };
 
+  window.updateLeaveNavBadge = function (count) {
+    const n = Number(count) || 0;
+    document.querySelectorAll('a.nav-link[href="/dashboard?tab=leave"]').forEach(function (link) {
+      let badge = link.querySelector('.nav-alert-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'nav-alert-badge';
+        link.appendChild(badge);
+      }
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.classList.toggle('show', n > 0);
+      link.setAttribute('aria-label', n > 0 ? 'Nghỉ phép, có ' + n + ' đơn chờ duyệt' : 'Nghỉ phép');
+    });
+  };
+
+  async function refreshLeaveNavBadge() {
+    if (!user || (user.role !== 'admin' && user.role !== 'manager')) return;
+    if (!document.querySelector('a.nav-link[href="/dashboard?tab=leave"]')) return;
+    try {
+      const res = await window.authFetch('/api/leave/pending-count');
+      const data = await res.json();
+      window.updateLeaveNavBadge(data.count || 0);
+    } catch {}
+  }
+
   // Nút logout nếu có + hiện tên user
   document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('mainNav')) {
+      document.body.classList.add('admin-shell');
+    }
+
+    const sidebarHeader = document.querySelector('body.admin-shell header');
+    if (sidebarHeader && !document.querySelector('[data-sidebar-toggle]')) {
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'sidebar-collapse-btn';
+      toggle.setAttribute('data-sidebar-toggle', '');
+      toggle.setAttribute('aria-label', 'Thu gọn thanh điều hướng');
+      toggle.innerHTML = '<span aria-hidden="true">‹</span>';
+      sidebarHeader.appendChild(toggle);
+
+      const applySidebarState = function (collapsed) {
+        document.body.classList.toggle('nav-collapsed', collapsed);
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        toggle.setAttribute('aria-label', collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng');
+      };
+
+      applySidebarState(localStorage.getItem('sidebar_collapsed') === '1');
+      toggle.addEventListener('click', function () {
+        const collapsed = !document.body.classList.contains('nav-collapsed');
+        localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0');
+        applySidebarState(collapsed);
+      });
+    }
+
     // Hiện tên user ở nav nếu có element #navUserName
     const nameEl = document.getElementById('navUserName');
     if (nameEl && user) {
@@ -155,6 +208,15 @@
     if (navUsers && user && user.role !== 'admin') {
       navUsers.style.display = 'none';
     }
+    const navIntegrations = document.getElementById('navIntegrations');
+    if (navIntegrations && user && user.role !== 'admin') {
+      navIntegrations.style.display = 'none';
+    }
+    const navSystemTitle = document.getElementById('navSystemTitle');
+    if (navSystemTitle && user && user.role !== 'admin') {
+      navSystemTitle.style.display = 'none';
+    }
+    refreshLeaveNavBadge();
 
     document.querySelectorAll('[data-logout]').forEach(function (el) {
       el.addEventListener('click', function () {

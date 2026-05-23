@@ -1,4 +1,5 @@
-# FaceAttend — Hệ Thống Chấm Công Nhận Diện Khuôn Mặt
+# FaceAttend - He thong cham cong nhan dien khuon mat
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python" />
@@ -8,112 +9,55 @@
   <img src="https://img.shields.io/badge/PostgreSQL-Database-blue?style=for-the-badge&logo=postgresql" />
 </p>
 
-Ứng dụng chấm công thời gian thực sử dụng AI nhận diện khuôn mặt (InsightFace ArcFace), chạy trên phần cứng thông thường (PC + webcam). Nhân viên chỉ cần đứng trước camera — hệ thống tự động nhận diện và ghi nhận thời gian vào/ra trong vòng dưới 1 giây.
+FaceAttend la ung dung cham cong thoi gian thuc cho nhan vien, su dung FastAPI, PostgreSQL, OpenCV va InsightFace. He thong co kiosk nhan dien khuon mat qua webcam, quan ly nhan vien, tai khoan nguoi dung, ca lam viec, lich lam viec, don nghi phep, bao cao cham cong va audit bang chung cham cong.
 
----
+## Tinh nang chinh
 
-## Mục Lục
+- Kiosk cham cong bang webcam voi luong MJPEG va WebSocket.
+- Nhan dien khuon mat bang InsightFace/ArcFace, luu embedding theo ma nhan vien.
+- Tu dong check-in/check-out, cooldown tranh cham lap, tinh di muon/ve som theo ca.
+- Quan ly nhan vien, anh khuon mat, trang thai dang lam/nghi viec.
+- Xac thuc bang email, mat khau, OTP, refresh token va phan quyen `admin`, `manager`, `staff`.
+- Duyet tai khoan moi sau khi nguoi dung xac minh email.
+- Quan ly ca lam, phan cong ca don le/hang loat, lich lam viec va ngay dac biet.
+- Lap nhap phan ca bang AI neu cau hinh OpenAI/Gemini; fallback bang thuat toan heuristic.
+- Don nghi phep/remote, duyet/tu choi/huy don va thong bao email.
+- Bao cao cham cong, thong ke theo ngay/khoang ngay, xuat Excel.
+- Bang chung anh cham cong, audit diem rui ro va luong review cho manager/admin.
+- Scheduler tu dong: bao cao ngay 18:00, auto checkout moi 15 phut, don dep bang chung qua han luc 02:30.
 
-- [Tính năng](#tính-năng)
-- [Công nghệ](#công-nghệ)
-- [Kiến trúc](#kiến-trúc)
-- [Cài đặt](#cài-đặt)
-- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-- [API](#api)
+## Cong nghe
 
----
+| Thanh phan | Cong nghe |
+| --- | --- |
+| Backend | FastAPI, Uvicorn |
+| Database | PostgreSQL, SQLAlchemy 2.x |
+| AI nhan dien | InsightFace, ONNX Runtime |
+| Camera | OpenCV, MJPEG stream, WebSocket |
+| Auth | PyJWT, bcrypt, OTP qua email |
+| Frontend | Jinja2 templates, vanilla JavaScript, CSS rieng theo man hinh |
+| Bao cao | OpenPyXL |
+| Scheduler | APScheduler |
+| Tich hop AI | OpenAI Responses API, Google Gemini API |
 
-## Tính Năng
+## Yeu cau
 
-**Chấm công (Kiosk)**
-- Nhận diện khuôn mặt thời gian thực qua webcam (MJPEG + WebSocket)
-- Tự động phân biệt check-in (lần đầu trong ngày) và check-out
-- Phát hiện đi muộn so với giờ làm cấu hình
-- Chống chấm công lặp (cooldown 5 phút)
-- Thông báo Telegram tức thời khi có sự kiện
+- Python 3.10+.
+- PostgreSQL 14+.
+- Webcam USB hoac camera tich hop.
+- Windows/Linux/macOS. Tren Windows, `run.py` co toi uu timer cho MJPEG.
+- RAM khuyen nghi toi thieu 8 GB khi chay model `buffalo_l`.
 
-**Quản lý nhân viên**
-- Đăng ký khuôn mặt từ camera (nhiều ảnh, nhiều góc) hoặc upload file
-- CRUD nhân viên: mã NV, tên, phòng ban, chức vụ, email, điện thoại
-- Soft delete (vô hiệu hóa, không xóa dữ liệu lịch sử)
+## Cai dat nhanh
 
-**Báo cáo**
-- Lịch sử chấm công theo ngày, khoảng thời gian, phòng ban
-- Thống kê tổng hợp: đã vào, đã ra, vắng mặt, đi muộn
-- Biểu đồ theo ngày và theo phòng ban (Chart.js)
-- Xuất báo cáo Excel (.xlsx) có định dạng màu sắc
+1. Tao va kich hoat moi truong ao:
 
-**Xác thực & Phân quyền**
-- Đăng ký tài khoản với xác minh email
-- Đăng nhập 2 bước: mật khẩu → OTP gửi qua email
-- 3 vai trò: `admin`, `manager`, `staff`
-- JWT access token (15 phút) + Refresh token (7 ngày, có thu hồi)
-- Phân quyền chi tiết theo từng action (`attendance:read_own`, `employee:write`, v.v.)
-
----
-
-## Công Nghệ
-
-| Thành phần | Công nghệ |
-|---|---|
-| AI nhận diện | InsightFace `buffalo_l` (ArcFace 512-dim, cosine similarity) |
-| Backend | FastAPI + Uvicorn |
-| Camera stream | OpenCV → MJPEG (threading) + WebSocket (recognition) |
-| Database | PostgreSQL + SQLAlchemy 2.0 |
-| Auth | JWT (PyJWT) + bcrypt (passlib) + OTP email |
-| Frontend | Jinja2 + Vanilla JS + Custom CSS (tách file theo component) |
-| Thông báo | Gmail SMTP + Telegram Bot API (aiohttp) |
-| Xuất báo cáo | OpenPyXL |
-
----
-
-## Kiến Trúc
-
-```
-Browser (localhost:8000)
-  ├── GET /              → kiosk.html     (public)
-  ├── GET /video_feed    → MJPEG stream
-  ├── WS  /ws/attendance → realtime recognition
-  ├── GET /dashboard     → quản lý (cần đăng nhập)
-  ├── GET /register      → đăng ký nhân viên
-  └── GET /report        → báo cáo
-
-FastAPI Backend
-  ├── app/main.py        → routes HTML, camera, health
-  ├── app/ws.py          → WebSocket handler + ConnectionManager
-  ├── app/face_engine.py → InsightFace singleton (load model 1 lần)
-  ├── app/camera.py      → CameraStream (3 thread: capture / MJPEG / recognition)
-  ├── app/attendance.py  → business logic check-in/out, cooldown, late detection
-  ├── app/auth.py        → JWT, OTP, RBAC, email verification
-  ├── app/notify.py      → Email SMTP + Telegram
-  ├── app/database.py    → SQLAlchemy models (Employee, AttendanceLog, User, ...)
-  └── app/routes/
-       ├── auth.py       → /auth/* endpoints
-       ├── employees.py  → /api/employees/*
-       └── reports.py    → /api/attendance, /api/summary, /api/reports/export
-
-Luồng chấm công:
-Camera frame (60 FPS capture)
-  → MJPEG stream (25 FPS, không AI, dùng cached bbox)
-  → WebSocket loop (~1/giây): face_engine.recognize()
-      → cosine similarity ≥ 0.50 → process_attendance()
-          → lưu AttendanceLog vào PostgreSQL
-          → broadcast WebSocket → UI cập nhật
-          → telegram_checkin() async
+```powershell
+python -m venv venv
+.\venv\Scripts\activate
 ```
 
----
-
-## Cài Đặt
-
-### Yêu cầu
-
-- Python 3.10+
-- PostgreSQL 14+
-- Webcam (USB hoặc tích hợp)
-- RAM tối thiểu 4GB (khuyến nghị 8GB cho model AI)
-
-### Bước 1 — Clone và tạo môi trường ảo
+Tren Linux/macOS:
 
 ```bash
 git clone https://github.com/your-username/face-attendance.git

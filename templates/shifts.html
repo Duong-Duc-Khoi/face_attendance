@@ -6,7 +6,7 @@
 <title>Phân ca nhà hàng - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-2">
 <link rel="stylesheet" href="/static/css/components.css">
 <script src="/static/js/auth-guard.js"></script>
 <style>
@@ -39,16 +39,16 @@ body::after{
   font-size:12px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .18s;
 }
 .icon-btn svg,.chip-btn svg{width:15px;height:15px;flex:0 0 auto}
-.icon-btn:hover,.chip-btn:hover{border-color:var(--cyan);color:#fff;background:#13243e}
-.icon-btn.primary{background:var(--green);border-color:var(--green);color:#00110d}
-.icon-btn.primary:hover{background:#26e8c1;color:#00110d}
+.icon-btn:hover,.chip-btn:hover{border-color:var(--cyan);color:var(--text);background:var(--panel)}
+.icon-btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.icon-btn.primary:hover{background:var(--green);color:#fff}
 .icon-btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
 .icon-btn.danger:hover{background:rgba(255,77,106,.12);border-color:var(--red)}
 .icon-only{width:34px;padding:0}
 
 .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
 .metric{
-  min-height:82px;background:rgba(13,22,38,.82);border:1px solid var(--border);
+  min-height:82px;background:var(--surface);border:1px solid var(--border);
   border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between;
 }
 .metric-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
@@ -70,14 +70,14 @@ body::after{
   color:var(--text);border-radius:8px;padding:8px 10px;font-family:var(--font-sans);
   font-size:12px;outline:none;transition:border-color .18s,background .18s;
 }
-.input:focus,.select:focus{border-color:var(--green);background:#102039}
+.input:focus,.select:focus{border-color:var(--green);background:var(--surface)}
 .select option{background:var(--surface)}
 .check-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text)}
 .check-row input{accent-color:var(--green)}
 
 .shift-list{display:flex;flex-direction:column;gap:8px;max-height:440px;overflow:auto;padding-right:2px}
 .shift-card{
-  border:1px solid var(--border);background:linear-gradient(180deg,rgba(17,30,52,.94),rgba(13,22,38,.94));
+  border:1px solid var(--border);background:linear-gradient(180deg,var(--surface),var(--panel));
   border-radius:8px;padding:12px;display:grid;gap:10px;transition:all .18s;
 }
 .shift-card:hover{border-color:rgba(58,143,255,.55);transform:translateY(-1px)}
@@ -88,10 +88,10 @@ body::after{
 .shift-dot.evening{background:var(--cyan)}.shift-dot.night{background:var(--violet)}
 .shift-name{font-size:13px;font-weight:700}
 .shift-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
-.code-note{font-family:var(--font-mono);font-size:10px;color:var(--muted);padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:rgba(6,12,23,.22)}
+.code-note{font-family:var(--font-mono);font-size:10px;color:var(--muted);padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:var(--panel)}
 .shift-time{font-family:var(--font-mono);font-size:13px;color:var(--green);white-space:nowrap}
 .shift-meta{display:flex;gap:6px;flex-wrap:wrap}
-.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--muted);background:rgba(6,12,23,.35)}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--muted);background:var(--surface)}
 .pill.active{color:var(--green);border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.08)}
 .pill.warn{color:var(--amber);border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08)}
 .shift-actions{display:flex;gap:6px;justify-content:flex-end}
@@ -112,7 +112,7 @@ body::after{
 
 .schedule-toolbar{
   display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
-  padding:14px;border-bottom:1px solid var(--border);background:rgba(17,30,52,.7)
+  padding:14px;border-bottom:1px solid var(--border);background:var(--panel)
 }
 .month-nav{display:flex;align-items:center;gap:8px}
 .month-label{font-size:15px;font-weight:700;min-width:145px;text-align:center}
@@ -131,13 +131,13 @@ body::after{
 .dow.weekend{color:var(--amber)}
 .day{
   position:relative;min-height:116px;border:1px solid var(--border);border-radius:8px;
-  background:rgba(13,22,38,.82);padding:9px;display:flex;flex-direction:column;gap:6px;
+  background:var(--surface);padding:9px;display:flex;flex-direction:column;gap:6px;
   cursor:pointer;transition:border-color .16s,background .16s;
 }
-.day:hover{border-color:var(--cyan);background:#102039}
+.day:hover{border-color:var(--cyan);background:var(--panel)}
 .day.empty{visibility:hidden;pointer-events:none}
 .day.today{border-color:var(--green);box-shadow:0 0 0 1px rgba(0,212,170,.18) inset}
-.day.weekend{background:rgba(17,30,52,.58)}
+.day.weekend{background:var(--panel)}
 .day-num{display:flex;justify-content:space-between;align-items:center;gap:6px}
 .date-badge{
   min-width:30px;height:30px;border-radius:8px;
@@ -147,7 +147,7 @@ body::after{
   border:1px solid rgba(90,122,154,.32);
 }
 .day.weekend .date-badge{color:var(--amber);border-color:rgba(246,201,14,.28);background:rgba(246,201,14,.08)}
-.day.today .date-badge{color:#00110d;background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(0,212,170,.12)}
+.day.today .date-badge{color:#fff;background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(0,212,170,.12)}
 .today-mark{font-size:9px;color:var(--green);font-family:var(--font-sans);font-weight:700}
 .assignment-chip{
   border-radius:6px;padding:5px 7px;font-size:10px;line-height:1.25;
@@ -162,11 +162,11 @@ body::after{
 .empty-slot{font-size:10px;color:var(--muted);margin-top:auto}
 
 .bulk-panel{display:grid;grid-template-columns:1.2fr .8fr auto;gap:12px;align-items:end}
-.selected-strip{display:flex;gap:6px;flex-wrap:wrap;min-height:36px;padding:8px;border:1px dashed var(--border);border-radius:8px;background:rgba(6,12,23,.25)}
+.selected-strip{display:flex;gap:6px;flex-wrap:wrap;min-height:36px;padding:8px;border:1px dashed var(--border);border-radius:8px;background:var(--surface)}
 .selected-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);font-size:11px;color:var(--green);font-weight:700}
 .selected-tag button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:14px;line-height:1}
 
-.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(6,12,23,.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px}
+.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px}
 .modal-overlay.open{display:flex}
 .modal-box{width:min(560px,100%);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;animation:modalIn .18s ease}
 @keyframes modalIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -177,6 +177,17 @@ body::after{
 .assigned-list{display:flex;flex-direction:column;gap:8px}
 .assigned-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
 .assigned-title{font-size:12px;font-weight:700}.assigned-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
+.ai-box{display:grid;gap:10px}
+.ai-status{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.55}
+.ai-status strong{color:var(--text)}
+.ai-warning{border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08);color:var(--amber)}
+.ai-draft-list{display:grid;gap:8px;max-height:280px;overflow:auto}
+.ai-draft-row{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
+.ai-draft-date{font-family:var(--font-mono);font-size:11px;color:var(--green)}
+.ai-draft-main{min-width:0}
+.ai-draft-title{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-draft-reason{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-source{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 
 @media(max-width:1120px){
   .planner-grid{grid-template-columns:1fr}
@@ -197,21 +208,32 @@ body::after{
 }
 </style>
 </head>
-<body>
+<body class="admin-shell">
 <header>
   <div class="brand">
     <div class="brand-icon">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
     </div>
-    <span class="brand-name">FaceAttend</span>
+    <div>
+      <span class="brand-name">FaceAttend</span>
+      <span class="brand-section">Ca làm</span>
+    </div>
   </div>
-  <div class="nav-links" id="mainNav">
-    <a href="/dashboard" class="nav-link">Quản lý</a>
+  <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
+    <span class="nav-section-title">Vận hành</span>
+    <a href="/dashboard" class="nav-link">Tổng quan</a>
+    <a href="/dashboard?tab=attendance" class="nav-link">Chấm công</a>
+    <a href="/dashboard?tab=employees" class="nav-link">Nhân viên</a>
     <a href="/shifts" class="nav-link active">Ca làm</a>
+    <a href="/dashboard?tab=leave" class="nav-link">Nghỉ phép</a>
     <a href="/report" class="nav-link">Báo cáo</a>
+    <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
     <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
-    <span id="navUserName" style="font-size:12px;color:var(--muted);padding:0 4px"></span>
-    <button data-logout style="background:none;border:1px solid rgba(255,77,106,.35);color:#ff4d6a;padding:5px 13px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.04em">Đăng xuất</button>
+    <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
+  </nav>
+  <div class="nav-account">
+    <span id="navUserName" class="user-chip"></span>
+    <button data-logout class="logout-btn">Đăng xuất</button>
   </div>
 </header>
 
@@ -223,6 +245,10 @@ body::after{
       <p class="ops-sub">Theo dõi ca sáng, trưa, tối, ca đêm và phân công nhân sự theo từng ngày trong tháng.</p>
     </div>
     <div class="head-actions">
+      <button class="icon-btn" onclick="openAiPlanner()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+        AI đề xuất
+      </button>
       <button class="icon-btn" onclick="loadAll()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         Làm mới
@@ -354,6 +380,11 @@ body::after{
       <input type="hidden" id="shiftId">
       <div class="field"><label class="field-label">Tên ca</label><input class="input" id="shiftName" placeholder="Ca tối"></div>
       <div class="code-note" id="shiftCodeNote">Mã nội bộ sẽ được hệ thống tự tạo khi lưu ca mới.</div>
+      <div class="field">
+        <label class="field-label">Vị trí áp dụng</label>
+        <input class="input" id="shiftRequiredPosition" placeholder="VD: Đầu bếp, Phụ bếp, Phục vụ" list="positionList">
+        <datalist id="positionList"></datalist>
+      </div>
       <div class="field-row">
         <div class="field"><label class="field-label">Giờ vào</label><input class="input" type="time" id="shiftStart" value="16:00"></div>
         <div class="field"><label class="field-label">Giờ ra</label><input class="input" type="time" id="shiftEnd" value="22:00"></div>
@@ -404,6 +435,45 @@ body::after{
   </div>
 </div>
 
+<div class="modal-overlay" id="aiPlannerModal">
+  <div class="modal-box" style="width:min(760px,100%)">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">AI đề xuất phân ca</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Tạo bản nháp để quản lý xem trước rồi mới áp dụng</div>
+      </div>
+      <button class="icon-btn icon-only" onclick="closeAiPlanner()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field"><label class="field-label">Từ ngày</label><input class="input" type="date" id="aiFrom"></div>
+        <div class="field"><label class="field-label">Đến ngày</label><input class="input" type="date" id="aiTo"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="field-label">Tối thiểu mỗi ca</label><input class="input" type="number" id="aiMinStaff" min="0" max="20" value="1"></div>
+        <label class="check-row" style="align-self:end"><input type="checkbox" id="aiUseOpenAI" checked> Dùng OpenAI nếu đã cấu hình key</label>
+      </div>
+      <div class="field">
+        <label class="field-label">Yêu cầu thêm</label>
+        <input class="input" id="aiInstructions" placeholder="VD: cuối tuần đông khách, ưu tiên nhân viên kinh nghiệm ca tối">
+      </div>
+      <div class="ai-box" id="aiDraftBox">
+        <div class="ai-status">Chưa có bản nháp. Bấm tạo đề xuất để bắt đầu.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="icon-btn" onclick="closeAiPlanner()">Đóng</button>
+      <button class="icon-btn" onclick="generateAiPlan()" id="aiGenerateBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+        Tạo đề xuất
+      </button>
+      <button class="icon-btn primary" onclick="applyAiPlan()" id="aiApplyBtn" disabled>Áp dụng nháp</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <script src="/static/js/toast.js"></script>
 <script>
@@ -415,6 +485,7 @@ let assignmentsByDate = {};
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 let modalDate = "";
+let currentAiDraft = null;
 
 function normalizeText(value){
   return String(value || "")
@@ -494,6 +565,7 @@ function renderShifts(){
       </div>
       <div class="shift-meta">
         <span class="pill ${s.is_active ? "active" : ""}">${s.is_active ? "Đang dùng" : "Đã tắt"}</span>
+        ${s.required_position ? `<span class="pill">${esc(s.required_position)}</span>` : ""}
         <span class="pill">Muộn ${s.late_threshold_minutes ?? 0}p</span>
         <span class="pill">Nghỉ ${s.break_minutes ?? 0}p</span>
         ${s.is_overnight ? `<span class="pill warn">Qua ngày</span>` : ""}
@@ -592,6 +664,8 @@ function fillShiftSelects(){
   const html = active.map(s => `<option value="${s.id}">${esc(s.name)} · ${esc(s.work_start)}-${esc(s.work_end)}</option>`).join("");
   document.getElementById("bulkShiftSelect").innerHTML = html;
   document.getElementById("dayShiftSelect").innerHTML = html;
+  const positions = [...new Set(employees.map(e => e.position).filter(Boolean))].sort();
+  document.getElementById("positionList").innerHTML = positions.map(p => `<option value="${esc(p)}"></option>`).join("");
 }
 
 function monthLabel(){
@@ -662,6 +736,7 @@ function openShiftModal(id = null){
   document.getElementById("shiftModalTitle").textContent = s ? "Sửa ca làm" : "Tạo ca làm";
   document.getElementById("shiftName").value = s?.name || "";
   document.getElementById("shiftCodeNote").textContent = s ? `Mã nội bộ: ${s.code}` : "Mã nội bộ sẽ được hệ thống tự tạo khi lưu ca mới.";
+  document.getElementById("shiftRequiredPosition").value = s?.required_position || "";
   document.getElementById("shiftStart").value = s?.work_start || "16:00";
   document.getElementById("shiftEnd").value = s?.work_end || "22:00";
   document.getElementById("shiftEarly").value = s?.early_checkin_minutes ?? 30;
@@ -681,6 +756,7 @@ async function saveShift(){
   const id = document.getElementById("shiftId").value;
   const body = {
     name: document.getElementById("shiftName").value.trim(),
+    required_position: document.getElementById("shiftRequiredPosition").value.trim(),
     work_start: document.getElementById("shiftStart").value,
     work_end: document.getElementById("shiftEnd").value,
     early_checkin_minutes: parseInt(document.getElementById("shiftEarly").value) || 0,
@@ -816,6 +892,114 @@ async function bulkAssign(){
   await loadCalendar();
   await loadTodayAssignments();
   showToast(data.message || "Đã phân công", "success");
+}
+
+function openAiPlanner(){
+  const from = document.getElementById("bulkFrom").value || todayIso();
+  const to = document.getElementById("bulkTo").value || from;
+  document.getElementById("aiFrom").value = from;
+  document.getElementById("aiTo").value = to;
+  document.getElementById("aiInstructions").value = document.getElementById("bulkNote").value || "";
+  currentAiDraft = null;
+  document.getElementById("aiApplyBtn").disabled = true;
+  document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status">Chưa có bản nháp. Bấm tạo đề xuất để bắt đầu.</div>`;
+  document.getElementById("aiPlannerModal").classList.add("open");
+}
+
+function closeAiPlanner(){
+  document.getElementById("aiPlannerModal").classList.remove("open");
+}
+
+async function generateAiPlan(){
+  const from = document.getElementById("aiFrom").value;
+  const to = document.getElementById("aiTo").value;
+  if (!from || !to || from > to) return showToast("Khoảng ngày không hợp lệ", "error");
+  const btn = document.getElementById("aiGenerateBtn");
+  btn.disabled = true;
+  btn.textContent = "Đang tạo...";
+  document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status">Đang tạo bản nháp phân ca...</div>`;
+  try{
+    const res = await authFetch("/api/shifts/ai-plan", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        from_date: from,
+        to_date: to,
+        default_min_staff: parseInt(document.getElementById("aiMinStaff").value) || 0,
+        instructions: document.getElementById("aiInstructions").value.trim(),
+        emp_codes: [...selectedBulk],
+        use_ai: document.getElementById("aiUseOpenAI").checked
+      })
+    });
+    if (!res.ok){
+      const err = await res.json();
+      throw new Error(err.detail || "Không tạo được bản nháp");
+    }
+    currentAiDraft = await res.json();
+    renderAiDraft(currentAiDraft);
+    document.getElementById("aiApplyBtn").disabled = !currentAiDraft.assignments?.length;
+  }catch(e){
+    currentAiDraft = null;
+    document.getElementById("aiApplyBtn").disabled = true;
+    document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status ai-warning">${esc(e.message)}</div>`;
+    showToast("Không tạo được bản nháp", "error");
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg> Tạo đề xuất`;
+  }
+}
+
+function renderAiDraft(draft){
+  const warnings = draft.warnings || [];
+  const rows = draft.assignments || [];
+  const grouped = rows.reduce((acc, r) => {
+    const key = r.work_date;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(r);
+    return acc;
+  }, {});
+  const list = Object.keys(grouped).sort().map(day => grouped[day].map(r => {
+    const emp = r.employee?.name || r.emp_code;
+    const shift = r.shift?.name || `Ca #${r.shift_id}`;
+    return `<div class="ai-draft-row">
+      <div class="ai-draft-date">${esc(day)}</div>
+      <div class="ai-draft-main">
+        <div class="ai-draft-title">${esc(emp)} · ${esc(shift)}</div>
+        <div class="ai-draft-reason">${esc(r.reason || "Đề xuất phân ca")}</div>
+      </div>
+      <div class="ai-source">${esc(r.shift?.work_start || "")}-${esc(r.shift?.work_end || "")}</div>
+    </div>`;
+  }).join("")).join("");
+  document.getElementById("aiDraftBox").innerHTML = `
+    <div class="ai-status"><strong>${esc(draft.summary || "Bản nháp phân ca")}</strong><br>Nguồn: ${esc(draft.source)} · ${rows.length} lượt đề xuất</div>
+    ${warnings.length ? `<div class="ai-status ai-warning">${warnings.map(esc).join("<br>")}</div>` : ""}
+    <div class="ai-draft-list">${list || `<div class="ai-status">Không có lượt phân ca mới cần đề xuất.</div>`}</div>
+  `;
+}
+
+async function applyAiPlan(){
+  if (!currentAiDraft?.id) return;
+  if (!confirm("Áp dụng bản nháp này vào lịch phân ca thật?")) return;
+  const btn = document.getElementById("aiApplyBtn");
+  btn.disabled = true;
+  btn.textContent = "Đang áp dụng...";
+  try{
+    const res = await authFetch(`/api/shifts/ai-plan/${currentAiDraft.id}/apply`, {method:"POST"});
+    if (!res.ok){
+      const err = await res.json();
+      throw new Error(err.detail || "Không áp dụng được bản nháp");
+    }
+    const data = await res.json();
+    await loadCalendar();
+    await loadTodayAssignments();
+    closeAiPlanner();
+    showToast(data.message || "Đã áp dụng bản nháp", "success");
+  }catch(e){
+    showToast(e.message, "error");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Áp dụng nháp";
+  }
 }
 </script>
 </body>

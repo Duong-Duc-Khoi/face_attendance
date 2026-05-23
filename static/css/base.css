@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+
 /* ── Reset ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -15,8 +17,8 @@
   --yellow:#f6c90e;
   --text:#e8f0fe;
   --muted:#5a7a9a;
-  --font-sans:'Sora',sans-serif;
-  --font-mono:'Space Mono',monospace;
+  --font-sans:'Be Vietnam Pro','Sora','Segoe UI',system-ui,sans-serif;
+  --font-mono:'Space Mono','Consolas','Liberation Mono',monospace;
 }
 
 /* ── Base body ── */

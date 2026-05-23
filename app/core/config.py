@@ -34,6 +34,12 @@ class Settings:
     REFRESH_TOKEN_EXP: int = int(os.getenv("REFRESH_TOKEN_EXP", "10080"))   # phút (7 ngày)
     OTP_EXP_MINUTES:   int = int(os.getenv("OTP_EXP_MINUTES",   "10"))
 
+    # ── OpenAI / AI planning ───────────────────────────
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL:   str = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL:   str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
     # ── Email ──────────────────────────────────────────
     EMAIL_HOST:     str = os.getenv("EMAIL_HOST",     "smtp.gmail.com")
     EMAIL_PORT:     int = int(os.getenv("EMAIL_PORT", "587"))
@@ -49,6 +55,13 @@ class Settings:
     # ── Face Engine ────────────────────────────────────
     FACE_THRESHOLD:  float = float(os.getenv("FACE_THRESHOLD",  "0.50"))
     MIN_FACE_SIZE:   int   = 40     # px — bỏ qua khuôn mặt quá nhỏ
+
+    # ── Presentation attack guard ──────────────────────
+    PRESENTATION_GUARD_ENABLED: bool = os.getenv("PRESENTATION_GUARD_ENABLED", "true").lower() == "true"
+    PRESENTATION_GUARD_ACTION: str = os.getenv("PRESENTATION_GUARD_ACTION", os.getenv("PASSIVE_LIVENESS_ACTION", "block")).lower()
+    PRESENTATION_GUARD_RISK_THRESHOLD: float = float(os.getenv("PRESENTATION_GUARD_RISK_THRESHOLD", "0.45"))
+    PRESENTATION_GUARD_MIN_FRAMES: int = int(os.getenv("PRESENTATION_GUARD_MIN_FRAMES", "3"))
+    PRESENTATION_GUARD_WINDOW_SECONDS: float = float(os.getenv("PRESENTATION_GUARD_WINDOW_SECONDS", "3.5"))
 
     # ── Chấm công ──────────────────────────────────────
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))
