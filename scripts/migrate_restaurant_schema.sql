@@ -109,6 +109,86 @@ CREATE INDEX IF NOT EXISTS ix_attendance_events_branch_id ON attendance_events(b
 CREATE INDEX IF NOT EXISTS ix_attendance_events_event_type ON attendance_events(event_type);
 CREATE INDEX IF NOT EXISTS ix_attendance_events_event_time ON attendance_events(event_time);
 
+CREATE TABLE IF NOT EXISTS attendance_evidence (
+    id SERIAL PRIMARY KEY,
+    log_id INTEGER NOT NULL,
+    event_id INTEGER,
+    session_id INTEGER,
+    employee_id INTEGER,
+    emp_code VARCHAR(20) DEFAULT '',
+    image_path VARCHAR(255) DEFAULT '',
+    image_hash VARCHAR(64) DEFAULT '',
+    captured_at TIMESTAMP DEFAULT NOW(),
+    files_available BOOLEAN DEFAULT TRUE,
+    deleted_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_attendance_evidence_log_id ON attendance_evidence(log_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_evidence_event_id ON attendance_evidence(event_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_evidence_session_id ON attendance_evidence(session_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_evidence_employee_id ON attendance_evidence(employee_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_evidence_emp_code ON attendance_evidence(emp_code);
+CREATE INDEX IF NOT EXISTS ix_attendance_evidence_captured_at ON attendance_evidence(captured_at);
+CREATE INDEX IF NOT EXISTS ix_attendance_evidence_files_available ON attendance_evidence(files_available);
+
+CREATE TABLE IF NOT EXISTS attendance_audit_runs (
+    id SERIAL PRIMARY KEY,
+    run_type VARCHAR(30) DEFAULT 'daily',
+    from_date DATE,
+    to_date DATE,
+    emp_code VARCHAR(20) DEFAULT '',
+    status VARCHAR(20) DEFAULT 'completed',
+    source VARCHAR(30) DEFAULT 'heuristic',
+    summary TEXT DEFAULT '',
+    warnings TEXT DEFAULT '[]',
+    total_findings INTEGER DEFAULT 0,
+    high_count INTEGER DEFAULT 0,
+    medium_count INTEGER DEFAULT 0,
+    low_count INTEGER DEFAULT 0,
+    created_by VARCHAR(150) DEFAULT '',
+    created_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_runs_run_type ON attendance_audit_runs(run_type);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_runs_from_date ON attendance_audit_runs(from_date);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_runs_to_date ON attendance_audit_runs(to_date);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_runs_emp_code ON attendance_audit_runs(emp_code);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_runs_status ON attendance_audit_runs(status);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_runs_created_at ON attendance_audit_runs(created_at);
+
+CREATE TABLE IF NOT EXISTS attendance_audit_findings (
+    id SERIAL PRIMARY KEY,
+    audit_run_id INTEGER,
+    log_id INTEGER NOT NULL,
+    event_id INTEGER,
+    evidence_id INTEGER,
+    employee_id INTEGER,
+    emp_code VARCHAR(20) DEFAULT '',
+    emp_name VARCHAR(100) DEFAULT '',
+    risk_score DOUBLE PRECISION DEFAULT 0.0,
+    risk_level VARCHAR(20) DEFAULT 'low',
+    reasons TEXT DEFAULT '[]',
+    metrics TEXT DEFAULT '{}',
+    source VARCHAR(30) DEFAULT 'heuristic',
+    review_status VARCHAR(30) DEFAULT 'pending_review',
+    reviewer_note TEXT DEFAULT '',
+    reviewed_by VARCHAR(150) DEFAULT '',
+    reviewed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_audit_run_id ON attendance_audit_findings(audit_run_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_log_id ON attendance_audit_findings(log_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_event_id ON attendance_audit_findings(event_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_evidence_id ON attendance_audit_findings(evidence_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_employee_id ON attendance_audit_findings(employee_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_emp_code ON attendance_audit_findings(emp_code);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_risk_score ON attendance_audit_findings(risk_score);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_risk_level ON attendance_audit_findings(risk_level);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_source ON attendance_audit_findings(source);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_review_status ON attendance_audit_findings(review_status);
+CREATE INDEX IF NOT EXISTS ix_attendance_audit_findings_created_at ON attendance_audit_findings(created_at);
+
 ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS employee_id INTEGER;
 ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS reviewed_by_id INTEGER;
 ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();

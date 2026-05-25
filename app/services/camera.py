@@ -255,12 +255,12 @@ class CameraStream:
         safe_type = self._safe_name(metadata.get("check_type") or "attendance")
         ts = captured_at.strftime("%Y%m%d_%H%M%S")
         path = day_dir / f"{log_id}_{safe_emp}_{safe_type}_{ts}.jpg"
-
         evidence = self._draw_capture_overlay(frame.copy(), metadata | {"emp_code": emp_code}, captured_at)
         ok = cv2.imwrite(str(path), evidence, [cv2.IMWRITE_JPEG_QUALITY, 92])
         if not ok:
             return {}
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
+
         return {
             "path": str(path),
             "image_hash": digest,

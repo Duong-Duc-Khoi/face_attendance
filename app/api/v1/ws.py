@@ -9,7 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.services.camera import get_camera
-from app.services.attendance import process_attendance,update_capture_path
+from app.services.attendance import process_attendance
+from app.services.attendance_audit import record_attendance_evidence
 from app.services.notify import notify_late_async
 from app.services.presentation_guard import presentation_guard_service
 
@@ -142,11 +143,11 @@ async def ws_attendance(websocket: WebSocket):
                     if capture:
                         async def _update(
                             lid=log["id"],
-                            cp=capture.get("path", ""),
+                            cap=capture,
                             eid=log.get("event_id"),
-                            ih=capture.get("image_hash", ""),
+                            pres=presentation,
                         ):
-                            await loop.run_in_executor(_ai_executor, update_capture_path, lid, cp, eid, ih)
+                            await loop.run_in_executor(_ai_executor, record_attendance_evidence, lid, cap, eid, pres)
                         asyncio.create_task(_update())
                     print(f"  → {log.get('name')} {log.get('check_type')}")
                     await manager.broadcast({**log, "type": "attendance"})

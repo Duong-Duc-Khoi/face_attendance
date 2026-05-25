@@ -17,12 +17,19 @@ from typing import Optional
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.attendance import AttendanceEvent, AttendanceLog
+from app.models.attendance import AttendanceAuditFinding, AttendanceEvent, AttendanceEvidence, AttendanceLog
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
     get_log_by_id, update_attendance_log,
     delete_attendance_log, create_manual_attendance_log,
 )
+from app.services.attendance_audit import (
+    get_audit_run,
+    list_audit_findings,
+    run_attendance_audit,
+    update_audit_finding_review,
+)
+from app.services.integration_settings import list_ai_provider_settings
 
 
 router = APIRouter(prefix="/api", tags=["reports"])
@@ -51,12 +58,11 @@ def _require_manager_or_admin(current_user):
         raise HTTPException(status_code=403, detail="Chỉ quản lý (manager/admin) mới được xem bằng chứng chấm công")
 
 
-def _capture_file_for_log(log: AttendanceLog) -> Path:
-    if not log.capture_path:
-        raise HTTPException(status_code=404, detail="Bản ghi này chưa có ảnh bằng chứng")
-
+def _safe_capture_file(raw_path: str, missing_detail: str) -> Path:
+    if not raw_path:
+        raise HTTPException(status_code=404, detail=missing_detail)
     capture_root = Path(settings.CAPTURES_DIR).resolve()
-    capture_path = Path(log.capture_path).resolve()
+    capture_path = Path(raw_path).resolve()
     try:
         capture_path.relative_to(capture_root)
     except ValueError:
@@ -67,16 +73,47 @@ def _capture_file_for_log(log: AttendanceLog) -> Path:
     return capture_path
 
 
+def _capture_file_for_log(log: AttendanceLog) -> Path:
+    return _safe_capture_file(log.capture_path, "Bản ghi này chưa có ảnh bằng chứng")
+
+
+def _evidence_image_file_for_log(log_id: int, db: Session) -> Path:
+    evidence = (
+        db.query(AttendanceEvidence)
+          .filter_by(log_id=log_id, files_available=True)
+          .order_by(AttendanceEvidence.id.desc())
+          .first()
+    )
+    if not evidence:
+        raise HTTPException(status_code=404, detail="Bản ghi này chưa có bằng chứng")
+    if not evidence.image_path:
+        raise HTTPException(status_code=404, detail="Không có file bằng chứng phù hợp")
+    capture_root = Path(settings.CAPTURES_DIR).resolve()
+    file_path = Path(evidence.image_path).resolve()
+    try:
+        file_path.relative_to(capture_root)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Đường dẫn bằng chứng không hợp lệ")
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Không tìm thấy file bằng chứng")
+    return file_path
+
+
 @router.get("/attendance")
 def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
                    current_user=Depends(_optional_user)):
     if date:
-        logs = get_logs_by_date(date, emp_code)
+        logs = []
+        start_date = datetime.strptime(date, "%Y-%m-%d")
+        for i in range(max(1, days)):
+            d = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+            logs.extend(get_logs_by_date(d, emp_code))
     else:
         logs = []
         for i in range(days):
             d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
             logs.extend(get_logs_by_date(d, emp_code))
+    logs.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
     return {"logs": logs, "total": len(logs)}
 
 
@@ -218,6 +255,20 @@ class AttendanceCreateRequest(BaseModel):
     note:       Optional[str] = ""
 
 
+class AuditRunRequest(BaseModel):
+    run_type: str = "daily"  # daily | low_confidence | employee_day
+    date: Optional[str] = None
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+    emp_code: Optional[str] = ""
+    use_ai: bool = True
+
+
+class AuditReviewRequest(BaseModel):
+    review_status: str
+    note: Optional[str] = ""
+
+
 # ── GET /api/attendance/sessions/{session_id}/events ─────────────
 
 @router.get("/attendance/sessions/{session_id}/events")
@@ -264,12 +315,151 @@ def get_attendance_capture(
     log = db.query(AttendanceLog).filter_by(id=log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
-    capture_file = _capture_file_for_log(log)
+    try:
+        capture_file = _evidence_image_file_for_log(log_id, db)
+    except HTTPException:
+        capture_file = _capture_file_for_log(log)
     return FileResponse(
         str(capture_file),
         media_type="image/jpeg",
         filename=f"attendance_{log_id}.jpg",
     )
+
+
+# ── AI audit review-first ───────────────────────────────────────
+
+@router.post("/attendance/audit-runs")
+def create_attendance_audit_run(
+    body: AuditRunRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    try:
+        if body.date:
+            from_date = to_date = datetime.strptime(body.date, "%Y-%m-%d").date()
+        else:
+            from_date = datetime.strptime(body.from_date or datetime.now().strftime("%Y-%m-%d"), "%Y-%m-%d").date()
+            to_date = datetime.strptime(body.to_date or from_date.isoformat(), "%Y-%m-%d").date()
+        if to_date < from_date:
+            raise ValueError("to_date phải lớn hơn hoặc bằng from_date")
+        run_type = body.run_type if body.run_type in ("daily", "low_confidence", "employee_day") else "daily"
+        return run_attendance_audit(
+            db=db,
+            from_date=from_date,
+            to_date=to_date,
+            run_type=run_type,
+            created_by=current_user.full_name or current_user.email,
+            emp_code=(body.emp_code or "").strip(),
+            use_ai=body.use_ai,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/attendance/audit-runs/{run_id}")
+def get_attendance_audit_run(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    run = get_audit_run(db, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lượt audit")
+    return run
+
+
+@router.get("/attendance/audit-findings")
+def get_attendance_audit_findings(
+    date: str = "",
+    from_date: str = "",
+    to_date: str = "",
+    emp_code: str = "",
+    review_status: str = "pending_review",
+    risk_level: str = "",
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    providers = list_ai_provider_settings(db)
+    vision_ready = any(p.get("configured") and p.get("is_enabled") for p in providers)
+    return {
+        "findings": list_audit_findings(db, date, review_status, risk_level, limit, from_date, to_date, emp_code),
+        "vision_ai_configured": vision_ready,
+        "ai_provider": next((p["label"] for p in providers if p.get("configured") and p.get("is_enabled")), ""),
+    }
+
+
+@router.put("/attendance/audit-findings/{finding_id}/review")
+def review_attendance_audit_finding(
+    finding_id: int,
+    body: AuditReviewRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    try:
+        finding = update_audit_finding_review(
+            finding_id=finding_id,
+            status=body.review_status,
+            note=body.note or "",
+            reviewer=current_user.full_name or current_user.email,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if not finding:
+        raise HTTPException(status_code=404, detail="Không tìm thấy finding")
+    return {"success": True, "finding": finding}
+
+
+@router.post("/attendance/{log_id}/review")
+def review_attendance_log_manually(
+    log_id: int,
+    body: AuditReviewRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Đánh dấu soát tay cho một log bất kỳ, kể cả confidence >= 70%."""
+    _require_manager_or_admin(current_user)
+    if body.review_status not in ("reviewed", "dismissed", "confirmed", "pending_review"):
+        raise HTTPException(status_code=422, detail="review_status không hợp lệ")
+    log = db.query(AttendanceLog).filter_by(id=log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    evidence = (
+        db.query(AttendanceEvidence)
+          .filter_by(log_id=log.id)
+          .order_by(AttendanceEvidence.id.desc())
+          .first()
+    )
+    finding = (
+        db.query(AttendanceAuditFinding)
+          .filter_by(log_id=log.id, source="manual_review")
+          .order_by(AttendanceAuditFinding.id.desc())
+          .first()
+    )
+    if not finding:
+        finding = AttendanceAuditFinding(log_id=log.id, source="manual_review")
+        db.add(finding)
+    finding.event_id = None
+    finding.evidence_id = evidence.id if evidence else None
+    finding.employee_id = log.employee_id
+    finding.emp_code = log.emp_code or ""
+    finding.emp_name = log.emp_name or ""
+    finding.risk_score = 0.50 if body.review_status == "confirmed" else 0.0
+    finding.risk_level = "medium" if body.review_status == "confirmed" else "clear"
+    finding.reasons = '["manual_review"]'
+    finding.metrics = "{}"
+    finding.review_status = body.review_status
+    finding.reviewer_note = body.note or ""
+    finding.reviewed_by = current_user.full_name or current_user.email
+    finding.reviewed_at = datetime.now() if body.review_status != "pending_review" else None
+    finding.updated_at = datetime.now()
+    db.commit()
+    return {"success": True, "review_status": finding.review_status, "finding_id": finding.id}
 
 
 # ── GET /api/attendance/{log_id} ─────────────────────────────────

@@ -9,7 +9,13 @@ from pathlib import Path
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.employee import Employee
-from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
+from app.models.attendance import (
+    AttendanceAuditFinding,
+    AttendanceEvidence,
+    AttendanceEvent,
+    AttendanceLog,
+    AttendanceSession,
+)
 from app.models.shift import Shift
 from app.services.shift_service import (
     calc_status_for_shift,
@@ -316,9 +322,91 @@ def _matching_event(db, log: AttendanceLog) -> AttendanceEvent | None:
     )
 
 
+def _matching_evidence(db, log: AttendanceLog) -> AttendanceEvidence | None:
+    return (
+        db.query(AttendanceEvidence)
+          .filter_by(log_id=log.id)
+          .order_by(AttendanceEvidence.id.desc())
+          .first()
+    )
+
+
+def _top_finding(db, log: AttendanceLog) -> AttendanceAuditFinding | None:
+    return (
+        db.query(AttendanceAuditFinding)
+          .filter_by(log_id=log.id, review_status="pending_review")
+          .order_by(AttendanceAuditFinding.risk_score.desc(), AttendanceAuditFinding.id.desc())
+          .first()
+    )
+
+
+def _manual_review_finding(db, log: AttendanceLog) -> AttendanceAuditFinding | None:
+    return (
+        db.query(AttendanceAuditFinding)
+          .filter_by(log_id=log.id, source="manual_review")
+          .order_by(AttendanceAuditFinding.updated_at.desc(), AttendanceAuditFinding.id.desc())
+          .first()
+    )
+
+
 def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> dict:
     confidence = float(log.confidence or 0.0)
-    capture_available = _capture_file_exists(log.capture_path)
+    evidence = None
+    finding = None
+    manual_review = None
+    try:
+        db = SessionLocal()
+        try:
+            evidence = _matching_evidence(db, log)
+            finding = _top_finding(db, log)
+            manual_review = _manual_review_finding(db, log)
+        finally:
+            db.close()
+    except Exception:
+        evidence = None
+        finding = None
+    image_path = log.capture_path or ""
+    if not _capture_file_exists(image_path) and evidence:
+        image_path = evidence.image_path or ""
+    image_hash = ""
+    if event and event.image_hash:
+        image_hash = event.image_hash
+    elif evidence and evidence.image_hash:
+        image_hash = evidence.image_hash
+    capture_available = _capture_file_exists(image_path)
+    duplicate_log_count = 0
+    if image_hash:
+        try:
+            db = SessionLocal()
+            try:
+                seen_logs = set()
+                rows = (
+                    db.query(AttendanceEvidence)
+                      .filter(
+                          AttendanceEvidence.image_hash == image_hash,
+                          AttendanceEvidence.log_id != log.id,
+                      )
+                      .all()
+                )
+                for row in rows:
+                    if row.log_id in seen_logs:
+                        continue
+                    if _capture_file_exists(row.image_path):
+                        seen_logs.add(row.log_id)
+                duplicate_log_count = len(seen_logs)
+            finally:
+                db.close()
+        except Exception:
+            duplicate_log_count = 0
+    evidence_status = "missing"
+    evidence_status_text = "Không có ảnh bằng chứng"
+    if capture_available:
+        if duplicate_log_count > 0:
+            evidence_status = "duplicate"
+            evidence_status_text = f"Ảnh này trùng với {duplicate_log_count} lượt chấm công khác"
+        else:
+            evidence_status = "ok"
+            evidence_status_text = "Bằng chứng hợp lệ, chưa ghi nhận ảnh trùng"
     return {
         "id":          log.id,
         "emp_code":    log.emp_code,
@@ -331,7 +419,19 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
         "confidence":  log.confidence,
         "capture_available": capture_available,
         "capture_url": f"/api/attendance/{log.id}/capture" if capture_available else "",
-        "image_hash": event.image_hash if event and event.image_hash else "",
+        "image_hash": image_hash,
+        "evidence_status": evidence_status,
+        "evidence_status_text": evidence_status_text,
+        "duplicate_image_count": duplicate_log_count,
+        "evidence_id": evidence.id if evidence else None,
+        "audit_finding_id": finding.id if finding else None,
+        "audit_risk_score": finding.risk_score if finding else 0.0,
+        "audit_risk_level": finding.risk_level if finding else "",
+        "audit_review_status": finding.review_status if finding else "",
+        "manual_review_id": manual_review.id if manual_review else None,
+        "manual_review_status": manual_review.review_status if manual_review else "",
+        "manual_reviewed_by": manual_review.reviewed_by if manual_review else "",
+        "manual_reviewed_at": manual_review.reviewed_at.isoformat() if manual_review and manual_review.reviewed_at else "",
         "is_low_confidence": 0 < confidence < LOW_CONFIDENCE_THRESHOLD,
         "status":      log.note,
     }

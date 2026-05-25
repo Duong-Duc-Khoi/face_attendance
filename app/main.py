@@ -39,6 +39,7 @@ from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
 from app.api.v1.integrations import router as integrations_router
 from app.services.attendance import get_summary_today, auto_checkout_missing
+from app.services.attendance_audit import cleanup_old_evidence
 scheduler = AsyncIOScheduler()
 
 
@@ -59,12 +60,18 @@ async def lifespan(app: FastAPI):
         count = auto_checkout_missing()
         print(f"  ✓ Auto checkout: {count} nhân viên chưa check out")
 
+    async def _cleanup_evidence():
+        result = cleanup_old_evidence()
+        print(f"  ✓ Evidence retention: xoá {result['deleted_files']} file quá {result['retention_days']} ngày")
+
     scheduler.add_job(_daily_report, CronTrigger(hour=18, minute=0),
                       id="daily_report", replace_existing=True)
     scheduler.add_job(_auto_checkout, IntervalTrigger(minutes=15),
                       id="auto_checkout", replace_existing=True)
+    scheduler.add_job(_cleanup_evidence, CronTrigger(hour=2, minute=30),
+                      id="evidence_retention", replace_existing=True)
     scheduler.start()
-    print(f"  ✓ Scheduler bật — báo cáo ngày gửi lúc 18:00, auto checkout quét mỗi 15 phút")
+    print(f"  ✓ Scheduler bật — báo cáo 18:00, auto checkout mỗi 15 phút, retention evidence 02:30")
     yield
     scheduler.shutdown(wait=False)
     release_camera()
