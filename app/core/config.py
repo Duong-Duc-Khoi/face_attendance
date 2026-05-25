@@ -58,10 +58,12 @@ class Settings:
 
     # ── Presentation attack guard ──────────────────────
     PRESENTATION_GUARD_ENABLED: bool = os.getenv("PRESENTATION_GUARD_ENABLED", "true").lower() == "true"
-    PRESENTATION_GUARD_ACTION: str = os.getenv("PRESENTATION_GUARD_ACTION", os.getenv("PASSIVE_LIVENESS_ACTION", "block")).lower()
+    PRESENTATION_GUARD_ACTION: str = os.getenv("PRESENTATION_GUARD_ACTION", os.getenv("PASSIVE_LIVENESS_ACTION", "review")).lower()
     PRESENTATION_GUARD_RISK_THRESHOLD: float = float(os.getenv("PRESENTATION_GUARD_RISK_THRESHOLD", "0.45"))
     PRESENTATION_GUARD_MIN_FRAMES: int = int(os.getenv("PRESENTATION_GUARD_MIN_FRAMES", "3"))
     PRESENTATION_GUARD_WINDOW_SECONDS: float = float(os.getenv("PRESENTATION_GUARD_WINDOW_SECONDS", "3.5"))
+    EVIDENCE_RETENTION_DAYS: int = int(os.getenv("EVIDENCE_RETENTION_DAYS", "90"))
+    AI_AUDIT_MAX_IMAGES_PER_RUN: int = int(os.getenv("AI_AUDIT_MAX_IMAGES_PER_RUN", "120"))
 
     # ── Chấm công ──────────────────────────────────────
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))

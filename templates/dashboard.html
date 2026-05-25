@@ -169,9 +169,9 @@
 @media(max-width:680px){.overview-head{grid-template-columns:1fr}.overview-actions{justify-content:flex-start}.ops-alert-grid,.ops-module-grid{grid-template-columns:1fr}}
 
 /* ── Attendance modals ── */
-.atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.atd-ovl{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:18px}
 .atd-ovl.open{display:flex}
-.atd-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:460px;padding:26px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.6);animation:atdUp .2s ease}
+.atd-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:460px;max-height:calc(100vh - 36px);overflow-y:auto;padding:26px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.6);animation:atdUp .2s ease}
 @keyframes atdUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
 .atd-ttl{font-size:14px;font-weight:700;letter-spacing:.04em;margin-bottom:18px;display:flex;align-items:center;gap:8px}
 .atd-x{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:17px;padding:4px 7px;border-radius:6px;line-height:1;transition:color .15s}
@@ -188,20 +188,48 @@
 .atd-warn strong{color:var(--red)}
 .atd-review{display:none;background:rgba(246,201,14,.08);border:1px solid rgba(246,201,14,.32);border-radius:8px;color:#f6c90e;padding:9px 12px;margin-bottom:12px;font-size:12px;line-height:1.5}
 .atd-review.show{display:block}
-.atd-capture-box{background:#070d17;border:1px solid var(--border);border-radius:9px;min-height:260px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px}
-.atd-capture-box img{width:100%;height:auto;display:block}
+.atd-capture-box{background:#070d17;border:1px solid var(--border);border-radius:9px;min-height:220px;max-height:42vh;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px}
+.atd-capture-box img{width:100%;height:100%;max-height:42vh;object-fit:contain;display:block}
 .atd-capture-empty{color:var(--muted);font-size:12px;padding:28px;text-align:center}
 .atd-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
 .atd-meta-item{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 10px}
 .atd-meta-item b{display:block;font-size:10px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px}
 .atd-meta-item span{font-size:12px;color:var(--text);font-family:var(--font-mono)}
-.log-review-row{background:rgba(246,201,14,.045)}
-.log-review-row td{border-bottom-color:rgba(246,201,14,.18)!important}
 .confidence-pill{display:inline-flex;align-items:center;justify-content:center;min-width:45px;height:22px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:var(--teal);font-family:var(--font-mono);font-size:11px;font-weight:800}
 .confidence-pill.low{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.4);color:#f6c90e}
 .evidence-empty{font-size:11px;color:var(--muted)}
 .evidence-btn.warn{border-color:rgba(246,201,14,.42);color:#f6c90e;background:rgba(246,201,14,.08)}
 .evidence-btn[disabled]{opacity:.5;cursor:not-allowed}
+.audit-panel{margin-bottom:14px}
+.attendance-subnav{display:flex;gap:6px;align-items:center;margin-bottom:12px;border:1px solid rgba(26,47,80,.75);background:rgba(6,12,23,.42);border-radius:8px;padding:4px;width:max-content;max-width:100%;overflow-x:auto}
+.attendance-view-btn{border:0;background:transparent;color:var(--muted);height:30px;border-radius:6px;padding:0 12px;font-family:var(--font-sans);font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+.attendance-view-btn.active{background:rgba(0,212,170,.12);color:var(--teal)}
+.attendance-section.hidden{display:none}
+.audit-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.audit-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px;padding:14px 16px}
+.audit-command-box{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.audit-command-box .log-btn{justify-content:center;min-height:30px}
+.audit-tabs{display:flex;gap:4px;background:rgba(6,12,23,.45);border:1px solid var(--border);border-radius:8px;padding:3px}
+.audit-tab{flex:1;border:0;background:transparent;color:var(--muted);height:28px;border-radius:6px;font-family:var(--font-sans);font-size:11px;font-weight:800;cursor:pointer}
+.audit-tab.active{background:rgba(0,212,170,.12);color:var(--teal)}
+.audit-filter-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.audit-filter-row.full{grid-template-columns:1fr}
+.audit-table-wrap{overflow-x:auto;max-height:240px;overflow-y:auto;border:1px solid rgba(26,47,80,.6);border-radius:8px}
+.audit-table{width:100%;border-collapse:collapse}
+.audit-table th{position:sticky;top:0;background:var(--panel);font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+.audit-table td{padding:8px 10px;border-bottom:1px solid rgba(26,47,80,.45);font-size:12px}
+.risk-pill{display:inline-flex;align-items:center;justify-content:center;width:72px;height:22px;border-radius:999px;border:1px solid rgba(90,122,154,.35);font-family:var(--font-mono);font-size:10px;font-weight:800;text-transform:uppercase;white-space:nowrap;overflow:hidden}
+.risk-pill.high{color:var(--red);border-color:rgba(255,77,106,.45);background:rgba(255,77,106,.1)}
+.risk-pill.medium{color:#f6c90e;border-color:rgba(246,201,14,.45);background:rgba(246,201,14,.1)}
+.risk-pill.low{color:var(--blue);border-color:rgba(58,143,255,.38);background:rgba(58,143,255,.1)}
+.risk-pill.clear{color:var(--teal);border-color:rgba(0,212,170,.3);background:rgba(0,212,170,.08)}
+.source-pill{display:inline-flex;align-items:center;height:20px;border-radius:999px;border:1px solid rgba(90,122,154,.32);padding:0 7px;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted)}
+.source-pill.ai{color:var(--teal);border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.08)}
+.atd-risk-strip{display:none;margin-bottom:10px;padding:10px 12px;border-radius:8px;border:1px solid rgba(58,143,255,.28);background:rgba(58,143,255,.08);font-size:12px;line-height:1.55;max-height:180px;overflow-y:auto;white-space:pre-wrap}
+.atd-risk-strip.show{display:block}
+.atd-review-actions{display:none;gap:8px;justify-content:flex-end;margin-top:12px}
+.atd-review-actions.show{display:flex}
+@media(max-width:900px){.audit-grid{grid-template-columns:1fr}.audit-command-box .log-btn{flex:1}}
 /* Table extras */
 .log-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;text-decoration:none}
 .log-btn:hover{border-color:var(--teal);color:var(--teal)}
@@ -332,12 +360,55 @@
 
   <!-- TAB: Chấm công -->
   <div class="dash-tab-content" id="tab-attendance">
-    <div class="panel" id="logPanel">
+    <div class="attendance-subnav">
+      <button class="attendance-view-btn active" id="attendanceViewHistoryBtn" onclick="setAttendanceSection('history')">Lịch sử & chỉnh sửa</button>
+      <button class="attendance-view-btn" id="attendanceViewAuditBtn" onclick="setAttendanceSection('audit')">Đối soát</button>
+    </div>
+    <div class="panel audit-panel attendance-section hidden" id="auditPanel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Đối soát chấm công</div>
+        <div class="audit-toolbar">
+          <span id="auditSummary" style="font-size:11px;color:var(--muted)">Chưa có lượt kiểm tra</span>
+          <button class="log-btn" onclick="refreshAuditPanel()">Tải lại</button>
+        </div>
+      </div>
+      <div class="audit-grid">
+        <div class="audit-command-box">
+          <div class="audit-tabs">
+            <button class="audit-tab active" id="auditTabManual" onclick="setAuditMode('manual')">Soát thủ công</button>
+            <button class="audit-tab" id="auditTabAi" onclick="setAuditMode('ai')">AI gian lận</button>
+          </div>
+          <div class="audit-filter-row">
+            <input type="date" class="filter-input" id="auditFrom" onchange="refreshAuditPanel()" style="font-size:12px">
+            <input type="date" class="filter-input" id="auditTo" onchange="refreshAuditPanel()" style="font-size:12px">
+          </div>
+          <div class="audit-filter-row full">
+            <select class="filter-input" id="auditEmp" onchange="refreshAuditPanel()" style="font-size:12px">
+              <option value="">Tất cả nhân viên</option>
+            </select>
+          </div>
+          <button class="log-btn evidence-btn" id="auditManualAllBtn" onclick="loadManualReview(false)">Soát theo bộ lọc</button>
+          <button class="log-btn evidence-btn warn" id="auditManualLowBtn" onclick="loadManualReview(true)">Dưới 70% (soát tay)</button>
+          <button class="log-btn evidence-btn" id="auditAiRunBtn" onclick="runAudit('daily')" style="display:none">AI kiểm tra khoảng ngày</button>
+        </div>
+        <div class="audit-table-wrap">
+          <table class="audit-table">
+            <thead><tr><th id="auditMetricHead">Độ chính xác</th><th>Nhân viên</th><th>Thông tin</th><th>Nguồn</th><th style="text-align:right">Xem</th></tr></thead>
+            <tbody id="auditFindingBody"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="panel attendance-section" id="logPanel">
       <div class="panel-header">
         <div class="panel-header-left"><span class="dot"></span> Lịch sử chấm công</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="date" class="filter-input" id="logDate" onchange="loadLogs()" style="font-size:12px">
-          <input class="filter-input" id="logSearch" placeholder="Tìm mã NV..." oninput="filterLogs()" style="width:160px">
+          <input type="date" class="filter-input" id="logFrom" onchange="loadLogs()" style="font-size:12px">
+          <input type="date" class="filter-input" id="logTo" onchange="loadLogs()" style="font-size:12px">
+          <select class="filter-input" id="logEmp" onchange="loadLogs()" style="font-size:12px;min-width:190px">
+            <option value="">Tất cả nhân viên</option>
+          </select>
+          <input class="filter-input" id="logSearch" placeholder="Tìm nhanh..." oninput="filterLogs()" style="width:140px">
           <button id="btnAddLog" onclick="openAtdAdd()"
             style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -547,6 +618,7 @@
       Bằng chứng chấm công
     </div>
     <div class="atd-review" id="atdCaptureReview">Cần kiểm tra: độ chính xác nhận diện dưới 70%.</div>
+    <div class="atd-risk-strip" id="atdCaptureRisk">—</div>
     <div class="atd-capture-box" id="atdCaptureBox">
       <div class="atd-capture-empty">Đang tải ảnh bằng chứng...</div>
     </div>
@@ -555,7 +627,12 @@
       <div class="atd-meta-item"><b>Loại</b><span id="atdCaptureType">—</span></div>
       <div class="atd-meta-item"><b>Thời gian</b><span id="atdCaptureTime">—</span></div>
       <div class="atd-meta-item"><b>Độ chính xác</b><span id="atdCaptureConf">—</span></div>
-      <div class="atd-meta-item" style="grid-column:1/-1"><b>Hash ảnh</b><span id="atdCaptureHash">—</span></div>
+      <div class="atd-meta-item" style="grid-column:1/-1"><b>Trạng thái bằng chứng</b><span id="atdEvidenceStatus">—</span></div>
+    </div>
+    <div class="atd-review-actions" id="atdReviewActions">
+      <button class="log-btn" onclick="reviewFinding('reviewed')">Đã kiểm tra</button>
+      <button class="log-btn" onclick="reviewFinding('dismissed')">Không nghi vấn</button>
+      <button class="log-btn del" onclick="reviewFinding('confirmed')">Xác nhận nghi vấn</button>
     </div>
   </div>
 </div>
@@ -673,7 +750,8 @@
 let employees=[],allLogs=[],editingId=null;
 let _isMgr=false,_isAdmin=false;
 let _atdEditId=null,_atdDelId=null;
-let _captureObjectUrl='';
+let _captureObjectUrl='',_activeFindingId=null,_activeManualLogId=null;
+let auditFindings=[],manualReviewLogs=[],auditVisionConfigured=false,auditProvider='',auditMode='manual',manualLowOnly=false,auditLastRunNote='',auditAiCount=0;
 let dashboardSummary={},pendingLeaveCount=0;
 
 // ── Init ──
@@ -695,8 +773,12 @@ let dashboardSummary={},pendingLeaveCount=0;
   });
 
   const today=new Date().toISOString().split('T')[0];
-  document.getElementById('logDate').value=today;
+  document.getElementById('logFrom').value=today;
+  document.getElementById('logTo').value=today;
+  document.getElementById('auditFrom').value=today;
+  document.getElementById('auditTo').value=today;
   await Promise.all([loadSummary(),loadEmployees(),loadLogs(),loadPendingLeaveCount()]);
+  await refreshAuditPanel();
   applyInitialDashboardTab();
 })();
 
@@ -782,7 +864,7 @@ async function loadEmployees(){
     const status=document.getElementById('filterStatus').value;
     const url='/api/employees'+(status===''||status==='false'?'?active_only=false':'');
     const r=await authFetch(url);employees=await r.json();
-    populateDeptFilter();renderEmployees(employees);
+    populateDeptFilter();populateEmployeeFilters();renderEmployees(employees);
   }catch(e){showToast('Lỗi tải danh sách nhân viên','error');}
 }
 
@@ -792,6 +874,41 @@ function populateDeptFilter(){
   sel.innerHTML='<option value="">Tất cả phòng ban</option>';
   depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
   sel.value=curr;
+}
+
+function _fillEmployeeSelect(sel,placeholder){
+  if(!sel)return;
+  const curr=sel.value;
+  sel.innerHTML=`<option value="">${placeholder}</option>`;
+  const active=employees
+    .filter(e=>e.is_active)
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||'', 'vi'));
+  active.forEach(e=>{
+    const o=document.createElement('option');
+    o.value=e.emp_code;
+    o.textContent=`${e.name} · ${e.emp_code}`;
+    sel.appendChild(o);
+  });
+  sel.value=active.some(e=>e.emp_code===curr)?curr:'';
+}
+
+function populateEmployeeFilters(){
+  _fillEmployeeSelect(document.getElementById('auditEmp'),'Tất cả nhân viên');
+  _fillEmployeeSelect(document.getElementById('logEmp'),'Tất cả nhân viên');
+}
+
+function populateAuditEmployeeFilter(){
+  populateEmployeeFilters();
+}
+
+function _logRange(){
+  let from=document.getElementById('logFrom').value||new Date().toISOString().slice(0,10);
+  let to=document.getElementById('logTo').value||from;
+  if(new Date(to)<new Date(from)){
+    to=from;
+    document.getElementById('logTo').value=to;
+  }
+  return {from,to,empCode:document.getElementById('logEmp').value||''};
 }
 
 function renderEmployees(list){
@@ -826,28 +943,122 @@ function filterEmployees(){
 }
 
 // ── Logs ──
-async function loadLogs(){
-  const date=document.getElementById('logDate').value;
+async function loadLogs(options={}){
+  const {from,to,empCode}=_logRange();
   try{
-    const r=await authFetch('/api/attendance?date='+date);const d=await r.json();
+    const days=_daysBetweenInclusive(from,to);
+    const qs=`date=${from}&days=${days}${empCode?'&emp_code='+encodeURIComponent(empCode):''}`;
+    const r=await authFetch('/api/attendance?'+qs);const d=await r.json();
     allLogs=d.logs||[];renderLogs(allLogs);
     updateOperationsOverview();
+    if(options.refreshAudit===true)refreshAuditPanel();
   }catch(e){showToast('Lỗi tải lịch sử','error');}
+}
+
+function _auditRange(){
+  let from=document.getElementById('auditFrom').value||new Date().toISOString().slice(0,10);
+  let to=document.getElementById('auditTo').value||from;
+  if(new Date(to)<new Date(from)){
+    to=from;
+    document.getElementById('auditTo').value=to;
+  }
+  return {from,to,empCode:document.getElementById('auditEmp').value||''};
+}
+function _daysBetweenInclusive(from,to){
+  return Math.floor((new Date(to)-new Date(from))/86400000)+1;
+}
+function _syncLogFilters(from,to,empCode){
+  document.getElementById('logFrom').value=from;
+  document.getElementById('logTo').value=to;
+  document.getElementById('logEmp').value=empCode||'';
+}
+
+function setAttendanceSection(section){
+  const isAudit=section==='audit';
+  document.getElementById('auditPanel').classList.toggle('hidden',!isAudit);
+  document.getElementById('logPanel').classList.toggle('hidden',isAudit);
+  document.getElementById('attendanceViewAuditBtn').classList.toggle('active',isAudit);
+  document.getElementById('attendanceViewHistoryBtn').classList.toggle('active',!isAudit);
+  if(isAudit)refreshAuditPanel();
+  else loadLogs({refreshAudit:false});
 }
 
 function _confidenceText(log){
   return log.confidence ? (log.confidence*100).toFixed(0)+'%' : '—';
 }
-function _confidenceCell(log){
+function _confidenceCell(log,highlight=true){
   if(!log.confidence)return '—';
-  return `<span class="confidence-pill ${log.is_low_confidence?'low':''}" title="${log.is_low_confidence?'Cần kiểm tra: dưới 70%':'Độ chính xác nhận diện'}">${_confidenceText(log)}</span>`;
+  const low=highlight&&log.is_low_confidence;
+  return `<span class="confidence-pill ${low?'low':''}" title="Độ chính xác nhận diện">${_confidenceText(log)}</span>`;
 }
-function _evidenceCell(log){
+function _evidenceCell(log,highlight=true,modalContext='review'){
   if(!log.capture_available)return '<span class="evidence-empty">Không có ảnh</span>';
-  return `<button class="log-btn evidence-btn ${log.is_low_confidence?'warn':''}" onclick="openCaptureModal(${log.id})" title="${log.is_low_confidence?'Cần kiểm tra ảnh bằng chứng':'Xem ảnh bằng chứng'}">
+  const warn=highlight&&(log.is_low_confidence||log.audit_risk_level);
+  return `<button class="log-btn evidence-btn ${warn?'warn':''}" onclick="openCaptureModal(${log.id},null,'${modalContext}')" title="Xem ảnh bằng chứng">
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-1.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
     Xem ảnh
   </button>`;
+}
+function _riskPill(level,score){
+  if(!level)return '—';
+  const labels={high:'Rủi ro cao',medium:'Rủi ro vừa',low:'Rủi ro thấp',clear:'An toàn'};
+  return `<span class="risk-pill ${level}" title="Rủi ro AI ${(Number(score||0)*100).toFixed(0)}%">${labels[level]||level}</span>`;
+}
+function _sourcePill(source){
+  const labels={vision_ai:'Gemini/Vision AI',heuristic:'Rule nội bộ',realtime:'Realtime'};
+  return `<span class="source-pill ${source==='vision_ai'?'ai':''}">${labels[source]||'Rule nội bộ'}</span>`;
+}
+function _reasonLabel(reason){
+  const map={
+    low_confidence:'Độ chính xác dưới 70%',
+    ai_reviewed_clear:'Gemini đã kiểm tra: chưa thấy dấu hiệu rõ',
+    missing_evidence:'Thiếu ảnh bằng chứng',
+    duplicate_image_hash:'Trùng ảnh bằng chứng',
+    presentation_risk:'Nghi vấn ảnh/màn hình',
+    device_rectangle:'Có khung thiết bị',
+    phone_edges:'Có viền điện thoại/màn hình',
+    screen_texture:'Có vân màn hình',
+    glare:'Có ánh chói',
+    static_photo:'Ảnh quá tĩnh',
+    rigid_screen_motion:'Chuyển động phẳng như màn hình',
+    screen_artifacts_with_flat_geometry:'Artifact màn hình',
+    crop_unusual:'Khung hình/crop bất thường',
+    face_on_screen:'Khuôn mặt có thể đang hiển thị trên màn hình',
+    printed_photo:'Nghi vấn ảnh in/ảnh giấy',
+  };
+  return map[reason]||String(reason||'').replace(/_/g,' ');
+}
+function _reasonList(reasons){
+  const list=(reasons||[]).map(_reasonLabel).filter(Boolean);
+  return list.length?list.join(', '):'Cần quản lý xem lại';
+}
+function _auditReviewText(status){
+  const map={pending_review:'Chờ duyệt',reviewed:'Đã kiểm tra',dismissed:'Không nghi vấn',confirmed:'Xác nhận nghi vấn'};
+  return map[status]||status||'Chờ duyệt';
+}
+function _manualReviewPill(log){
+  if(log.manual_review_status){
+    const cls=log.manual_review_status==='confirmed'?'medium':'low';
+    return `<span class="risk-pill ${cls}">${_auditReviewText(log.manual_review_status)}</span>`;
+  }
+  return log.is_low_confidence?'<span class="risk-pill medium">Cần soát</span>':'<span class="risk-pill clear">Chưa soát</span>';
+}
+function _aiSnippet(finding){
+  const ai=finding&&finding.metrics&&finding.metrics.ai?finding.metrics.ai:null;
+  if(!ai)return '';
+  const obs=(ai.visual_observations||[]).slice(0,2).join('; ');
+  const rec=ai.recommendation||ai.note||'';
+  const text=[obs,rec].filter(Boolean).join(' · ');
+  return text?`<br><span style="color:var(--muted);font-size:10px">${text}</span>`:'';
+}
+function _evidenceStatusText(log,finding){
+  if(log.evidence_status_text)return log.evidence_status_text;
+  if(finding&&finding.reasons&&(finding.reasons||[]).includes('duplicate_image_hash'))return 'Ảnh này trùng với lượt chấm công khác';
+  if(log.capture_available)return 'Bằng chứng hợp lệ, chưa ghi nhận ảnh trùng';
+  return 'Không có ảnh bằng chứng';
+}
+function _auditPersonCell(name,time,date){
+  return `<b>${name||'—'}</b><br><span style="color:var(--muted);font-family:var(--font-mono);font-size:10px">${time||'—'} ${date||''}</span>`;
 }
 
 function renderLogs(list){
@@ -856,7 +1067,7 @@ function renderLogs(list){
   const cols=_isMgr?8:7;
   if(!list.length){tbody.innerHTML=`<tr><td colspan="${cols}" class="empty">Không có dữ liệu chấm công</td></tr>`;return;}
   tbody.innerHTML=list.map(l=>`
-    <tr id="lr-${l.id}" class="${l.is_low_confidence?'log-review-row':''}">
+    <tr id="lr-${l.id}">
       <td><div class="emp-cell">
         <div style="font-weight:600">${l.name||'—'}</div>
         <div style="font-size:11px;color:var(--muted)">${l.emp_code}</div>
@@ -865,8 +1076,8 @@ function renderLogs(list){
       <td style="font-family:var(--font-mono);font-size:12px">${l.time}<br><span style="color:var(--muted);font-size:10px">${l.date}</span></td>
       <td>${l.department||'—'}</td>
       <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
-      <td>${_confidenceCell(l)}</td>
-      <td>${_evidenceCell(l)}</td>
+      <td>${_confidenceCell(l,false)}</td>
+      <td>${_evidenceCell(l,false,'history')}</td>
       <td class="col-act" style="text-align:right">
         <div style="display:flex;gap:5px;justify-content:flex-end">
           <button class="log-btn" onclick="openAtdEdit(${l.id})">
@@ -883,6 +1094,112 @@ function renderLogs(list){
 function filterLogs(){
   const q=document.getElementById('logSearch').value.toLowerCase();
   renderLogs(q?allLogs.filter(l=>l.emp_code.toLowerCase().includes(q)||l.name.toLowerCase().includes(q)):allLogs);
+}
+
+function setAuditMode(mode){
+  auditMode=mode;
+  document.getElementById('auditTabManual').classList.toggle('active',mode==='manual');
+  document.getElementById('auditTabAi').classList.toggle('active',mode==='ai');
+  document.getElementById('auditManualAllBtn').style.display=mode==='manual'?'inline-flex':'none';
+  document.getElementById('auditManualLowBtn').style.display=mode==='manual'?'inline-flex':'none';
+  document.getElementById('auditAiRunBtn').style.display=mode==='ai'?'inline-flex':'none';
+  refreshAuditPanel();
+}
+function refreshAuditPanel(){
+  return auditMode==='manual'?loadManualReview(manualLowOnly):loadAuditFindings();
+}
+
+async function loadManualReview(lowOnly){
+  manualLowOnly=!!lowOnly;
+  const {from,to,empCode}=_auditRange();
+  try{
+    const days=_daysBetweenInclusive(from,to);
+    const qs=`date=${from}&days=${days}${empCode?'&emp_code='+encodeURIComponent(empCode):''}`;
+    const res=await authFetch('/api/attendance?'+qs);
+    const data=await res.json();
+    manualReviewLogs=(data.logs||[]).filter(l=>!manualLowOnly||(l.confidence>0&&l.confidence<0.70));
+    renderManualReview();
+  }catch(e){
+    const body=document.getElementById('auditFindingBody');
+    if(body)body.innerHTML='<tr><td colspan="5" class="empty">Không tải được lịch sử đối soát</td></tr>';
+  }
+}
+function renderManualReview(){
+  const body=document.getElementById('auditFindingBody');
+  if(!body)return;
+  document.getElementById('auditMetricHead').textContent='Độ chính xác';
+  document.getElementById('auditSummary').textContent=`Soát thủ công · ${manualReviewLogs.length} bản ghi${manualLowOnly?' dưới 70%':''}`;
+  if(!manualReviewLogs.length){
+    body.innerHTML='<tr><td colspan="5" class="empty">Không có bản ghi phù hợp</td></tr>';
+    return;
+  }
+  body.innerHTML=manualReviewLogs.map(l=>`
+    <tr>
+      <td>${_confidenceCell(l)}</td>
+      <td>${_auditPersonCell(l.name||l.emp_code,l.time,l.date)}</td>
+      <td>${l.check_type==='check_in'?'Vào làm':'Ra về'} · ${l.status||'Không ghi chú'}<br><span style="color:var(--muted);font-size:10px">${l.capture_available?'Có ảnh bằng chứng':'Không có bằng chứng'}</span></td>
+      <td>${_manualReviewPill(l)}</td>
+      <td style="text-align:right">${l.capture_available?`<button class="log-btn" onclick="openCaptureModal(${l.id})">Mở/soát</button>`:'<span class="evidence-empty">—</span>'}</td>
+    </tr>`).join('');
+}
+
+async function loadAuditFindings(){
+  if(!_isMgr)return;
+  const {from,to,empCode}=_auditRange();
+  try{
+    const qs=`from_date=${from}&to_date=${to}&review_status=pending_review&limit=100${empCode?'&emp_code='+encodeURIComponent(empCode):''}`;
+    const res=await authFetch('/api/attendance/audit-findings?'+qs);
+    const data=await res.json();
+    auditVisionConfigured=!!data.vision_ai_configured;
+    auditProvider=data.ai_provider||'';
+    const rawFindings=data.findings||[];
+    auditFindings=rawFindings.filter(f=>f.source==='vision_ai');
+    auditAiCount=auditFindings.filter(f=>f.source==='vision_ai').length;
+    renderAuditFindings();
+  }catch(e){
+    const body=document.getElementById('auditFindingBody');
+    if(body)body.innerHTML='<tr><td colspan="5" class="empty">Không tải được danh sách đối soát</td></tr>';
+  }
+}
+function renderAuditFindings(){
+  const body=document.getElementById('auditFindingBody');
+  if(!body)return;
+  document.getElementById('auditMetricHead').textContent='Rủi ro AI';
+  const suffix=auditLastRunNote?` · ${auditLastRunNote}`:'';
+  document.getElementById('auditSummary').textContent=auditVisionConfigured
+    ? `${auditProvider||'Vision AI'} sẵn sàng · ${auditAiCount} kết quả AI${suffix}`
+    : `Chưa cấu hình Vision AI · không dùng rule thay thế${suffix}`;
+  if(!auditFindings.length){
+    body.innerHTML='<tr><td colspan="5" class="empty">Chưa có kết quả AI trong bộ lọc này</td></tr>';
+    return;
+  }
+  body.innerHTML=auditFindings.map(f=>`
+    <tr>
+      <td>${_riskPill(f.risk_level,f.risk_score)}</td>
+      <td>${_auditPersonCell(f.emp_name||f.emp_code,f.time,f.date)}</td>
+      <td>${_reasonList((f.reasons||[]).slice(0,3))}${_aiSnippet(f)}</td>
+      <td>${_sourcePill(f.source)}<br><span style="color:var(--muted);font-size:10px">${_auditReviewText(f.review_status)}</span></td>
+      <td style="text-align:right"><button class="log-btn" onclick="openCaptureModal(${f.log_id},${f.id})">Mở</button></td>
+    </tr>`).join('');
+}
+async function runAudit(type){
+  if(!_isMgr)return;
+  const {from,to,empCode}=_auditRange();
+  auditLastRunNote='';
+  document.getElementById('auditSummary').textContent='Đang kiểm tra...';
+  try{
+    const runType=empCode?'employee_day':type;
+    const res=await authFetch('/api/attendance/audit-runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run_type:runType,from_date:from,to_date:to,emp_code:empCode||'',use_ai:true})});
+    if(!res.ok)throw new Error((await res.json()).detail||'Không chạy được audit');
+    const run=await res.json();
+    const warn=(run.warnings||[]).join(' ');
+    auditLastRunNote=warn||run.summary||'Đã kiểm tra';
+    _syncLogFilters(from,to,empCode);
+    await Promise.all([loadAuditFindings(),loadLogs({refreshAudit:false})]);
+  }catch(e){
+    document.getElementById('auditSummary').textContent='Audit lỗi';
+    showToast('Lỗi audit: '+e.message,'error');
+  }
 }
 
 // ── Emp Modal ──
@@ -1486,18 +1803,34 @@ function closeAtd(id){
     URL.revokeObjectURL(_captureObjectUrl);
     _captureObjectUrl='';
   }
+  if(id==='atdCaptureOvl'){
+    _activeManualLogId=null;
+    _activeFindingId=null;
+  }
 }
 
-async function openCaptureModal(logId){
-  const log=allLogs.find(l=>l.id===logId);if(!log)return;
+async function openCaptureModal(logId,findingId,context='review'){
+  const log=allLogs.find(l=>l.id===logId)||manualReviewLogs.find(l=>l.id===logId)||{};
+  const finding=auditFindings.find(f=>f.id===findingId)||auditFindings.find(f=>f.log_id===logId)||null;
+  if(!log.id&&!finding)return;
+  _activeFindingId=findingId||log.audit_finding_id||(finding?finding.id:null);
+  _activeManualLogId=_activeFindingId?null:(log.id||logId);
   const box=document.getElementById('atdCaptureBox');
   if(_captureObjectUrl){URL.revokeObjectURL(_captureObjectUrl);_captureObjectUrl='';}
-  document.getElementById('atdCaptureName').textContent=`${log.name||'—'} (${log.emp_code})`;
-  document.getElementById('atdCaptureType').textContent=log.check_type==='check_in'?'Vào làm':'Ra về';
-  document.getElementById('atdCaptureTime').textContent=`${log.time} ${log.date}`;
+  document.getElementById('atdCaptureName').textContent=`${log.name||finding?.emp_name||'—'} (${log.emp_code||finding?.emp_code||'—'})`;
+  document.getElementById('atdCaptureType').textContent=log.check_type==='check_in'?'Vào làm':(log.check_type==='check_out'?'Ra về':'—');
+  document.getElementById('atdCaptureTime').textContent=log.time?`${log.time} ${log.date}`:'—';
   document.getElementById('atdCaptureConf').textContent=_confidenceText(log);
-  document.getElementById('atdCaptureHash').textContent=log.image_hash?`${log.image_hash.slice(0,16)}...${log.image_hash.slice(-8)}`:'—';
-  document.getElementById('atdCaptureReview').classList.toggle('show',!!log.is_low_confidence);
+  document.getElementById('atdEvidenceStatus').textContent=_evidenceStatusText(log,finding);
+  document.getElementById('atdCaptureReview').classList.toggle('show',context!=='history'&&!!(log.is_low_confidence||finding));
+  const risk=document.getElementById('atdCaptureRisk');
+  const reasons=finding?(finding.reasons||[]):[];
+  risk.classList.toggle('show',!!finding);
+  const ai=finding&&finding.metrics&&finding.metrics.ai?finding.metrics.ai:null;
+  const obs=ai&&ai.visual_observations?`<br><span style="color:var(--muted)">AI quan sát: ${ai.visual_observations.join('; ')}</span>`:'';
+  const rec=ai&&ai.recommendation?`<br><span style="color:var(--muted)">Khuyến nghị: ${ai.recommendation}</span>`:'';
+  risk.innerHTML=finding?`${_riskPill(finding.risk_level,finding.risk_score)} ${_sourcePill(finding.source)} · ${_reasonList(reasons)}${obs}${rec}`:'';
+  document.getElementById('atdReviewActions').classList.toggle('show',!!(_activeFindingId||_activeManualLogId));
   box.innerHTML='<div class="atd-capture-empty">Đang tải ảnh bằng chứng...</div>';
   document.getElementById('atdCaptureOvl').classList.add('open');
   try{
@@ -1509,6 +1842,19 @@ async function openCaptureModal(logId){
   }catch(e){
     box.innerHTML=`<div class="atd-capture-empty">Không tải được ảnh bằng chứng: ${e.message}</div>`;
   }
+}
+
+async function reviewFinding(status){
+  if(!_activeFindingId&&!_activeManualLogId)return;
+  try{
+    const url=_activeFindingId?`/api/attendance/audit-findings/${_activeFindingId}/review`:`/api/attendance/${_activeManualLogId}/review`;
+    const method=_activeFindingId?'PUT':'POST';
+    const res=await authFetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({review_status:status,note:''})});
+    if(!res.ok)throw new Error((await res.json()).detail||'Không lưu được trạng thái');
+    showToast('Đã cập nhật trạng thái đối soát','success');
+    closeAtd('atdCaptureOvl');
+    await Promise.all([refreshAuditPanel(),loadLogs({refreshAudit:false})]);
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
 }
 
 // Sửa
@@ -1557,7 +1903,7 @@ async function confirmAtdDel(){
 
 // Thêm bù
 function openAtdAdd(){
-  const logDate=document.getElementById('logDate').value||new Date().toISOString().split('T')[0];
+  const logDate=document.getElementById('logFrom').value||new Date().toISOString().split('T')[0];
   const now=new Date(),p=n=>String(n).padStart(2,'0');
   document.getElementById('atdAddTs').value=`${logDate}T${p(now.getHours())}:${p(now.getMinutes())}`;
   document.getElementById('atdAddNote').value='';document.getElementById('atdAddType').value='check_in';
