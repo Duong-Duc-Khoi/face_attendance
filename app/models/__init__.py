@@ -6,6 +6,7 @@ Import tất cả models tại đây để SQLAlchemy nhận diện khi create_a
 from app.models.base import Base
 from app.models.branch import Branch
 from app.models.employee import Employee
+from app.models.employee_role import EmployeeRole
 from app.models.attendance import (
     AttendanceAuditFinding,
     AttendanceAuditRun,
@@ -20,7 +21,7 @@ from app.models.calendar import WorkCalendar
 from app.models.shift import Shift, ShiftAssignment, ShiftPlanDraft, ShiftPlanDraftAssignment
 from app.models.integration import AIProviderSetting
 __all__ = [
-    "Base", "Branch", "Employee",
+    "Base", "Branch", "Employee", "EmployeeRole",
     "AttendanceSession", "AttendanceEvent", "AttendanceEvidence",
     "AttendanceAuditRun", "AttendanceAuditFinding", "AttendanceLog",
     "User", "EmailToken", "RefreshToken",

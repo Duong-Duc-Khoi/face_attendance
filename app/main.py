@@ -38,6 +38,7 @@ from app.api.v1.ws import ws_attendance
 from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
 from app.api.v1.integrations import router as integrations_router
+from app.api.v1.employee_roles import router as employee_roles_router
 from app.services.attendance import get_summary_today, auto_checkout_missing
 from app.services.attendance_audit import cleanup_old_evidence
 scheduler = AsyncIOScheduler()
@@ -103,6 +104,7 @@ templates = Jinja2Templates(directory="templates")
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(employees.router)
+app.include_router(employee_roles_router)
 app.include_router(reports.router)
 app.include_router(leave_router)
 app.include_router(calendar_router)
