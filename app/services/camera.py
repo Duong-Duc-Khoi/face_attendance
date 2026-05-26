@@ -35,6 +35,7 @@ except ImportError:
     PIL_AVAILABLE = False
 
 _EMP_MAP_TTL = 30.0  # giây — làm mới employee map từ DB
+_CAMERA_LEASE_TIMEOUT = 10.0
 
 
 class CameraStream:
@@ -66,12 +67,22 @@ class CameraStream:
             self.cap = cv2.VideoCapture(self.camera_id)
 
         if self.cap.isOpened():
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
             self.cap.set(cv2.CAP_PROP_FPS,          30)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE,   1)
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS,    1)
-            print(f"  ✓ Camera {self.camera_id} đã kết nối")
+            actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            actual_fps = self.cap.get(cv2.CAP_PROP_FPS) or 0
+            fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC) or 0)
+            fourcc_text = "".join(chr((fourcc >> 8 * i) & 0xFF) for i in range(4))
+            fourcc_text = "".join(ch for ch in fourcc_text if ch.isprintable()).strip()
+            print(
+                f"  ✓ Camera {self.camera_id} đã kết nối — "
+                f"{actual_width}x{actual_height}@{actual_fps:.1f}fps codec={fourcc_text or fourcc}"
+            )
             self._start_capture_thread()
         else:
             print(f"  ⚠ Không thể kết nối camera {self.camera_id}")
@@ -138,7 +149,7 @@ class CameraStream:
 
     # ── MJPEG stream ────────────────────────────────────────────
     def generate_mjpeg(self):
-        INTERVAL      = 1.0 / 25
+        INTERVAL      = 1.0 / 30
         last_fid      = -1
         cached_packet = None
 
@@ -153,7 +164,7 @@ class CameraStream:
                 last_fid = fid
                 frame    = frame if frame is not None else self._make_placeholder()
                 frame    = cv2.flip(frame, 1)
-                _, jpeg  = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                _, jpeg  = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 94])
                 cached_packet = (
                     b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
                     + jpeg.tobytes()
@@ -304,40 +315,130 @@ class CameraStream:
 # ── Singleton & ON/OFF control ──────────────────────────────────
 _camera_instance: CameraStream | None = None
 _camera_enabled: bool = False
+_camera_owner_id: str = ""
+_camera_last_heartbeat: float = 0.0
+_camera_lock = threading.Lock()
+_watchdog_started = False
 
 
 def is_camera_enabled() -> bool:
+    _expire_camera_lease()
     return _camera_enabled
 
 
-def start_camera(camera_id: int = settings.CAMERA_ID) -> dict:
-    global _camera_instance, _camera_enabled
-    if _camera_enabled and _camera_instance:
-        return {"success": True, "message": "Camera đang chạy"}
-    try:
-        _camera_instance = CameraStream(camera_id=camera_id)
-        _camera_enabled  = True
-        return {"success": True, "message": "Đã bật camera"}
-    except Exception as e:
-        return {"success": False, "message": f"Lỗi khi bật camera: {e}"}
-
-
-def stop_camera() -> dict:
-    global _camera_instance, _camera_enabled
+def _release_camera_unlocked():
+    global _camera_instance, _camera_enabled, _camera_owner_id, _camera_last_heartbeat
     _camera_enabled = False
+    _camera_owner_id = ""
+    _camera_last_heartbeat = 0.0
     if _camera_instance:
         _camera_instance.release()
         _camera_instance = None
-    return {"success": True, "message": "Đã tắt camera"}
+
+
+def _expire_camera_lease():
+    with _camera_lock:
+        if (
+            _camera_enabled
+            and _camera_owner_id
+            and time.monotonic() - _camera_last_heartbeat > _CAMERA_LEASE_TIMEOUT
+        ):
+            print("  ⚠ Camera lease hết hạn — tự tắt camera")
+            _release_camera_unlocked()
+
+
+def _watchdog_loop():
+    while True:
+        time.sleep(2.0)
+        _expire_camera_lease()
+
+
+def _ensure_watchdog():
+    global _watchdog_started
+    with _camera_lock:
+        if _watchdog_started:
+            return
+        _watchdog_started = True
+    threading.Thread(target=_watchdog_loop, daemon=True).start()
+
+
+def _camera_status_unlocked(client_id: str = "") -> dict:
+    opened = _camera_instance.cap.isOpened() if _camera_instance and _camera_instance.cap else False
+    return {
+        "enabled": _camera_enabled,
+        "opened": opened,
+        "owner_id": _camera_owner_id,
+        "owned_by_current": bool(client_id and _camera_owner_id == client_id),
+    }
+
+
+def camera_status(client_id: str = "") -> dict:
+    _expire_camera_lease()
+    with _camera_lock:
+        return _camera_status_unlocked(client_id)
+
+
+def start_camera(camera_id: int = settings.CAMERA_ID, owner_id: str = "") -> dict:
+    global _camera_instance, _camera_enabled, _camera_owner_id, _camera_last_heartbeat
+    _ensure_watchdog()
+    owner_id = str(owner_id or "")
+    with _camera_lock:
+        if _camera_enabled and _camera_instance:
+            if _camera_owner_id and owner_id and _camera_owner_id != owner_id:
+                return {
+                    "success": False,
+                    "message": "Camera đang được dùng bởi tab khác",
+                    **_camera_status_unlocked(owner_id),
+                }
+            if owner_id:
+                _camera_owner_id = owner_id
+                _camera_last_heartbeat = time.monotonic()
+            return {"success": True, "message": "Camera đang chạy", **_camera_status_unlocked(owner_id)}
+    try:
+        cam = CameraStream(camera_id=camera_id)
+        with _camera_lock:
+            _camera_instance = cam
+            _camera_enabled = True
+            _camera_owner_id = owner_id
+            _camera_last_heartbeat = time.monotonic() if owner_id else 0.0
+            return {"success": True, "message": "Đã bật camera", **_camera_status_unlocked(owner_id)}
+    except Exception as e:
+        with _camera_lock:
+            _release_camera_unlocked()
+        return {"success": False, "message": f"Lỗi khi bật camera: {e}"}
+
+
+def heartbeat_camera(owner_id: str = "") -> dict:
+    global _camera_last_heartbeat
+    owner_id = str(owner_id or "")
+    _expire_camera_lease()
+    with _camera_lock:
+        if not _camera_enabled:
+            return {"success": False, "message": "Camera đang tắt", **_camera_status_unlocked(owner_id)}
+        if _camera_owner_id and owner_id != _camera_owner_id:
+            return {"success": False, "message": "Tab hiện tại không sở hữu camera", **_camera_status_unlocked(owner_id)}
+        _camera_last_heartbeat = time.monotonic()
+        return {"success": True, "message": "Camera heartbeat ok", **_camera_status_unlocked(owner_id)}
+
+
+def stop_camera(owner_id: str = "") -> dict:
+    owner_id = str(owner_id or "")
+    with _camera_lock:
+        if _camera_owner_id and owner_id and _camera_owner_id != owner_id:
+            return {
+                "success": False,
+                "message": "Tab hiện tại không sở hữu camera",
+                **_camera_status_unlocked(owner_id),
+            }
+        _release_camera_unlocked()
+        return {"success": True, "message": "Đã tắt camera", **_camera_status_unlocked(owner_id)}
 
 
 def get_camera() -> CameraStream | None:
+    _expire_camera_lease()
     return _camera_instance if _camera_enabled else None
 
 
 def release_camera():
-    global _camera_instance, _camera_enabled
-    _camera_enabled = False
-    if _camera_instance:
-        _camera_instance.release()
-        _camera_instance = None
+    with _camera_lock:
+        _release_camera_unlocked()

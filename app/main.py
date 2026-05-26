@@ -28,7 +28,14 @@ from app.api.v1.shifts import router as shifts_router
 from app.core.config import settings
 from app.core.database import init_db
 from app.services.face_engine import face_engine
-from app.services.camera import get_camera, release_camera, start_camera, stop_camera, is_camera_enabled
+from app.services.camera import (
+    camera_status,
+    get_camera,
+    heartbeat_camera,
+    release_camera,
+    start_camera,
+    stop_camera,
+)
 from app.services.attendance import get_summary_today
 from app.services.notify import notify_daily_report_async
 from app.api.v1 import employees, reports
@@ -209,18 +216,38 @@ async def ws_attendance_route(websocket: WebSocket):
 
 
 # ── Camera control ───────────────────────────────────────────────
+async def _camera_client_id(request: Request) -> str:
+    if request.query_params.get("client_id"):
+        return request.query_params.get("client_id", "")
+    try:
+        payload = await request.json()
+        if isinstance(payload, dict):
+            return str(payload.get("client_id") or "")
+        if isinstance(payload, str):
+            return payload
+    except Exception:
+        try:
+            return (await request.body()).decode("utf-8").strip()
+        except Exception:
+            return ""
+    return ""
+
+
 @app.post("/api/camera/start")
-def api_camera_start():
-    return start_camera()
+async def api_camera_start(request: Request):
+    return start_camera(owner_id=await _camera_client_id(request))
 
 @app.post("/api/camera/stop")
-def api_camera_stop():
-    return stop_camera()
+async def api_camera_stop(request: Request):
+    return stop_camera(owner_id=await _camera_client_id(request))
+
+@app.post("/api/camera/heartbeat")
+async def api_camera_heartbeat(request: Request):
+    return heartbeat_camera(owner_id=await _camera_client_id(request))
 
 @app.get("/api/camera/status")
-def api_camera_status():
-    cam = get_camera()
-    return {"enabled": is_camera_enabled(), "opened": cam.cap.isOpened() if cam and cam.cap else False}
+def api_camera_status(client_id: str = ""):
+    return camera_status(client_id=client_id)
 
 
 # ── Misc ─────────────────────────────────────────────────────────

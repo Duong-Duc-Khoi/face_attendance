@@ -1214,6 +1214,16 @@ function connectWS() {
 
 // ── Camera toggle ──
 let cameraOn = false;
+const cameraClientId = (() => {
+  try {
+    return crypto.randomUUID();
+  } catch(e) {
+    return 'kiosk-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+  }
+})();
+let cameraHeartbeatTimer = null;
+
+const cameraPayload = () => JSON.stringify({ client_id: cameraClientId });
 
 function showCameraFeed() {
   const feed = document.getElementById('camFeed');
@@ -1238,12 +1248,69 @@ function hideCameraFeed() {
   }
 }
 
+function startCameraHeartbeat() {
+  stopCameraHeartbeat();
+  cameraHeartbeatTimer = setInterval(async () => {
+    if (!cameraOn || document.visibilityState === 'hidden') return;
+    try {
+      const res = await fetch('/api/camera/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: cameraPayload(),
+      });
+      const data = await res.json();
+      if (!data.success || !data.owned_by_current) {
+        cameraOn = false;
+        stopCameraHeartbeat();
+        hideCameraFeed();
+        updateCamUI();
+      }
+    } catch(e) {
+      console.warn('Camera heartbeat lỗi:', e);
+    }
+  }, 4000);
+}
+
+function stopCameraHeartbeat() {
+  if (cameraHeartbeatTimer) {
+    clearInterval(cameraHeartbeatTimer);
+    cameraHeartbeatTimer = null;
+  }
+}
+
+function stopCameraLease(useBeacon = false) {
+  if (!cameraOn) return;
+  cameraOn = false;
+  stopCameraHeartbeat();
+  hideCameraFeed();
+  updateCamUI();
+
+  if (useBeacon && navigator.sendBeacon) {
+    const blob = new Blob([cameraPayload()], { type: 'application/json' });
+    navigator.sendBeacon('/api/camera/stop', blob);
+    return;
+  }
+
+  fetch('/api/camera/stop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: cameraPayload(),
+    keepalive: true,
+  }).catch(e => console.warn('Không tắt được camera:', e));
+}
+
 async function syncCameraStatus() {
   try {
-    const res  = await fetch('/api/camera/status');
+    const res  = await fetch('/api/camera/status?client_id=' + encodeURIComponent(cameraClientId));
     const data = await res.json();
-    cameraOn = data.enabled;
-    if (cameraOn) showCameraFeed();
+    cameraOn = !!(data.enabled && data.owned_by_current);
+    if (cameraOn) {
+      showCameraFeed();
+      startCameraHeartbeat();
+    } else {
+      stopCameraHeartbeat();
+      hideCameraFeed();
+    }
     updateCamUI();
   } catch {}
 }
@@ -1255,16 +1322,37 @@ async function toggleCamera() {
   const btn = document.getElementById('btnCamToggle');
   btn.disabled = true;
   try {
-    const res  = await fetch(cameraOn ? '/api/camera/stop' : '/api/camera/start', { method: 'POST' });
+    const res  = await fetch(cameraOn ? '/api/camera/stop' : '/api/camera/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: cameraPayload(),
+    });
     const data = await res.json();
     if (data.success) {
-      cameraOn = !cameraOn;
+      cameraOn = !!(data.enabled && data.owned_by_current);
       updateCamUI();
-      if (cameraOn) showCameraFeed(); else hideCameraFeed();
+      if (cameraOn) {
+        showCameraFeed();
+        startCameraHeartbeat();
+      } else {
+        stopCameraHeartbeat();
+        hideCameraFeed();
+      }
+    } else if (data.message) {
+      console.warn(data.message);
+      await syncCameraStatus();
     }
   } catch(e) { console.warn(e); }
   finally { btn.disabled = false; }
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') stopCameraLease(true);
+  else syncCameraStatus();
+});
+
+window.addEventListener('pagehide', () => stopCameraLease(true));
+window.addEventListener('beforeunload', () => stopCameraLease(true));
 
 function updateCamUI() {
   const btn   = document.getElementById('btnCamToggle');
