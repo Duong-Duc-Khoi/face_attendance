@@ -39,7 +39,7 @@ from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
 from app.api.v1.integrations import router as integrations_router
 from app.api.v1.employee_roles import router as employee_roles_router
-from app.services.attendance import get_summary_today, auto_checkout_missing
+from app.services.attendance import get_summary_today, auto_checkout_missing, mark_absent_sessions
 from app.services.attendance_audit import cleanup_old_evidence
 scheduler = AsyncIOScheduler()
 
@@ -59,7 +59,8 @@ async def lifespan(app: FastAPI):
 
     async def _auto_checkout():
         count = auto_checkout_missing()
-        print(f"  ✓ Auto checkout: {count} nhân viên chưa check out")
+        absent_count = mark_absent_sessions()
+        print(f"  ✓ Auto checkout: {count} nhân viên chưa check out; vắng chờ duyệt: {absent_count}")
 
     async def _cleanup_evidence():
         result = cleanup_old_evidence()

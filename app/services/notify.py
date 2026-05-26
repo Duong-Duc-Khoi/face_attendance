@@ -247,6 +247,36 @@ def notify_leave_submitted(req):
     _send_email(recipient, subject, html)
 
 
+def notify_missing_checkout(payload: dict):
+    """Gửi cảnh báo cho quản lý khi hệ thống tự checkout vì nhân viên quên ra ca."""
+    recipient = settings.EMAIL_TO or settings.EMAIL_USER
+    if not recipient:
+        return False
+    emp_name = payload.get("emp_name", "—")
+    emp_code = payload.get("emp_code", "—")
+    shift_name = payload.get("shift_name", "—")
+    work_date = payload.get("work_date", "—")
+    checkout_at = payload.get("checkout_at", "—")
+    subject = f"[FaceAttend] Quên checkout — {emp_name} ({emp_code})"
+    html = f"""
+    <div style="font-family:Arial,sans-serif;background:#f0f4f8;padding:32px">
+      <div style="max-width:500px;margin:auto;background:#fff;border-radius:10px;
+                  padding:28px;border-left:4px solid #e53e3e">
+        <h2 style="margin:0 0 16px;color:#e53e3e">Cảnh báo quên checkout</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 4px;color:#718096;width:40%">Nhân viên</td><td style="padding:8px 4px;font-weight:600">{emp_name} ({emp_code})</td></tr>
+          <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 4px;color:#718096">Ca</td><td style="padding:8px 4px">{shift_name}</td></tr>
+          <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 4px;color:#718096">Ngày làm</td><td style="padding:8px 4px">{work_date}</td></tr>
+          <tr><td style="padding:8px 4px;color:#718096">Checkout tự động</td><td style="padding:8px 4px;font-weight:700">{checkout_at}</td></tr>
+        </table>
+        <p style="margin:20px 0 0;font-size:12px;color:#a0aec0">
+          Mục này đang nằm trong tab Cần duyệt của màn Chấm công.
+        </p>
+      </div>
+    </div>"""
+    return _send_email(recipient, subject, html)
+
+
 def notify_leave_approved(req):
     """Gửi email cho nhân viên khi đơn được duyệt."""
     if not req.emp_email:
