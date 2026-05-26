@@ -6,6 +6,7 @@ Logic security thuần (JWT, hash) đã tách sang app/core/security.py.
 
 import secrets
 from datetime import datetime, timedelta
+import re
 from typing import Optional
 
 import smtplib
@@ -57,6 +58,19 @@ def create_otp_token(user_id: int, db: Session) -> str:
     return otp
 
 
+def create_password_reset_token(user_id: int, db: Session) -> str:
+    db.query(EmailToken).filter_by(user_id=user_id, token_type="reset_password", used=False).delete()
+    raw = _gen_token(32)
+    db.add(EmailToken(
+        user_id=user_id,
+        token_hash=_hash_token(raw),
+        token_type="reset_password",
+        expires_at=datetime.utcnow() + timedelta(minutes=30),
+    ))
+    db.commit()
+    return raw
+
+
 def verify_email_token(token: str, token_type: str, db: Session) -> Optional[EmailToken]:
     hashed = _hash_token(token)
     et = db.query(EmailToken).filter_by(token_hash=hashed, token_type=token_type, used=False).first()
@@ -79,6 +93,14 @@ def create_refresh_token_db(user_id: int, db: Session) -> str:
     ))
     db.commit()
     return raw
+
+
+def _app_url(path: str) -> str:
+    base = (settings.BASE_URL or "http://localhost:8000").strip().rstrip("/")
+    match = re.match(r"^(https?://[^/\s]+)", base)
+    if match:
+        base = match.group(1)
+    return f"{base}{path}"
 
 
 # ── Email sending ────────────────────────────────────────────────
@@ -104,7 +126,7 @@ def _send_email(to: str, subject: str, html: str) -> bool:
 
 
 def send_verification_email(to: str, full_name: str, token: str)-> bool:
-    link = f"{settings.BASE_URL}/auth/verify-email?token={token}"
+    link = _app_url(f"/auth/verify-email?token={token}")
     name = full_name or to
     html = f"""
     <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;
@@ -159,6 +181,33 @@ def send_login_otp_email(to: str, full_name: str, otp: str):
     _send_email(to, f"[{settings.APP_NAME}] Mã OTP đăng nhập: {otp}", html)
 
 
+def send_password_reset_email(to: str, full_name: str, token: str) -> bool:
+    link = _app_url(f"/auth/login-page?reset_token={token}")
+    name = full_name or to
+    html = f"""
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;
+                background:#060c17;color:#e8f0fe;border-radius:16px;overflow:hidden">
+      <div style="background:linear-gradient(135deg,#0d1626,#111e34);padding:36px 40px 28px;
+                  border-bottom:1px solid #1a2f50">
+        <div style="font-family:monospace;font-size:18px;font-weight:700;color:#00d4aa">FACEATTEND</div>
+        <h1 style="font-size:22px;font-weight:700;margin:14px 0 6px">Đặt lại mật khẩu</h1>
+      </div>
+      <div style="padding:32px 40px">
+        <p style="font-size:14px;color:#a0b4c8;line-height:1.7;margin-bottom:28px">
+          Xin chào <strong style="color:#e8f0fe">{name}</strong>, dùng nút bên dưới để tạo mật khẩu mới.
+        </p>
+        <a href="{link}" style="display:inline-block;background:#00d4aa;color:#000;
+           font-weight:700;font-size:14px;padding:13px 32px;border-radius:8px;text-decoration:none">
+          Đặt lại mật khẩu
+        </a>
+        <p style="margin-top:28px;font-size:12px;color:#3a5a7a">
+          Link có hiệu lực trong <strong>30 phút</strong>. Nếu bạn không yêu cầu, hãy bỏ qua email này.
+        </p>
+      </div>
+    </div>"""
+    return _send_email(to, f"[{settings.APP_NAME}] Đặt lại mật khẩu", html)
+
+
 def send_approval_notification(to: str, full_name: str, role: str):
     role_display = {"staff": "Nhân viên", "manager": "Quản lý", "admin": "Quản trị viên"}.get(role, role)
     name = full_name or to
@@ -175,7 +224,7 @@ def send_approval_notification(to: str, full_name: str, role: str):
           Tài khoản của bạn đã được phê duyệt với vai trò
           <strong style="color:#00d4aa">{role_display}</strong>.
         </p>
-        <a href="{settings.BASE_URL}/auth/login-page"
+        <a href="{_app_url('/auth/login-page')}"
            style="display:inline-block;background:#00d4aa;color:#000;font-weight:700;
                   font-size:14px;padding:13px 32px;border-radius:8px;text-decoration:none;margin-top:20px">
           Đăng nhập ngay

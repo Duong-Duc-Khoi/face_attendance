@@ -169,7 +169,7 @@ html,body{min-height:100vh}
   <div>
     <div class="panel" style="margin-bottom:14px">
       <div class="panel-header">
-        <span class="dot"></span> Camera — Nhận diện góc độ cải tiến
+        <span class="dot"></span> Camera — Đăng ký khuôn mặt nhân viên nhà hàng
         <span id="camStatus" style="margin-left:auto;font-family:var(--font-mono);font-size:9px;color:var(--muted)">OFFLINE</span>
       </div>
       <div class="panel-body">
@@ -229,7 +229,7 @@ html,body{min-height:100vh}
       <div class="panel-header">
         <span class="dot"></span> Tiến độ &nbsp;
         <span id="doneCount" style="color:var(--teal);font-family:var(--font-mono)">0</span>
-        <span style="color:var(--muted)">/5 góc</span>
+        <span style="color:var(--muted)">/5 góc khuôn mặt</span>
       </div>
       <div class="panel-body">
         <div class="pose-strip" id="poseStrip"></div>
@@ -250,21 +250,38 @@ html,body{min-height:100vh}
       <div class="panel-header"><span class="dot"></span> Thông tin nhân viên</div>
       <div class="panel-body" id="formBody">
         <div class="fr">
-          <div class="fg"><label class="fl">Mã nhân viên *</label>
-            <input class="fi" id="empCode" placeholder="VD: NV005" maxlength="20"></div>
+          <div class="fg"><label class="fl">Mã nhân viên</label>
+            <input class="fi" id="empCode" placeholder="Tự tạo nếu bỏ trống" maxlength="20"></div>
           <div class="fg"><label class="fl">Họ và tên *</label>
             <input class="fi" id="empName" placeholder="Nguyễn Văn A"></div>
         </div>
         <div class="fr">
-          <div class="fg"><label class="fl">Phòng ban</label>
-            <input class="fi" id="empDept" placeholder="VD: Kỹ thuật" list="deptList">
+          <div class="fg"><label class="fl">Khu vực làm việc</label>
+            <input class="fi" id="empDept" placeholder="VD: Sảnh / Bếp / Quầy bar" list="deptList">
             <datalist id="deptList">
-              <option value="Kỹ thuật"><option value="Kinh doanh">
-              <option value="Kế toán"><option value="Nhân sự">
-              <option value="Hành chính"><option value="Marketing">
+              <option value="Sảnh"><option value="Bếp">
+              <option value="Quầy bar"><option value="Thu ngân">
+              <option value="Kho"><option value="Vệ sinh">
             </datalist></div>
-          <div class="fg"><label class="fl">Chức vụ</label>
-            <input class="fi" id="empPosition" placeholder="VD: Lập trình viên"></div>
+          <div class="fg"><label class="fl">Vai trò nhà hàng</label>
+            <select class="fi" id="empRole">
+              <option value="server">Phục vụ</option>
+              <option value="cashier">Thu ngân</option>
+              <option value="kitchen">Bếp</option>
+              <option value="bar">Bar / Pha chế</option>
+              <option value="cleaner">Tạp vụ</option>
+              <option value="shift_lead">Quản lý ca</option>
+            </select></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label class="fl">Loại hợp đồng</label>
+            <select class="fi" id="empEmployment">
+              <option value="full_time">Full-time</option>
+              <option value="part_time">Part-time</option>
+              <option value="casual">Thời vụ</option>
+            </select></div>
+          <div class="fg"><label class="fl">Ghi chú vị trí</label>
+            <input class="fi" id="empPosition" placeholder="VD: Phục vụ tầng 2, phụ bếp ca tối"></div>
         </div>
         <div class="fr">
           <div class="fg"><label class="fl">Email *</label>
@@ -293,17 +310,17 @@ html,body{min-height:100vh}
         <div class="tipbox">
           <div class="tipbox-t">Cách hoạt động</div>
           <ul>
-            <li>Bật camera → đặt mặt vào khung trắng</li>
+            <li>Bật camera tại quầy quản lý → đặt mặt nhân viên vào khung trắng</li>
             <li>Làm theo mũi tên: thẳng → trái → phải → lên → xuống</li>
             <li>Giữ đúng góc ~1.2 giây → <strong style="color:var(--teal)">tự động chụp</strong></li>
-            <li>Thanh màu bên dưới camera = độ chuẩn xác từng trục</li>
-            <li>HUD góc màu xanh = đúng, màu vàng = sắp được</li>
+            <li>Dữ liệu khuôn mặt dùng cho kiosk chấm công vào/ra ca</li>
+            <li>Thanh màu bên dưới camera = độ chuẩn từng góc</li>
           </ul>
         </div>
 
         <div style="display:flex;gap:9px">
           <button class="btn btn-t btn-full" id="btnSubmit" onclick="submitRegister()" disabled>
-            ✦ Đăng ký nhân viên
+            ✦ Lưu hồ sơ khuôn mặt
           </button>
           <button class="btn btn-o" onclick="resetAll()" style="padding:0 14px;white-space:nowrap">Làm lại</button>
         </div>
@@ -315,9 +332,9 @@ html,body{min-height:100vh}
         <div class="sc-sub" id="scSub" style="line-height:1.7;max-width:320px;margin:0 auto">Đăng ký thành công!</div>
         <div style="margin-top:16px;padding:14px 18px;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:9px;font-size:12px;color:var(--muted);line-height:1.8;max-width:320px;margin-left:auto;margin-right:auto">
           <div style="font-weight:700;color:var(--teal);margin-bottom:6px">Điều gì xảy ra tiếp theo?</div>
-          <div>1️⃣ Kiểm tra email — click link xác minh</div>
-          <div>2️⃣ Chờ admin/manager phê duyệt</div>
-          <div>3️⃣ Đăng nhập được sau khi được duyệt</div>
+          <div>1. Kiểm tra email và xác minh tài khoản</div>
+          <div>2. Quản lý duyệt tài khoản nhân viên</div>
+          <div>3. Nhân viên có thể chấm công tại kiosk sau khi hồ sơ được duyệt</div>
         </div>
         <div style="display:flex;gap:9px;justify-content:center;margin-top:18px;flex-wrap:wrap">
           <button class="btn btn-t" onclick="resetAll()">Đăng ký tiếp</button>
@@ -863,7 +880,9 @@ async function submitRegister(){
   const empEmail=document.getElementById('empEmail').value.trim();
   const empPassword=document.getElementById('empPassword').value;
   const empConfirmPwd=document.getElementById('empConfirmPwd').value;
-  if(!empCode||!empName){showToast('Vui lòng nhập mã NV và họ tên','error');return;}
+  const empRole=document.getElementById('empRole').value;
+  const empRoleLabel=document.getElementById('empRole').selectedOptions[0]?.textContent||'';
+  if(!empName){showToast('Vui lòng nhập họ tên nhân viên','error');return;}
   if(!empEmail){showToast('Vui lòng nhập email','error');return;}
   if(!empPassword||empPassword.length<8||!/\d/.test(empPassword)){showToast('Mật khẩu cần ít nhất 8 ký tự và 1 chữ số','error');return;}
   if(empPassword!==empConfirmPwd){showToast('Mật khẩu xác nhận không khớp','error');return;}
@@ -877,7 +896,9 @@ async function submitRegister(){
       body:JSON.stringify({
         emp_code:empCode,name:empName,
         department:document.getElementById('empDept').value.trim(),
-        position:document.getElementById('empPosition').value.trim(),
+        position:document.getElementById('empPosition').value.trim()||empRoleLabel,
+        job_role:empRole,
+        employment_type:document.getElementById('empEmployment').value,
         email:empEmail,
         phone:document.getElementById('empPhone').value.trim(),
         password:empPassword,
@@ -890,10 +911,10 @@ async function submitRegister(){
     setStep(3);
     document.getElementById('formBody').style.display='none';
     document.getElementById('successCard').style.display='block';
-    document.getElementById('scName').textContent=empName;
+    document.getElementById('scName').textContent=`${empName} · ${data.employee?.emp_code||empCode}`;
     document.getElementById('scSub').textContent=data.message||'Đăng ký thành công!';
     showToast('Đăng ký thành công!','success');
-  }catch(e){btn.textContent='✦ Đăng ký nhân viên';btn.disabled=false;showToast('Lỗi: '+e.message,'error');}
+  }catch(e){btn.textContent='✦ Lưu hồ sơ khuôn mặt';btn.disabled=false;showToast('Lỗi: '+e.message,'error');}
 }
 // ── Reset ──
 function resetAll(){
@@ -919,6 +940,8 @@ function resetAll(){
   zctx.clearRect(0,0,zoneCanvas.width,zoneCanvas.height);
   setArrows([]);
   ['empCode','empName','empDept','empPosition','empEmail','empPhone','empPassword','empConfirmPwd'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('empRole').value='server';
+  document.getElementById('empEmployment').value='full_time';
   document.getElementById('formBody').style.display='';document.getElementById('successCard').style.display='none';
   buildCards();setStep(1);
 }

@@ -20,9 +20,9 @@ from app.core.security import (
 from app.models.user import User, EmailToken, RefreshToken
 from app.services.auth_service import (
     _hash_token,
-    consume_token, create_otp_token, create_refresh_token_db, create_verify_token,
+    consume_token, create_otp_token, create_password_reset_token, create_refresh_token_db, create_verify_token,
     require_any,
-    send_approval_notification, send_login_otp_email, send_verification_email,
+    send_approval_notification, send_login_otp_email, send_password_reset_email, send_verification_email,
     verify_email_token,
 )
 
@@ -67,6 +67,24 @@ class RefreshRequest(BaseModel):
 
 class ResendVerifyRequest(BaseModel):
     email: EmailStr
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Mật khẩu cần ít nhất 8 ký tự")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Mật khẩu cần có ít nhất 1 chữ số")
+        return v
 
 
 # ── Helper ───────────────────────────────────────────────────────
@@ -206,6 +224,29 @@ def resend_verify(req: ResendVerifyRequest, db: Session = Depends(get_db)):
         token = create_verify_token(user.id, db)
         send_verification_email(user.email, user.full_name, token)
     return {"success": True, "message": "Nếu email tồn tại và chưa xác minh, bạn sẽ nhận được email mới."}
+
+
+@router.post("/forgot-password")
+def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter_by(email=req.email).first()
+    if user:
+        token = create_password_reset_token(user.id, db)
+        send_password_reset_email(user.email, user.full_name, token)
+    return {"success": True, "message": "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu."}
+
+
+@router.post("/reset-password")
+def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    et = verify_email_token(req.token.strip(), "reset_password", db)
+    if not et:
+        raise HTTPException(400, "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn")
+    user = db.query(User).filter_by(id=et.user_id).first()
+    if not user:
+        raise HTTPException(400, "Tài khoản không tồn tại")
+    user.hashed_password = hash_password(req.password)
+    consume_token(et, db)
+    db.commit()
+    return {"success": True, "message": "Đã cập nhật mật khẩu. Bạn có thể đăng nhập bằng mật khẩu mới."}
 
 
 # ── HTML verify page ─────────────────────────────────────────────

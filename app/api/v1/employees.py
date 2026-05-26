@@ -10,6 +10,7 @@ Thay đổi:
 import base64
 from datetime import datetime
 from decimal import Decimal
+import re
 from typing import Optional
 
 import cv2
@@ -57,6 +58,20 @@ def _optional_decimal(value) -> Decimal | None:
     if value in (None, ""):
         return None
     return Decimal(str(value))
+
+
+def _generate_employee_code(db: Session) -> str:
+    rows = db.query(Employee.emp_code).filter(Employee.emp_code.like("NV%")).all()
+    max_num = 0
+    for (code,) in rows:
+        match = re.fullmatch(r"NV(\d+)", (code or "").upper())
+        if match:
+            max_num = max(max_num, int(match.group(1)))
+    for num in range(max_num + 1, max_num + 10000):
+        code = f"NV{num:03d}"
+        if not db.query(Employee).filter_by(emp_code=code).first():
+            return code
+    raise HTTPException(500, "Không thể tự tạo mã nhân viên")
 
 
 def _emp_dict(e: Employee) -> dict:
@@ -269,8 +284,8 @@ async def self_register(payload: dict, db: Session = Depends(get_db)):
     frames   = payload.get("frames", [])
 
     # ── Validate ──────────────────────────────────────────────────
-    if not emp_code or not name:
-        raise HTTPException(400, "Thiếu mã nhân viên hoặc tên")
+    if not name:
+        raise HTTPException(400, "Thiếu họ tên nhân viên")
     if not email:
         raise HTTPException(400, "Email là bắt buộc để tạo tài khoản")
     if not password or len(password) < 8:
@@ -281,8 +296,11 @@ async def self_register(payload: dict, db: Session = Depends(get_db)):
         raise HTTPException(400, "Không có ảnh khuôn mặt nào")
 
     # ── Kiểm tra trùng lặp ───────────────────────────────────────
-    if db.query(Employee).filter_by(emp_code=emp_code).first():
-        raise HTTPException(400, f"Mã nhân viên '{emp_code}' đã tồn tại")
+    if emp_code:
+        if db.query(Employee).filter_by(emp_code=emp_code).first():
+            raise HTTPException(400, f"Mã nhân viên '{emp_code}' đã tồn tại")
+    else:
+        emp_code = _generate_employee_code(db)
     if db.query(User).filter_by(email=email).first():
         raise HTTPException(400, "Email này đã được đăng ký")
 

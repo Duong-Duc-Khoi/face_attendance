@@ -26,7 +26,7 @@
 
   <div class="card">
     <!-- Step tabs -->
-    <div class="step-tabs">
+    <div class="step-tabs" id="stepTabs">
       <div class="stab active" id="tab1">① Thông tin</div>
       <div class="stab" id="tab2">② Xác nhận OTP</div>
     </div>
@@ -46,6 +46,10 @@
           <input class="fi" id="password" type="password" placeholder="••••••••" autocomplete="current-password">
           <span class="eye" id="eyeBtn" onclick="togglePwd()">👁</span>
         </div>
+      </div>
+      <div class="login-link-row">
+        <span>Quên mật khẩu?</span>
+        <button class="text-link" type="button" onclick="showForgotPassword()">Lấy lại qua email</button>
       </div>
       <button class="btn btn-t" id="btnLogin" onclick="doLogin()">
         Đăng nhập
@@ -81,18 +85,57 @@
       </button>
       <button class="btn btn-o" onclick="backToStep1()">← Quay lại</button>
     </div>
+
+    <!-- ── FORGOT PASSWORD ── -->
+    <div id="forgotStep" style="display:none">
+      <div class="reset-note">
+        Nhập email tài khoản. Hệ thống sẽ gửi link đặt lại mật khẩu nếu email tồn tại.
+      </div>
+      <div class="fg">
+        <label class="fl">Email</label>
+        <input class="fi" id="forgotEmail" type="email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <button class="btn btn-t" id="btnForgot" onclick="sendForgotPassword()">Gửi link đặt lại</button>
+      <button class="btn btn-o" onclick="showLoginStep()">← Quay lại đăng nhập</button>
+    </div>
+
+    <!-- ── RESET PASSWORD ── -->
+    <div id="resetStep" style="display:none">
+      <div class="reset-note">
+        Tạo mật khẩu mới cho tài khoản của bạn. Mật khẩu cần tối thiểu <strong>8 ký tự</strong> và có <strong>1 chữ số</strong>.
+      </div>
+      <div class="fg">
+        <label class="fl">Mật khẩu mới</label>
+        <div class="fi-icon">
+          <input class="fi" id="newPassword" type="password" placeholder="Tối thiểu 8 ký tự, có số" autocomplete="new-password">
+          <span class="eye" id="eyeNewPwd" onclick="toggleFieldPwd('newPassword','eyeNewPwd')">👁</span>
+        </div>
+      </div>
+      <div class="fg">
+        <label class="fl">Xác nhận mật khẩu mới</label>
+        <div class="fi-icon">
+          <input class="fi" id="newPasswordConfirm" type="password" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password">
+          <span class="eye" id="eyeNewConfirm" onclick="toggleFieldPwd('newPasswordConfirm','eyeNewConfirm')">👁</span>
+        </div>
+      </div>
+      <button class="btn btn-t" id="btnReset" onclick="submitResetPassword()">Cập nhật mật khẩu</button>
+      <button class="btn btn-o" onclick="showLoginStep()">← Quay lại đăng nhập</button>
+    </div>
   </div>
 </div>
 
 <script>
 let currentEmail = '';
 let timerInterval = null;
+let resetToken = new URLSearchParams(location.search).get('reset_token') || '';
 
 // ── Keydown Enter ──
 document.addEventListener('keydown', e => {
   if(e.key !== 'Enter') return;
   const s1 = document.getElementById('step1');
-  if(s1.style.display !== 'none') doLogin();
+  if(document.getElementById('forgotStep').style.display !== 'none') sendForgotPassword();
+  else if(document.getElementById('resetStep').style.display !== 'none') submitResetPassword();
+  else if(s1.style.display !== 'none') doLogin();
   else doVerifyOTP();
 });
 
@@ -101,6 +144,11 @@ function togglePwd(){
   const f = document.getElementById('password');
   f.type = f.type === 'password' ? 'text' : 'password';
   document.getElementById('eyeBtn').textContent = f.type === 'password' ? '👁' : '🙈';
+}
+function toggleFieldPwd(inputId, eyeId){
+  const f = document.getElementById(inputId);
+  f.type = f.type === 'password' ? 'text' : 'password';
+  document.getElementById(eyeId).textContent = f.type === 'password' ? '👁' : '🙈';
 }
 
 // ── Alert ──
@@ -112,6 +160,23 @@ function showAlert(msg, type='err'){
   el.className = 'alert show '+type;
 }
 function clearAlert(){ document.getElementById('alert').className='alert'; }
+
+function setAuthView(view){
+  clearTimer();clearAlert();
+  document.getElementById('step1').style.display = view==='login' ? '' : 'none';
+  document.getElementById('step2').style.display = view==='otp' ? '' : 'none';
+  document.getElementById('forgotStep').style.display = view==='forgot' ? '' : 'none';
+  document.getElementById('resetStep').style.display = view==='reset' ? '' : 'none';
+  document.getElementById('stepTabs').style.display = (view==='forgot'||view==='reset') ? 'none' : 'flex';
+  document.getElementById('tab1').className = view==='login' ? 'stab active' : 'stab';
+  document.getElementById('tab2').className = view==='otp' ? 'stab active' : 'stab';
+}
+function showLoginStep(){ resetToken=''; history.replaceState(null,'','/auth/login-page'); setAuthView('login'); }
+function showForgotPassword(){
+  document.getElementById('forgotEmail').value = document.getElementById('email').value.trim();
+  setAuthView('forgot');
+  document.getElementById('forgotEmail').focus();
+}
 
 // ── Step 1: Login ──
 async function doLogin(){
@@ -144,8 +209,7 @@ async function doLogin(){
 // ── Go to step 2 ──
 function goToStep2(){
   clearAlert();
-  document.getElementById('step1').style.display = 'none';
-  document.getElementById('step2').style.display = '';
+  setAuthView('otp');
   document.getElementById('tab1').className = 'stab done';
   document.getElementById('tab2').className = 'stab active';
   document.getElementById('otpEmail').textContent = currentEmail;
@@ -156,12 +220,48 @@ function goToStep2(){
 }
 
 function backToStep1(){
-  clearTimer();clearAlert();
-  document.getElementById('step2').style.display = 'none';
-  document.getElementById('step1').style.display = '';
-  document.getElementById('tab1').className = 'stab active';
-  document.getElementById('tab2').className = 'stab';
+  setAuthView('login');
   resetOTP();
+}
+
+async function sendForgotPassword(){
+  clearAlert();
+  const email = document.getElementById('forgotEmail').value.trim();
+  if(!email){ showAlert('Vui lòng nhập email'); return; }
+  const btn = document.getElementById('btnForgot');
+  btn.innerHTML = '<div class="spinner"></div>'; btn.disabled = true;
+  try{
+    const res = await fetch('/auth/forgot-password',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email})
+    });
+    const data = await res.json();
+    if(!res.ok)throw new Error(data.detail||'Không gửi được email');
+    showAlert(data.message||'Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu.','ok');
+  }catch(e){showAlert(e.message);}
+  finally{btn.textContent='Gửi link đặt lại';btn.disabled=false;}
+}
+
+async function submitResetPassword(){
+  clearAlert();
+  const password = document.getElementById('newPassword').value;
+  const confirm = document.getElementById('newPasswordConfirm').value;
+  if(!resetToken){showAlert('Thiếu token đặt lại mật khẩu');return;}
+  if(!password||password.length<8||!/\d/.test(password)){showAlert('Mật khẩu cần ít nhất 8 ký tự và 1 chữ số');return;}
+  if(password!==confirm){showAlert('Mật khẩu xác nhận không khớp');return;}
+  const btn = document.getElementById('btnReset');
+  btn.innerHTML = '<div class="spinner"></div>'; btn.disabled = true;
+  try{
+    const res = await fetch('/auth/reset-password',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:resetToken,password})
+    });
+    const data = await res.json();
+    if(!res.ok)throw new Error(data.detail||'Không cập nhật được mật khẩu');
+    showLoginStep();
+    showAlert(data.message||'Đã cập nhật mật khẩu.','ok');
+  }catch(e){showAlert(e.message);}
+  finally{btn.textContent='Cập nhật mật khẩu';btn.disabled=false;}
 }
 
 // ── OTP boxes ──
@@ -288,6 +388,11 @@ async function doVerifyOTP(){
 
 // ── Check nếu đã đăng nhập ──
 (function(){
+  if(resetToken){
+    setAuthView('reset');
+    document.getElementById('newPassword').focus();
+    return;
+  }
   const token = localStorage.getItem('access_token');
   if(token){
     // Thử verify token — nếu còn hợp lệ thì redirect
