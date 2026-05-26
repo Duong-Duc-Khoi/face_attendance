@@ -16,6 +16,7 @@ from app.core.database import SessionLocal
 from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
+from app.schemas.employee import normalize_job_role, normalize_text
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -56,6 +57,18 @@ def _assignment_to_dict(a: ShiftAssignment, shift: Optional[Shift] = None) -> di
     if shift:
         d["shift"] = _shift_to_dict(shift)
     return d
+
+
+def _employee_role_matches_shift(emp: Employee | None, shift: Shift) -> bool:
+    required = normalize_text(normalize_job_role(shift.required_position or ""))
+    if not required or not emp:
+        return True
+    employee_roles = {
+        normalize_text(normalize_job_role(emp.job_role or "")),
+        normalize_text(normalize_job_role(emp.position or "")),
+    }
+    employee_roles.discard("")
+    return required in employee_roles
 
 
 # ── CRUD Ca làm việc ─────────────────────────────────────────────
@@ -158,6 +171,9 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
     shift = db.query(Shift).filter_by(id=shift_id).first()
     if not shift:
         raise ValueError(f"Không tìm thấy ca #{shift_id}")
+    if emp and not _employee_role_matches_shift(emp, shift):
+        role = emp.job_role or emp.position or "chưa xác định"
+        raise ValueError(f"Nhân viên {emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
 
     existing = (
         db.query(ShiftAssignment)

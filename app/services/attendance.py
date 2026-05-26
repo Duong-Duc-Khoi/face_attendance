@@ -8,6 +8,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.models.branch import Branch
 from app.models.employee import Employee
 from app.models.attendance import (
     AttendanceAuditFinding,
@@ -22,8 +23,20 @@ from app.services.shift_service import (
     find_shift_assignment_for_time,
     shift_window,
 )
+from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 
 LOW_CONFIDENCE_THRESHOLD = 0.70
+
+
+def _employee_job_role(emp: Employee | None) -> str:
+    if not emp:
+        return ""
+    return normalize_job_role(emp.job_role or emp.position or "")
+
+
+def _employee_role_label(emp: Employee | None, fallback: str = "") -> str:
+    role = _employee_job_role(emp)
+    return JOB_ROLE_LABELS.get(role, role or fallback or "Chưa xác định")
 
 def process_attendance(emp_code: str, confidence: float, capture_path: str = "") -> dict | None:
     """
@@ -68,6 +81,9 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
                 "name": emp.name,
                 "department": emp.department,
                 "position": emp.position,
+                "job_role": _employee_job_role(emp),
+                "role_label": _employee_role_label(emp, emp.department),
+                "branch_id": emp.branch_id,
                 "email": emp.email or "",
                 "check_type": last_log.check_type,
                 "time": now.strftime("%H:%M:%S"),
@@ -102,6 +118,9 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
                     "name": emp.name,
                     "department": emp.department,
                     "position": emp.position,
+                    "job_role": _employee_job_role(emp),
+                    "role_label": _employee_role_label(emp, emp.department),
+                    "branch_id": emp.branch_id,
                     "email": emp.email or "",
                     "time": now.strftime("%H:%M:%S"),
                     "date": now.strftime("%d/%m/%Y"),
@@ -211,6 +230,9 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
             "name":       emp.name,
             "department": emp.department,
             "position":   emp.position,
+            "job_role":   _employee_job_role(emp),
+            "role_label": _employee_role_label(emp, emp.department),
+            "branch_id":  emp.branch_id,
             "email":      emp.email or "",
             "check_type": check_type,
             "time":       now.strftime("%H:%M:%S"),
@@ -354,12 +376,21 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
     evidence = None
     finding = None
     manual_review = None
+    emp = None
+    branch_name = ""
     try:
         db = SessionLocal()
         try:
             evidence = _matching_evidence(db, log)
             finding = _top_finding(db, log)
             manual_review = _manual_review_finding(db, log)
+            if log.employee_id:
+                emp = db.query(Employee).filter_by(id=log.employee_id).first()
+            if not emp and log.emp_code:
+                emp = db.query(Employee).filter_by(emp_code=log.emp_code).first()
+            if emp and emp.branch_id:
+                branch = db.query(Branch).filter_by(id=emp.branch_id).first()
+                branch_name = branch.name if branch else ""
         finally:
             db.close()
     except Exception:
@@ -412,6 +443,11 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
         "emp_code":    log.emp_code,
         "name":        log.emp_name,
         "department":  log.department,
+        "branch_id":   emp.branch_id if emp else None,
+        "branch_name": branch_name,
+        "position":    emp.position if emp else "",
+        "job_role":    _employee_job_role(emp),
+        "role_label":  _employee_role_label(emp, log.department),
         "check_type":  log.check_type,
         "time":        log.timestamp.strftime("%H:%M:%S"),
         "date":        log.timestamp.strftime("%d/%m/%Y"),

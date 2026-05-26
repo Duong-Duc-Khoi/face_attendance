@@ -18,6 +18,9 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.attendance import AttendanceAuditFinding, AttendanceEvent, AttendanceEvidence, AttendanceLog
+from app.models.branch import Branch
+from app.models.employee import Employee
+from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
     get_log_by_id, update_attendance_log,
@@ -71,6 +74,45 @@ def _safe_capture_file(raw_path: str, missing_detail: str) -> Path:
     if not capture_path.is_file():
         raise HTTPException(status_code=404, detail="Không tìm thấy file ảnh bằng chứng")
     return capture_path
+
+
+def _employee_report_context(logs: list[AttendanceLog], db: Session) -> tuple[dict[int, Employee], dict[str, Employee], dict[int, str]]:
+    employee_ids = {log.employee_id for log in logs if log.employee_id}
+    emp_codes = {log.emp_code for log in logs if log.emp_code}
+    employees = []
+    if employee_ids or emp_codes:
+        q = db.query(Employee)
+        if employee_ids and emp_codes:
+            from sqlalchemy import or_
+            q = q.filter(or_(Employee.id.in_(list(employee_ids)), Employee.emp_code.in_(list(emp_codes))))
+        elif employee_ids:
+            q = q.filter(Employee.id.in_(list(employee_ids)))
+        else:
+            q = q.filter(Employee.emp_code.in_(list(emp_codes)))
+        employees = q.all()
+    by_id = {e.id: e for e in employees}
+    by_code = {e.emp_code: e for e in employees}
+    branch_ids = {e.branch_id for e in employees if e.branch_id}
+    branches = {
+        b.id: b.name
+        for b in db.query(Branch).filter(Branch.id.in_(list(branch_ids))).all()
+    } if branch_ids else {}
+    return by_id, by_code, branches
+
+
+def _employee_for_log(log: AttendanceLog, by_id: dict[int, Employee], by_code: dict[str, Employee]) -> Employee | None:
+    return by_id.get(log.employee_id) or by_code.get(log.emp_code)
+
+
+def _role_label_for_log(log: AttendanceLog, emp: Employee | None) -> str:
+    role = normalize_job_role((emp.job_role if emp else "") or (emp.position if emp else ""))
+    return JOB_ROLE_LABELS.get(role, role or log.department or "Chưa xác định")
+
+
+def _branch_label_for_log(emp: Employee | None, branches: dict[int, str]) -> str:
+    if emp and emp.branch_id:
+        return branches.get(emp.branch_id, f"Chi nhánh #{emp.branch_id}")
+    return "Chưa xác định"
 
 
 def _capture_file_for_log(log: AttendanceLog) -> Path:
@@ -130,6 +172,7 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).all()
+    emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
     by_date: dict[str, dict] = {}
     for log in logs:
@@ -138,10 +181,14 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
             by_date[day] = {"check_in": set(), "check_out": set()}
         by_date[day][log.check_type].add(log.emp_code)
 
-    dept_stats: dict[str, int] = {}
+    role_stats: dict[str, int] = {}
+    branch_stats: dict[str, int] = {}
     for log in logs:
-        dept = log.department or "Chưa xác định"
-        dept_stats[dept] = dept_stats.get(dept, 0) + 1
+        emp = _employee_for_log(log, emp_by_id, emp_by_code)
+        role = _role_label_for_log(log, emp)
+        branch = _branch_label_for_log(emp, branches)
+        role_stats[role] = role_stats.get(role, 0) + 1
+        branch_stats[branch] = branch_stats.get(branch, 0) + 1
 
     return {
         "from_date":  from_date,
@@ -151,7 +198,9 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
             {"date": d, "checked_in": len(v["check_in"]), "checked_out": len(v["check_out"])}
             for d, v in sorted(by_date.items())
         ],
-        "by_dept": [{"dept": k, "count": v} for k, v in dept_stats.items()],
+        "by_role": [{"role": k, "count": v} for k, v in role_stats.items()],
+        "by_branch": [{"branch": k, "count": v} for k, v in branch_stats.items()],
+        "by_dept": [{"dept": k, "count": v} for k, v in role_stats.items()],
     }
 
 
@@ -170,12 +219,13 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).order_by(AttendanceLog.timestamp).all()
+    emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Báo cáo chấm công"
 
-    ws.merge_cells("A1:G1")
+    ws.merge_cells("A1:H1")
     ws["A1"]           = f"BÁO CÁO CHẤM CÔNG  —  {from_date} đến {to_date}"
     ws["A1"].font      = Font(bold=True, size=14)
     ws["A1"].alignment = Alignment(horizontal="center")
@@ -183,7 +233,7 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
     thin   = Side(border_style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     hdr_fill = PatternFill("solid", fgColor="1A365D")
-    headers  = ["STT", "Mã NV", "Họ tên", "Phòng ban", "Loại", "Thời gian", "Trạng thái"]
+    headers  = ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại", "Thời gian", "Trạng thái"]
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=2, column=col, value=h)
@@ -193,10 +243,13 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         cell.border    = border
 
     for i, log in enumerate(logs, 1):
+        emp = _employee_for_log(log, emp_by_id, emp_by_code)
+        branch_label = _branch_label_for_log(emp, branches)
+        role_label = _role_label_for_log(log, emp)
         fill_color = "F0FFF4" if log.check_type == "check_in" else "EBF4FF"
         row_fill   = PatternFill("solid", fgColor=fill_color)
         for col, val in enumerate([
-            i, log.emp_code, log.emp_name, log.department,
+            i, log.emp_code, log.emp_name, branch_label, role_label,
             "Vào" if log.check_type == "check_in" else "Ra",
             log.timestamp.strftime("%H:%M:%S  %d/%m/%Y"),
             log.note or "",
@@ -206,7 +259,7 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
             cell.border    = border
             cell.fill      = row_fill
 
-    for col, w in enumerate([6, 10, 22, 18, 8, 24, 20], 1):
+    for col, w in enumerate([6, 10, 22, 18, 18, 8, 24, 20], 1):
         ws.column_dimensions[get_column_letter(col)].width = w
 
     settings.EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
