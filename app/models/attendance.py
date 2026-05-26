@@ -19,10 +19,10 @@ class AttendanceSession(Base):
     __tablename__ = "attendance_sessions"
 
     id                  = Column(Integer, primary_key=True, index=True)
-    employee_id         = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
-    branch_id           = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
-    shift_assignment_id = Column(Integer, ForeignKey("shift_assignments.id"), nullable=True, index=True)
-    shift_id            = Column(Integer, ForeignKey("shifts.id"), nullable=True, index=True)
+    employee_id         = Column(Integer, ForeignKey("employees.id", ondelete="RESTRICT"), nullable=False, index=True)
+    branch_id           = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
+    shift_assignment_id = Column(Integer, ForeignKey("shift_assignments.id", ondelete="SET NULL"), nullable=True, index=True)
+    shift_id            = Column(Integer, ForeignKey("shifts.id", ondelete="SET NULL"), nullable=True, index=True)
     work_date           = Column(Date, nullable=False, index=True)
 
     check_in_at  = Column(DateTime, nullable=True, index=True)
@@ -45,8 +45,8 @@ class AttendanceSession(Base):
     # face | manual | auto
     source        = Column(String(20), default="face")
     note          = Column(Text, default="")
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
-    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    updated_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at    = Column(DateTime, default=datetime.now)
     updated_at    = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -59,9 +59,9 @@ class AttendanceEvent(Base):
     __tablename__ = "attendance_events"
 
     id          = Column(Integer, primary_key=True, index=True)
-    session_id  = Column(Integer, ForeignKey("attendance_sessions.id"), nullable=True, index=True)
-    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
-    branch_id   = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    session_id  = Column(Integer, ForeignKey("attendance_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="RESTRICT"), nullable=False, index=True)
+    branch_id   = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # check_in | check_out | break_start | break_end | manual_edit | auto_checkout
     event_type = Column(String(30), nullable=False, index=True)
@@ -75,7 +75,7 @@ class AttendanceEvent(Base):
 
     # face | manual | auto
     source        = Column(String(20), default="face")
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     note          = Column(Text, default="")
     created_at    = Column(DateTime, default=datetime.now)
 
@@ -84,10 +84,10 @@ class AttendanceEvidence(Base):
     __tablename__ = "attendance_evidence"
 
     id          = Column(Integer, primary_key=True, index=True)
-    log_id      = Column(Integer, ForeignKey("attendance_logs.id"), nullable=False, index=True)
-    event_id    = Column(Integer, ForeignKey("attendance_events.id"), nullable=True, index=True)
-    session_id  = Column(Integer, ForeignKey("attendance_sessions.id"), nullable=True, index=True)
-    employee_id = Column(Integer, index=True)
+    log_id      = Column(Integer, ForeignKey("attendance_logs.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_id    = Column(Integer, ForeignKey("attendance_events.id", ondelete="SET NULL"), nullable=True, index=True)
+    session_id  = Column(Integer, ForeignKey("attendance_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
     emp_code    = Column(String(20), default="", index=True)
 
     image_path = Column(String(255), default="")
@@ -124,11 +124,11 @@ class AttendanceAuditFinding(Base):
     __tablename__ = "attendance_audit_findings"
 
     id            = Column(Integer, primary_key=True, index=True)
-    audit_run_id  = Column(Integer, ForeignKey("attendance_audit_runs.id"), nullable=True, index=True)
-    log_id        = Column(Integer, ForeignKey("attendance_logs.id"), nullable=False, index=True)
-    event_id      = Column(Integer, ForeignKey("attendance_events.id"), nullable=True, index=True)
-    evidence_id   = Column(Integer, ForeignKey("attendance_evidence.id"), nullable=True, index=True)
-    employee_id   = Column(Integer, index=True)
+    audit_run_id  = Column(Integer, ForeignKey("attendance_audit_runs.id", ondelete="CASCADE"), nullable=True, index=True)
+    log_id        = Column(Integer, ForeignKey("attendance_logs.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_id      = Column(Integer, ForeignKey("attendance_events.id", ondelete="SET NULL"), nullable=True, index=True)
+    evidence_id   = Column(Integer, ForeignKey("attendance_evidence.id", ondelete="SET NULL"), nullable=True, index=True)
+    employee_id   = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
     emp_code      = Column(String(20), default="", index=True)
     emp_name      = Column(String(100), default="")
 

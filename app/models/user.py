@@ -7,7 +7,7 @@ SQLAlchemy models cho hệ thống xác thực:
 """
 
 from datetime import datetime
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from app.models.base import Base
 
 
@@ -31,7 +31,7 @@ class EmailToken(Base):
     __tablename__ = "email_tokens"
 
     id         = Column(Integer, primary_key=True, index=True)
-    user_id    = Column(Integer, index=True, nullable=False)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     token_hash = Column(String(64), unique=True, index=True, nullable=False)
     token_type = Column(String(20), nullable=False)   # "verify" | "otp"
     expires_at = Column(DateTime, nullable=False)
@@ -43,7 +43,7 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id         = Column(Integer, primary_key=True, index=True)
-    user_id    = Column(Integer, index=True, nullable=False)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     token_hash = Column(String(64), unique=True, index=True, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     revoked    = Column(Boolean, default=False)

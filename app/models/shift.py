@@ -17,7 +17,7 @@ class Shift(Base):
     __tablename__ = "shifts"
 
     id          = Column(Integer, primary_key=True, index=True)
-    branch_id   = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    branch_id   = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
     name        = Column(String(100), nullable=False)        # "Ca sáng", "Ca chiều"
     code        = Column(String(20),  index=True, nullable=False)  # "morning", "afternoon"
     work_start  = Column(String(5),   nullable=False)        # "08:00"
@@ -48,15 +48,15 @@ class ShiftAssignment(Base):
     __tablename__ = "shift_assignments"
 
     id          = Column(Integer, primary_key=True, index=True)
-    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True, index=True)
-    branch_id   = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
+    branch_id   = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
     emp_code    = Column(String(20), index=True, nullable=False)
-    shift_id    = Column(Integer, ForeignKey("shifts.id"), index=True, nullable=False)
+    shift_id    = Column(Integer, ForeignKey("shifts.id", ondelete="RESTRICT"), index=True, nullable=False)
     work_date   = Column(Date, index=True, nullable=False)
     status      = Column(String(20), default="scheduled", index=True)  # scheduled | swapped | cancelled
     note        = Column(String(255), default="")
     assigned_by = Column(String(150), default="")
-    assigned_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    assigned_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime, default=datetime.now)
     updated_at  = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -75,7 +75,7 @@ class ShiftPlanDraft(Base):
     __tablename__ = "shift_plan_drafts"
 
     id          = Column(Integer, primary_key=True, index=True)
-    branch_id   = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    branch_id   = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
     from_date   = Column(Date, nullable=False, index=True)
     to_date     = Column(Date, nullable=False, index=True)
     status      = Column(String(20), default="draft", index=True)  # draft | applied
@@ -93,9 +93,9 @@ class ShiftPlanDraftAssignment(Base):
     __tablename__ = "shift_plan_draft_assignments"
 
     id          = Column(Integer, primary_key=True, index=True)
-    draft_id    = Column(Integer, ForeignKey("shift_plan_drafts.id"), nullable=False, index=True)
+    draft_id    = Column(Integer, ForeignKey("shift_plan_drafts.id", ondelete="CASCADE"), nullable=False, index=True)
     emp_code    = Column(String(20), index=True, nullable=False)
-    shift_id    = Column(Integer, ForeignKey("shifts.id"), index=True, nullable=False)
+    shift_id    = Column(Integer, ForeignKey("shifts.id", ondelete="RESTRICT"), index=True, nullable=False)
     work_date   = Column(Date, index=True, nullable=False)
     reason      = Column(Text, default="")
     validation_status = Column(String(20), default="valid")

@@ -12,7 +12,7 @@ class WorkCalendar(Base):
     __tablename__ = "work_calendar"
 
     id         = Column(Integer, primary_key=True, index=True)
-    branch_id  = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    branch_id  = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
     date       = Column(Date, index=True, nullable=False)
 
     # full | half_am | half_pm | off | holiday | overtime | closed | special_open
@@ -26,7 +26,7 @@ class WorkCalendar(Base):
     label      = Column(String(200), default="")
 
     created_by = Column(String(150), default="")
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

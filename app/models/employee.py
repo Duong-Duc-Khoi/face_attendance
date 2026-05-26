@@ -5,7 +5,7 @@ SQLAlchemy model cho nhân viên.
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String
 from app.models.base import Base
 
 
@@ -13,13 +13,17 @@ class Employee(Base):
     __tablename__ = "employees"
 
     id           = Column(Integer, primary_key=True, index=True)
-    user_id      = Column(Integer, ForeignKey("users.id"), nullable=True, unique=True, index=True)
-    branch_id    = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    user_id      = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, unique=True, index=True)
+    branch_id    = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
     emp_code     = Column(String(20),  unique=True, index=True, nullable=False)
     name         = Column(String(100), nullable=False)
     full_name    = Column(String(100), default="")
     department   = Column(String(100), default="")
     position     = Column(String(100), default="")
+    job_role     = Column(String(50), default="", index=True)
+    employment_type = Column(String(30), default="full_time", index=True)
+    hourly_rate  = Column(Numeric(12, 2), nullable=True)
+    base_salary  = Column(Numeric(12, 2), nullable=True)
     email        = Column(String(150), default="")
     phone        = Column(String(20),  default="")
     face_path    = Column(String(255), default="")
