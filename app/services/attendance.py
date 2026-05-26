@@ -37,6 +37,21 @@ def _employee_role_label(emp: Employee | None, fallback: str = "") -> str:
     role = _employee_job_role(emp)
     return JOB_ROLE_LABELS.get(role, role or fallback or "Chưa xác định")
 
+
+def _next_unscheduled_check_type(emp_code: str, now: datetime, db) -> str:
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    unscheduled_count = (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.emp_code == emp_code,
+              AttendanceLog.timestamp >= day_start,
+              AttendanceLog.note.like("Ngoài phân ca%"),
+          )
+          .count()
+    )
+    return "check_out" if unscheduled_count % 2 == 1 else "check_in"
+
+
 def process_attendance(emp_code: str, confidence: float, capture_path: str = "") -> dict | None:
     """
     Xử lý 1 sự kiện chấm công từ kết quả nhận diện.
@@ -98,9 +113,45 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
 
         assignment, shift = find_shift_assignment_for_time(emp_code, now, db)
         if not assignment or not shift:
+            check_type = _next_unscheduled_check_type(emp_code, now, db)
+            status = "Ngoài phân ca - chưa có ca phân công, chờ quản lý kiểm tra/gắn ca"
+            log = AttendanceLog(
+                employee_id  = emp.id,
+                emp_code     = emp_code,
+                emp_name     = emp.name,
+                department   = emp.department,
+                check_type   = check_type,
+                timestamp    = now,
+                confidence   = round(confidence, 4),
+                capture_path = capture_path,
+                note         = status,
+            )
+            db.add(log)
+            db.flush()
+
+            event = AttendanceEvent(
+                session_id   = None,
+                employee_id  = emp.id,
+                branch_id    = emp.branch_id,
+                event_type   = check_type,
+                event_time   = now,
+                confidence   = round(confidence, 4),
+                capture_path = capture_path,
+                source       = "face",
+                note         = status,
+            )
+            db.add(event)
+            db.commit()
+
             return {
-                "ok": False,
-                "reason": "no_active_shift_assignment",
+                "ok": True,
+                "warning": True,
+                "reason": "no_active_shift_assignment_logged",
+                "id": log.id,
+                "session_id": None,
+                "event_id": event.id,
+                "shift_id": None,
+                "shift_name": "",
                 "emp_code": emp_code,
                 "name": emp.name,
                 "department": emp.department,
@@ -109,12 +160,14 @@ def process_attendance(emp_code: str, confidence: float, capture_path: str = "")
                 "role_label": _employee_role_label(emp, emp.department),
                 "branch_id": emp.branch_id,
                 "email": emp.email or "",
+                "check_type": check_type,
                 "time": now.strftime("%H:%M:%S"),
                 "date": now.strftime("%d/%m/%Y"),
                 "timestamp": now.isoformat(),
                 "confidence": round(confidence, 4),
-                "message": "Không có ca được phân công tại thời điểm này",
-                "voice_message": "Bạn chưa có ca được phân công tại thời điểm này. Vui lòng liên hệ quản lý.",
+                "status": status,
+                "message": "Đã ghi nhận lượt chấm công ngoài phân ca",
+                "voice_message": "Đã ghi nhận chấm công, nhưng bạn chưa có ca được phân công. Vui lòng báo quản lý kiểm tra.",
                 "avatar_url": emp.avatar_url or "",
             }
         session = None
