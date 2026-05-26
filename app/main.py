@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -131,8 +131,33 @@ async def register_page_face(request: Request):
 
 @app.get("/dashboard")
 async def dashboard_page(request: Request):
+    legacy_tab = request.query_params.get("tab")
+    legacy_routes = {
+        "attendance": "/attendance",
+        "employees": "/employees",
+        "leave": "/leave",
+        "calendar": "/roster",
+    }
+    if legacy_tab in legacy_routes:
+        return RedirectResponse(legacy_routes[legacy_tab], status_code=307)
     summary = get_summary_today()
-    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": summary})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": summary, "active_page": "overview"})
+
+@app.get("/attendance")
+async def attendance_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "attendance"})
+
+@app.get("/employees")
+async def employees_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "employees"})
+
+@app.get("/leave")
+async def leave_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "leave"})
+
+@app.get("/roster")
+async def roster_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "roster"})
 
 @app.get("/report")
 async def report_page(request: Request):
