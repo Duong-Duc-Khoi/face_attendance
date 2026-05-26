@@ -1,0 +1,72 @@
+  <!-- TAB: Chấm công -->
+  <div class="dashboard-page-section" id="attendance-page">
+    <div class="attendance-subnav">
+      <button class="attendance-view-btn active" id="attendanceViewHistoryBtn" onclick="setAttendanceSection('history')">Lịch sử & chỉnh sửa</button>
+      <button class="attendance-view-btn" id="attendanceViewAuditBtn" onclick="setAttendanceSection('audit')">Đối soát</button>
+    </div>
+    <div class="panel audit-panel attendance-section hidden" id="auditPanel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Đối soát chấm công</div>
+        <div class="audit-toolbar">
+          <span id="auditSummary" style="font-size:11px;color:var(--muted)">Chưa có lượt kiểm tra</span>
+          <button class="log-btn" onclick="refreshAuditPanel()">Tải lại</button>
+        </div>
+      </div>
+      <div class="audit-grid">
+        <div class="audit-command-box">
+          <div class="audit-tabs">
+            <button class="audit-tab active" id="auditTabManual" onclick="setAuditMode('manual')">Soát thủ công</button>
+            <button class="audit-tab" id="auditTabAi" onclick="setAuditMode('ai')">AI gian lận</button>
+          </div>
+          <div class="audit-filter-row">
+            <input type="date" class="filter-input" id="auditFrom" onchange="refreshAuditPanel()" style="font-size:12px">
+            <input type="date" class="filter-input" id="auditTo" onchange="refreshAuditPanel()" style="font-size:12px">
+          </div>
+          <div class="audit-filter-row full">
+            <select class="filter-input" id="auditEmp" onchange="refreshAuditPanel()" style="font-size:12px">
+              <option value="">Tất cả nhân viên</option>
+            </select>
+          </div>
+          <button class="log-btn evidence-btn" id="auditManualAllBtn" onclick="loadManualReview(false)">Soát theo bộ lọc</button>
+          <button class="log-btn evidence-btn warn" id="auditManualLowBtn" onclick="loadManualReview(true)">Dưới 70% (soát tay)</button>
+          <button class="log-btn evidence-btn" id="auditAiRunBtn" onclick="runAudit('daily')" style="display:none">AI kiểm tra khoảng ngày</button>
+        </div>
+        <div class="audit-table-wrap">
+          <table class="audit-table">
+            <thead><tr><th id="auditMetricHead">Độ chính xác</th><th>Nhân viên</th><th>Thông tin</th><th>Nguồn</th><th style="text-align:right">Xem</th></tr></thead>
+            <tbody id="auditFindingBody"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="panel attendance-section" id="logPanel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Lịch sử chấm công</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" class="filter-input" id="logFrom" onchange="loadLogs()" style="font-size:12px">
+          <input type="date" class="filter-input" id="logTo" onchange="loadLogs()" style="font-size:12px">
+          <select class="filter-input" id="logEmp" onchange="loadLogs()" style="font-size:12px;min-width:190px">
+            <option value="">Tất cả nhân viên</option>
+          </select>
+          <input class="filter-input" id="logSearch" placeholder="Tìm nhanh..." oninput="filterLogs()" style="width:140px">
+          <button id="btnAddLog" onclick="openAtdAdd()"
+            style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm bù
+          </button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:620px;overflow-y:auto">
+        <table class="data-table" id="logTable">
+          <thead><tr>
+            <th>Nhân viên</th><th>Loại</th><th>Thời gian</th>
+            <th>Vai trò</th><th>Trạng thái</th><th>Độ chính xác</th>
+            <th>Bằng chứng</th>
+            <th class="col-act" style="text-align:right">Thao tác</th>
+          </tr></thead>
+          <tbody id="logTableBody"><tr><td colspan="8" class="empty">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+

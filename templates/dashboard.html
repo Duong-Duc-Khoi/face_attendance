@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — FaceAttend</title>
+<title>{{ page_title|default('Dashboard') }} — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-2">
@@ -11,13 +11,9 @@
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
 .panel-body{padding:0}
-.dash-tabs{display:none;flex-wrap:wrap;gap:4px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
-.dash-tab{flex:1 1 130px;position:relative;padding:9px 12px;border:none;background:none;color:var(--muted);font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.05em;cursor:pointer;border-radius:7px;transition:all .2s;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
-.dash-tab.active{background:var(--teal);color:#fff}
-.dash-tab:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
 .tab-badge{background:#ff4d6a;color:#fff;border-radius:999px;font-size:9px;font-weight:700;padding:1px 5px;line-height:14px;min-width:14px;text-align:center;display:none}
 .tab-badge.show{display:inline-block}
-.dash-tab-content{display:none}.dash-tab-content.active{display:block}
+.dashboard-page-section{display:block}
 .overview-head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;margin-bottom:16px}
 .overview-kicker{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);margin-bottom:6px}
 .overview-title{font-size:26px;font-weight:800;letter-spacing:0;line-height:1.15;color:var(--text)}
@@ -273,11 +269,12 @@
   </div>
   <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
     <span class="nav-section-title">Vận hành</span>
-    <a href="/dashboard" class="nav-link active" data-dashboard-tab="tab-overview">Tổng quan</a>
-    <a href="/dashboard?tab=attendance" class="nav-link" data-dashboard-tab="tab-attendance">Chấm công</a>
-    <a href="/dashboard?tab=employees" class="nav-link" data-dashboard-tab="tab-employees">Nhân viên</a>
+    <a href="/dashboard" class="nav-link{% if active_page|default('overview') == 'overview' %} active{% endif %}">Tổng quan</a>
+    <a href="/attendance" class="nav-link{% if active_page == 'attendance' %} active{% endif %}">Chấm công</a>
+    <a href="/employees" class="nav-link{% if active_page == 'employees' %} active{% endif %}">Nhân viên</a>
     <a href="/shifts" class="nav-link">Ca làm</a>
-    <a href="/dashboard?tab=leave" class="nav-link" data-dashboard-tab="tab-leave">Nghỉ phép</a>
+    <a href="/roster" class="nav-link{% if active_page == 'roster' %} active{% endif %}">Bảng phân ca</a>
+    <a href="/leave" class="nav-link{% if active_page == 'leave' %} active{% endif %}">Nghỉ phép</a>
     <a href="/report" class="nav-link">Báo cáo</a>
     <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
     <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
@@ -290,278 +287,17 @@
 </header>
 
 <div class="page">
-  <div class="dash-tabs">
-    <button class="dash-tab active" onclick="switchDashTab('tab-overview',this)">📊 Tổng quan</button>
-    <button class="dash-tab" onclick="switchDashTab('tab-attendance',this)">⏱ Chấm công</button>
-    <button class="dash-tab" onclick="switchDashTab('tab-employees',this)">👥 Nhân viên</button>
-    <button class="dash-tab" onclick="switchDashTab('tab-leave',this)">
-      ✉ Duyệt nghỉ phép
-      <span class="tab-badge" id="leaveBadge">0</span>
-    </button>
-    <button class="dash-tab" onclick="switchDashTab('tab-calendar',this)">📋 Bảng phân ca</button>
-  </div>
-
-  <!-- TAB: Overview -->
-  <div class="dash-tab-content active" id="tab-overview">
-  <section class="overview-head">
-    <div>
-      <div class="overview-kicker">Restaurant Operations</div>
-      <h1 class="overview-title">Tổng quan hôm nay</h1>
-      <div class="overview-sub" id="overviewToday">Đang tải dữ liệu vận hành...</div>
-    </div>
-    <div class="overview-actions">
-      <a class="overview-action" href="/">Mở kiosk</a>
-      <a class="overview-action primary" href="/shifts">Chia ca</a>
-      <button class="overview-action" onclick="switchDashTabById('tab-leave')">Duyệt nghỉ <span class="action-badge" id="overviewLeaveActionBadge">0</span></button>
-      <button class="overview-action" onclick="switchDashTabById('tab-attendance')">Xem chấm công</button>
-    </div>
-  </section>
-
-  <section class="ops-alert-grid" aria-label="Cảnh báo vận hành">
-    <article class="ops-alert-card danger" id="opsMissingCheckout">
-      <div class="ops-alert-top"><div class="ops-alert-label">Chưa checkout</div><div class="ops-alert-icon">!</div></div>
-      <div class="ops-alert-value" id="opsMissingCheckoutVal">—</div>
-      <div class="ops-alert-note" id="opsMissingCheckoutNote">Nhân viên đã vào ca nhưng chưa ra.</div>
-    </article>
-    <article class="ops-alert-card warn" id="opsLate">
-      <div class="ops-alert-top"><div class="ops-alert-label">Đi muộn</div><div class="ops-alert-icon">⏱</div></div>
-      <div class="ops-alert-value" id="opsLateVal">—</div>
-      <div class="ops-alert-note" id="opsLateNote">Lượt check-in có trạng thái đi muộn.</div>
-    </article>
-    <article class="ops-alert-card info" id="opsLeave">
-      <div class="ops-alert-top"><div class="ops-alert-label">Đơn chờ duyệt</div><div class="ops-alert-icon">↗</div></div>
-      <div class="ops-alert-value" id="opsLeaveVal">—</div>
-      <div class="ops-alert-note" id="opsLeaveNote">Đơn nghỉ phép/remote cần xử lý.</div>
-    </article>
-    <article class="ops-alert-card" id="opsAbsent">
-      <div class="ops-alert-top"><div class="ops-alert-label">Vắng mặt</div><div class="ops-alert-icon">•</div></div>
-      <div class="ops-alert-value" id="opsAbsentVal">—</div>
-      <div class="ops-alert-note" id="opsAbsentNote">Theo số nhân viên chưa check-in.</div>
-    </article>
-  </section>
-
-  <div class="stats-row" id="statsRow">
-    <div class="stat-card"><div class="stat-label">Tổng nhân viên</div><div class="stat-value" id="statTotal">—</div><div class="stat-sub">đang hoạt động</div></div>
-    <div class="stat-card"><div class="stat-label">Đã vào làm hôm nay</div><div class="stat-value teal" id="statIn">—</div><div class="stat-sub">check-in hôm nay</div></div>
-    <div class="stat-card"><div class="stat-label">Đã ra về</div><div class="stat-value blue" id="statOut">—</div><div class="stat-sub">check-out hôm nay</div></div>
-    <div class="stat-card"><div class="stat-label">Vắng mặt</div><div class="stat-value red" id="statAbsent">—</div><div class="stat-sub" id="statDate">hôm nay</div></div>
-  </div>
-
-  <div class="overview-workspace">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Việc cần xử lý</div>
-      </div>
-      <table class="work-table">
-        <tbody id="workItemsBody">
-          <tr><td><b>Đang tải dữ liệu</b><small>Hệ thống đang tổng hợp tình trạng hôm nay</small></td><td class="work-count">—</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="panel overview-log-panel">
-      <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Chấm công gần đây</div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="data-table">
-          <thead><tr><th>Nhân viên</th><th>Loại</th><th>Thời gian</th><th>Trạng thái</th></tr></thead>
-          <tbody id="recentLogPreviewBody"><tr><td colspan="4" class="empty">Đang tải...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="preview-foot">
-        <button class="log-btn" onclick="switchDashTabById('tab-attendance')">Xem tất cả</button>
-      </div>
-    </div>
-  </div>
-  </div><!-- /tab-overview -->
-
-  <!-- TAB: Chấm công -->
-  <div class="dash-tab-content" id="tab-attendance">
-    <div class="attendance-subnav">
-      <button class="attendance-view-btn active" id="attendanceViewHistoryBtn" onclick="setAttendanceSection('history')">Lịch sử & chỉnh sửa</button>
-      <button class="attendance-view-btn" id="attendanceViewAuditBtn" onclick="setAttendanceSection('audit')">Đối soát</button>
-    </div>
-    <div class="panel audit-panel attendance-section hidden" id="auditPanel">
-      <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Đối soát chấm công</div>
-        <div class="audit-toolbar">
-          <span id="auditSummary" style="font-size:11px;color:var(--muted)">Chưa có lượt kiểm tra</span>
-          <button class="log-btn" onclick="refreshAuditPanel()">Tải lại</button>
-        </div>
-      </div>
-      <div class="audit-grid">
-        <div class="audit-command-box">
-          <div class="audit-tabs">
-            <button class="audit-tab active" id="auditTabManual" onclick="setAuditMode('manual')">Soát thủ công</button>
-            <button class="audit-tab" id="auditTabAi" onclick="setAuditMode('ai')">AI gian lận</button>
-          </div>
-          <div class="audit-filter-row">
-            <input type="date" class="filter-input" id="auditFrom" onchange="refreshAuditPanel()" style="font-size:12px">
-            <input type="date" class="filter-input" id="auditTo" onchange="refreshAuditPanel()" style="font-size:12px">
-          </div>
-          <div class="audit-filter-row full">
-            <select class="filter-input" id="auditEmp" onchange="refreshAuditPanel()" style="font-size:12px">
-              <option value="">Tất cả nhân viên</option>
-            </select>
-          </div>
-          <button class="log-btn evidence-btn" id="auditManualAllBtn" onclick="loadManualReview(false)">Soát theo bộ lọc</button>
-          <button class="log-btn evidence-btn warn" id="auditManualLowBtn" onclick="loadManualReview(true)">Dưới 70% (soát tay)</button>
-          <button class="log-btn evidence-btn" id="auditAiRunBtn" onclick="runAudit('daily')" style="display:none">AI kiểm tra khoảng ngày</button>
-        </div>
-        <div class="audit-table-wrap">
-          <table class="audit-table">
-            <thead><tr><th id="auditMetricHead">Độ chính xác</th><th>Nhân viên</th><th>Thông tin</th><th>Nguồn</th><th style="text-align:right">Xem</th></tr></thead>
-            <tbody id="auditFindingBody"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <div class="panel attendance-section" id="logPanel">
-      <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Lịch sử chấm công</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="date" class="filter-input" id="logFrom" onchange="loadLogs()" style="font-size:12px">
-          <input type="date" class="filter-input" id="logTo" onchange="loadLogs()" style="font-size:12px">
-          <select class="filter-input" id="logEmp" onchange="loadLogs()" style="font-size:12px;min-width:190px">
-            <option value="">Tất cả nhân viên</option>
-          </select>
-          <input class="filter-input" id="logSearch" placeholder="Tìm nhanh..." oninput="filterLogs()" style="width:140px">
-          <button id="btnAddLog" onclick="openAtdAdd()"
-            style="display:none;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-sans)">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Thêm bù
-          </button>
-        </div>
-      </div>
-      <div style="overflow-x:auto;max-height:620px;overflow-y:auto">
-        <table class="data-table" id="logTable">
-          <thead><tr>
-            <th>Nhân viên</th><th>Loại</th><th>Thời gian</th>
-            <th>Vai trò</th><th>Trạng thái</th><th>Độ chính xác</th>
-            <th>Bằng chứng</th>
-            <th class="col-act" style="text-align:right">Thao tác</th>
-          </tr></thead>
-          <tbody id="logTableBody"><tr><td colspan="8" class="empty">Đang tải...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: Nhân viên -->
-  <div class="dash-tab-content" id="tab-employees">
-    <div class="employee-layout">
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-header-left"><span class="dot"></span> Danh sách nhân viên nhà hàng</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-outline" onclick="openRoleManager()">Vai trò</button>
-            <button class="btn btn-teal" onclick="openAddModal()">+ Đăng ký nhân viên</button>
-          </div>
-        </div>
-        <div class="employee-toolbar">
-          <input class="filter-input employee-search" id="searchEmp" placeholder="Tìm tên, mã NV, email, vai trò..." oninput="filterEmployees()">
-          <select class="filter-input" id="filterRole" onchange="filterEmployees()"><option value="">Tất cả vai trò</option></select>
-          <select class="filter-input" id="filterEmployment" onchange="filterEmployees()">
-            <option value="">Mọi loại hợp đồng</option>
-            <option value="full_time">Full-time</option>
-            <option value="part_time">Part-time</option>
-            <option value="casual">Thời vụ</option>
-          </select>
-          <select class="filter-input" id="filterStatus" onchange="loadEmployees()">
-            <option value="true">Đang làm</option>
-            <option value="">Tất cả</option>
-            <option value="false">Đã nghỉ</option>
-          </select>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr>
-              <th>Nhân viên</th><th>Mã NV</th><th>Vai trò</th>
-              <th>Liên hệ</th><th>Loại</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th>
-            </tr></thead>
-            <tbody id="empTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: Nghỉ phép -->
-  <div class="dash-tab-content" id="tab-leave">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Đơn chờ duyệt</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="lvFilterType" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
-            <option value="">Tất cả loại</option><option value="leave">Nghỉ phép</option><option value="remote">Remote</option>
-          </select>
-          <select id="lvFilterStatus" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
-            <option value="pending">Chờ duyệt</option><option value="">Tất cả</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option>
-          </select>
-        </div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="lv-table">
-          <thead><tr>
-            <th>Nhân viên</th><th>Loại</th><th>Ngày</th><th>Tổng</th>
-            <th>Lý do</th><th>Gửi lúc</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th>
-          </tr></thead>
-          <tbody id="leaveTableBody"><tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Đang tải...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: Bảng phân ca -->
-  <div class="dash-tab-content" id="tab-calendar">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Bảng nhân viên theo ca</div>
-        <a href="/shifts" class="log-btn">Mở trang chia ca</a>
-      </div>
-      <div class="roster-toolbar">
-        <button class="roster-date-btn" onclick="rosterNav(-1)" title="Ngày trước">&#8249;</button>
-        <input class="filter-input" id="rosterDate" type="date" onchange="loadShiftRoster()">
-        <button class="roster-date-btn" onclick="rosterNav(1)" title="Ngày sau">&#8250;</button>
-        <input class="filter-input roster-search" id="rosterSearch" placeholder="Tìm nhân viên, mã NV..." oninput="renderShiftRosterTable()">
-        <select class="filter-input roster-dept" id="rosterDept" onchange="renderShiftRosterTable()"><option value="">Tất cả vai trò</option></select>
-        <button class="btn btn-teal roster-refresh" onclick="loadShiftRoster()">Tải lại</button>
-        <div class="roster-view-toggle">
-          <button class="roster-view-btn active" id="rosterPeriodWeek" onclick="setRosterPeriod('week')">Tuần</button>
-          <button class="roster-view-btn" id="rosterPeriodMonth" onclick="setRosterPeriod('month')">Tháng</button>
-        </div>
-        <div class="roster-view-toggle">
-          <button class="roster-view-btn active" id="rosterViewShift" onclick="setRosterView('shift')">Theo ca</button>
-          <button class="roster-view-btn" id="rosterViewEmployee" onclick="setRosterView('employee')">Theo nhân viên</button>
-        </div>
-        <span class="roster-range-label" id="rosterRangeLabel">—</span>
-        <button class="log-btn" id="rosterBackBtn" onclick="returnToRosterPeriod()" style="display:none">Quay lại</button>
-      </div>
-      <div class="roster-summary">
-        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricAssigned">0</div><div class="roster-metric-label">Lượt phân ca</div></div>
-        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricEmployees">0</div><div class="roster-metric-label">Nhân viên có ca</div></div>
-        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricUnassigned">0</div><div class="roster-metric-label">Chưa có ca</div></div>
-        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricShifts">0</div><div class="roster-metric-label">Ca đang mở</div></div>
-      </div>
-      <div class="roster-shift-grid" id="shiftRosterGroups">
-        <div class="roster-empty">Đang tải bảng phân ca...</div>
-      </div>
-      <div class="roster-period-wrap" id="shiftRosterPeriod">
-        <table class="roster-period-table">
-          <thead id="shiftRosterPeriodHead"></thead>
-          <tbody id="shiftRosterPeriodBody"><tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="roster-table-wrap" id="shiftRosterMatrix" style="display:none">
-        <table class="shift-roster-table">
-          <thead id="shiftRosterHead"></thead>
-          <tbody id="shiftRosterBody"><tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
+  {% if active_page|default('overview') == 'overview' %}
+  {% include "dashboard_tabs/overview.html" %}
+  {% elif active_page == 'attendance' %}
+  {% include "dashboard_tabs/attendance.html" %}
+  {% elif active_page == 'employees' %}
+  {% include "dashboard_tabs/employees.html" %}
+  {% elif active_page == 'leave' %}
+  {% include "dashboard_tabs/leave.html" %}
+  {% elif active_page == 'roster' %}
+  {% include "dashboard_tabs/calendar.html" %}
+  {% endif %}
 <!-- Modal: Add/Edit employee -->
 <div class="modal-overlay" id="empModal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
@@ -812,6 +548,7 @@ let _atdEditId=null,_atdDelId=null;
 let _captureObjectUrl='',_activeFindingId=null,_activeManualLogId=null;
 let auditFindings=[],manualReviewLogs=[],auditVisionConfigured=false,auditProvider='',auditMode='manual',manualLowOnly=false,auditLastRunNote='',auditAiCount=0;
 let dashboardSummary={},pendingLeaveCount=0;
+const ACTIVE_PAGE='{{ active_page|default("overview") }}';
 
 // ── Init ──
 (async function init(){
@@ -819,39 +556,71 @@ let dashboardSummary={},pendingLeaveCount=0;
   if(user&&(user.role==='admin'||user.role==='manager')){
     _isMgr=true;
     // Show manager UI elements
-    document.getElementById('logTable').classList.add('mgr');
-    document.getElementById('btnAddLog').style.display='inline-flex';
+    const logTable=document.getElementById('logTable');
+    const btnAddLog=document.getElementById('btnAddLog');
+    if(logTable)logTable.classList.add('mgr');
+    if(btnAddLog)btnAddLog.style.display='inline-flex';
   }
   _isAdmin=!!(user&&user.role==='admin');
 
   // Close atd overlays on backdrop click
   ['atdCaptureOvl','atdEditOvl','atdDelOvl','atdAddOvl'].forEach(id=>{
-    document.getElementById(id).addEventListener('click',function(e){
+    const ovl=document.getElementById(id);
+    if(!ovl)return;
+    ovl.addEventListener('click',function(e){
       if(e.target===this)closeAtd(id);
     });
   });
 
   const today=new Date().toISOString().split('T')[0];
-  document.getElementById('logFrom').value=today;
-  document.getElementById('logTo').value=today;
-  document.getElementById('auditFrom').value=today;
-  document.getElementById('auditTo').value=today;
-  await loadEmployeeRoles();
-  await Promise.all([loadSummary(),loadEmployees(),loadLogs(),loadPendingLeaveCount()]);
-  await refreshAuditPanel();
-  applyInitialDashboardTab();
+  ['logFrom','logTo','auditFrom','auditTo','rosterDate'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.value=today;
+  });
+
+  await loadPendingLeaveCount();
+  if(ACTIVE_PAGE==='overview'){
+    await Promise.all([loadSummary(),loadLogs()]);
+    return;
+  }
+  if(ACTIVE_PAGE==='attendance'){
+    await loadEmployeeRoles();
+    await loadEmployees();
+    await loadLogs();
+    await refreshAuditPanel();
+    return;
+  }
+  if(ACTIVE_PAGE==='employees'){
+    await loadEmployeeRoles();
+    await loadEmployees();
+    return;
+  }
+  if(ACTIVE_PAGE==='leave'){
+    await loadLeaveRequests();
+    return;
+  }
+  if(ACTIVE_PAGE==='roster'){
+    await loadEmployeeRoles();
+    await loadShiftRoster();
+  }
 })();
 
 async function loadSummary(){
   try{
     const r=await authFetch('/api/summary');const d=await r.json();
     dashboardSummary=d||{};
-    document.getElementById('statTotal').textContent=d.total_emp||0;
-    document.getElementById('statIn').textContent=d.checked_in||0;
-    document.getElementById('statOut').textContent=d.checked_out||0;
-    document.getElementById('statAbsent').textContent=d.absent||0;
-    document.getElementById('statDate').textContent='hôm nay '+d.date;
-    document.getElementById('overviewToday').textContent=`${d.date||'Hôm nay'} · Theo dõi tình trạng vào ca, ra ca và các việc cần duyệt.`;
+    const statTotal=document.getElementById('statTotal');
+    if(statTotal)statTotal.textContent=d.total_emp||0;
+    const statIn=document.getElementById('statIn');
+    if(statIn)statIn.textContent=d.checked_in||0;
+    const statOut=document.getElementById('statOut');
+    if(statOut)statOut.textContent=d.checked_out||0;
+    const statAbsent=document.getElementById('statAbsent');
+    if(statAbsent)statAbsent.textContent=d.absent||0;
+    const statDate=document.getElementById('statDate');
+    if(statDate)statDate.textContent='hôm nay '+d.date;
+    const overviewToday=document.getElementById('overviewToday');
+    if(overviewToday)overviewToday.textContent=`${d.date||'Hôm nay'} · Theo dõi tình trạng vào ca, ra ca và các việc cần duyệt.`;
     updateOperationsOverview();
   }catch(e){console.error(e);}
 }
@@ -907,13 +676,13 @@ function renderWorkItems(data){
   const tbody=document.getElementById('workItemsBody');
   if(!tbody)return;
   const rows=[
-    {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',tab:'tab-attendance'},
-    {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',tab:'tab-attendance'},
-    {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép/remote đang chờ xử lý',count:data.pendingLeaveCount,state:'info',tab:'tab-leave'},
-    {label:'Theo dõi vắng mặt',note:'Nhân viên chưa check-in trong ngày',count:data.absent,state:'danger',tab:'tab-attendance'}
+    {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',url:'/attendance'},
+    {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',url:'/attendance'},
+    {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép/remote đang chờ xử lý',count:data.pendingLeaveCount,state:'info',url:'/leave'},
+    {label:'Theo dõi vắng mặt',note:'Nhân viên chưa check-in trong ngày',count:data.absent,state:'danger',url:'/attendance'}
   ];
   tbody.innerHTML=rows.map(r=>`
-    <tr style="cursor:pointer" onclick="switchDashTabById('${r.tab}')">
+    <tr style="cursor:pointer" onclick="location.href='${r.url}'">
       <td><b>${r.label}</b><small>${r.note}</small></td>
       <td class="work-count ${r.count?r.state:''}">${r.count}</td>
     </tr>`).join('');
@@ -921,7 +690,8 @@ function renderWorkItems(data){
 
 async function loadEmployees(){
   try{
-    const status=document.getElementById('filterStatus').value;
+    const statusEl=document.getElementById('filterStatus');
+    const status=statusEl?statusEl.value:'true';
     const url='/api/employees'+(status===''||status==='false'?'?active_only=false':'');
     const r=await authFetch(url);employees=await r.json();
     populateRoleFilter();populateEmployeeFilters();renderEmployees(employees);
@@ -1099,17 +869,21 @@ function populateAuditEmployeeFilter(){
 }
 
 function _logRange(){
-  let from=document.getElementById('logFrom').value||new Date().toISOString().slice(0,10);
-  let to=document.getElementById('logTo').value||from;
+  const fromEl=document.getElementById('logFrom');
+  const toEl=document.getElementById('logTo');
+  const empEl=document.getElementById('logEmp');
+  let from=(fromEl&&fromEl.value)||new Date().toISOString().slice(0,10);
+  let to=(toEl&&toEl.value)||from;
   if(new Date(to)<new Date(from)){
     to=from;
-    document.getElementById('logTo').value=to;
+    if(toEl)toEl.value=to;
   }
-  return {from,to,empCode:document.getElementById('logEmp').value||''};
+  return {from,to,empCode:(empEl&&empEl.value)||''};
 }
 
 function renderEmployees(list){
   const tbody=document.getElementById('empTableBody');
+  if(!tbody)return;
   const roleFilter=document.getElementById('filterRole').value;
   const employmentFilter=document.getElementById('filterEmployment').value;
   const statusFilter=document.getElementById('filterStatus').value;
@@ -1270,6 +1044,7 @@ function _auditPersonCell(name,time,date){
 function renderLogs(list){
   const tbody=document.getElementById('logTableBody');
   renderRecentLogPreview(list);
+  if(!tbody)return;
   const cols=_isMgr?8:7;
   if(!list.length){tbody.innerHTML=`<tr><td colspan="${cols}" class="empty">Không có dữ liệu chấm công</td></tr>`;return;}
   tbody.innerHTML=list.map(l=>`
@@ -1472,21 +1247,7 @@ async function deleteEmployee(id){
     showToast('Đã vô hiệu hóa nhân viên','success');await loadEmployees();await loadSummary();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
 }
-setInterval(loadSummary,30000);
-
-// ── Dashboard tabs ──
-function switchDashTab(id,btn){
-  document.querySelectorAll('.dash-tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.dash-tab').forEach(b=>b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  if(btn)btn.classList.add('active');
-  updateDashboardNavActive(id);
-  updateDashboardUrl(id);
-  if(id==='tab-employees')renderEmployees(employees);
-  if(id==='tab-attendance')renderLogs(allLogs);
-  if(id==='tab-leave')loadLeaveRequests();
-  if(id==='tab-calendar')loadShiftRoster();
-}
+if(ACTIVE_PAGE==='overview')setInterval(loadSummary,30000);
 
 function renderRecentLogPreview(list){
   const tbody=document.getElementById('recentLogPreviewBody');
@@ -1504,25 +1265,6 @@ function renderRecentLogPreview(list){
       <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
     </tr>`).join('');
 }
-function switchDashTabById(id){
-  const btn=[...document.querySelectorAll('.dash-tab')].find(b=>b.getAttribute('onclick')?.includes("'"+id+"'"));
-  switchDashTab(id,btn);
-}
-function updateDashboardNavActive(id){
-  document.querySelectorAll('[data-dashboard-tab]').forEach(a=>a.classList.toggle('active',a.dataset.dashboardTab===id));
-}
-function updateDashboardUrl(id){
-  const tabMap={'tab-overview':'','tab-attendance':'attendance','tab-employees':'employees','tab-leave':'leave','tab-calendar':'calendar'};
-  const tab=tabMap[id]||'';
-  const search=tab?`?tab=${tab}`:'';
-  if(location.pathname==='/dashboard'&&location.search!==search)history.replaceState(null,'','/dashboard'+search);
-}
-function applyInitialDashboardTab(){
-  const tab=new URLSearchParams(location.search).get('tab');
-  const map={attendance:'tab-attendance',employees:'tab-employees',leave:'tab-leave',calendar:'tab-calendar'};
-  switchDashTabById(map[tab]||'tab-overview');
-}
-
 // ── Leave management ──
 let leaveRequests=[];
 async function loadLeaveRequests(){
