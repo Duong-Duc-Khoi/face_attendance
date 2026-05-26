@@ -164,6 +164,24 @@
 .roster-shift-card.shift-tone-lunch .roster-count-pill{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.28);color:#f6c90e}
 .roster-shift-card.shift-tone-evening .roster-count-pill{background:rgba(77,166,255,.12);border-color:rgba(77,166,255,.28);color:var(--blue)}
 .roster-shift-card.shift-tone-night .roster-count-pill{background:rgba(167,139,250,.13);border-color:rgba(167,139,250,.3);color:#a78bfa}
+.employee-layout{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+.employee-role-panel{position:sticky;top:18px}
+.employee-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 150px 150px 130px;gap:8px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
+.role-list{display:flex;flex-direction:column;padding:8px;max-height:420px;overflow:auto}
+.role-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px;border-bottom:1px solid rgba(26,47,80,.45);align-items:center}
+.role-row:last-child{border-bottom:0}
+.role-name{font-size:13px;font-weight:800;color:var(--text);line-height:1.25}
+.role-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:3px}
+.role-desc{font-size:11px;color:var(--muted);line-height:1.35;margin-top:4px}
+.role-actions{display:flex;gap:5px;align-items:center}
+.role-chip{display:inline-flex;align-items:center;min-height:23px;border-radius:999px;padding:0 9px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:var(--teal);font-size:10px;font-weight:800;white-space:nowrap}
+.role-chip.off{background:rgba(90,122,154,.1);border-color:rgba(90,122,154,.22);color:var(--muted)}
+.role-form{display:grid;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.012)}
+.role-form-row{display:grid;grid-template-columns:1fr 96px;gap:8px}
+.role-empty{padding:22px 14px;color:var(--muted);font-size:12px;text-align:center}
+.emp-role-pill{display:inline-flex;align-items:center;min-height:24px;border-radius:6px;padding:0 8px;background:rgba(77,166,255,.1);border:1px solid rgba(77,166,255,.26);color:var(--blue);font-size:11px;font-weight:800}
+.emp-meta-line{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
+@media(max-width:1120px){.employee-layout{grid-template-columns:1fr}.employee-role-panel{position:static}.employee-toolbar{grid-template-columns:1fr 1fr}.employee-toolbar .employee-search{grid-column:1/-1}}
 @media(max-width:860px){.roster-toolbar{grid-template-columns:auto 1fr auto}.roster-toolbar .roster-search,.roster-toolbar .roster-dept,.roster-toolbar .roster-refresh,.roster-toolbar .roster-view-toggle,.roster-toolbar .roster-range-label{grid-column:1/-1;width:100%}.roster-view-btn{flex:1}.roster-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:1120px){.ops-alert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-workspace{grid-template-columns:1fr}.overview-log-panel{position:static}}
 @media(max-width:680px){.overview-head{grid-template-columns:1fr}.overview-actions{justify-content:flex-start}.ops-alert-grid,.ops-module-grid{grid-template-columns:1fr}}
@@ -420,7 +438,7 @@
         <table class="data-table" id="logTable">
           <thead><tr>
             <th>Nhân viên</th><th>Loại</th><th>Thời gian</th>
-            <th>Phòng ban</th><th>Trạng thái</th><th>Độ chính xác</th>
+            <th>Vai trò</th><th>Trạng thái</th><th>Độ chính xác</th>
             <th>Bằng chứng</th>
             <th class="col-act" style="text-align:right">Thao tác</th>
           </tr></thead>
@@ -432,28 +450,39 @@
 
   <!-- TAB: Nhân viên -->
   <div class="dash-tab-content" id="tab-employees">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Danh sách nhân viên</div>
-        <button class="btn btn-teal" onclick="openAddModal()">+ Thêm nhân viên</button>
-      </div>
-      <div class="filter-bar">
-        <input class="filter-input" id="searchEmp" placeholder="Tìm theo tên, mã NV..." oninput="filterEmployees()" style="flex:1">
-        <select class="filter-input" id="filterDept" onchange="filterEmployees()"><option value="">Tất cả phòng ban</option></select>
-        <select class="filter-input" id="filterStatus" onchange="loadEmployees()">
-          <option value="true">Đang làm việc</option>
-          <option value="">Tất cả</option>
-          <option value="false">Đã nghỉ</option>
-        </select>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="data-table">
-          <thead><tr>
-            <th>Nhân viên</th><th>Mã NV</th><th>Phòng ban</th>
-            <th>Chức vụ</th><th>Trạng thái</th><th>Ngày tạo</th><th style="text-align:right">Thao tác</th>
-          </tr></thead>
-          <tbody id="empTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
-        </table>
+    <div class="employee-layout">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-header-left"><span class="dot"></span> Danh sách nhân viên nhà hàng</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-outline" onclick="openRoleManager()">Vai trò</button>
+            <button class="btn btn-teal" onclick="openAddModal()">+ Đăng ký nhân viên</button>
+          </div>
+        </div>
+        <div class="employee-toolbar">
+          <input class="filter-input employee-search" id="searchEmp" placeholder="Tìm tên, mã NV, email, vai trò..." oninput="filterEmployees()">
+          <select class="filter-input" id="filterRole" onchange="filterEmployees()"><option value="">Tất cả vai trò</option></select>
+          <select class="filter-input" id="filterEmployment" onchange="filterEmployees()">
+            <option value="">Mọi loại hợp đồng</option>
+            <option value="full_time">Full-time</option>
+            <option value="part_time">Part-time</option>
+            <option value="casual">Thời vụ</option>
+          </select>
+          <select class="filter-input" id="filterStatus" onchange="loadEmployees()">
+            <option value="true">Đang làm</option>
+            <option value="">Tất cả</option>
+            <option value="false">Đã nghỉ</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th>Nhân viên</th><th>Mã NV</th><th>Vai trò</th>
+              <th>Liên hệ</th><th>Loại</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th>
+            </tr></thead>
+            <tbody id="empTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -496,7 +525,7 @@
         <input class="filter-input" id="rosterDate" type="date" onchange="loadShiftRoster()">
         <button class="roster-date-btn" onclick="rosterNav(1)" title="Ngày sau">&#8250;</button>
         <input class="filter-input roster-search" id="rosterSearch" placeholder="Tìm nhân viên, mã NV..." oninput="renderShiftRosterTable()">
-        <select class="filter-input roster-dept" id="rosterDept" onchange="renderShiftRosterTable()"><option value="">Tất cả bộ phận</option></select>
+        <select class="filter-input roster-dept" id="rosterDept" onchange="renderShiftRosterTable()"><option value="">Tất cả vai trò</option></select>
         <button class="btn btn-teal roster-refresh" onclick="loadShiftRoster()">Tải lại</button>
         <div class="roster-view-toggle">
           <button class="roster-view-btn active" id="rosterPeriodWeek" onclick="setRosterPeriod('week')">Tuần</button>
@@ -547,11 +576,13 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Phòng ban</label>
-        <input class="form-input" id="mEmpDept" placeholder="Kỹ thuật" list="mDeptList">
-        <datalist id="mDeptList"><option value="Kỹ thuật"><option value="Kinh doanh"><option value="Kế toán"><option value="Nhân sự"><option value="Hành chính"></datalist>
+        <label class="form-label">Vai trò nhà hàng</label>
+        <select class="form-input" id="mEmpRole"></select>
       </div>
-      <div class="form-group"><label class="form-label">Chức vụ</label><input class="form-input" id="mEmpPos" placeholder="Lập trình viên"></div>
+      <div class="form-group">
+        <label class="form-label">Loại hợp đồng</label>
+        <select class="form-input" id="mEmpEmployment"><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="casual">Thời vụ</option></select>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="mEmpEmail" type="email" placeholder="email@company.com"></div>
@@ -564,6 +595,34 @@
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
       <button class="btn btn-outline" onclick="closeModal()">Hủy</button>
       <button class="btn btn-teal" id="modalSaveBtn" onclick="saveEmployee()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Manage employee roles -->
+<div class="modal-overlay" id="roleModal" onclick="if(event.target===this)closeRoleManager()">
+  <div class="modal" style="max-width:720px;width:min(720px,calc(100vw - 28px))">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h16"/></svg>
+      <span>Quản lý vai trò công việc</span>
+    </div>
+    <div class="role-form" style="padding:0 0 14px;border-bottom:1px solid var(--border);margin-bottom:8px;background:transparent">
+      <input type="hidden" id="roleId">
+      <div class="role-form-row">
+        <input class="form-input" id="roleName" placeholder="Tên vai trò, ví dụ: Host">
+        <input class="form-input" id="roleCode" placeholder="Mã">
+      </div>
+      <input class="form-input" id="roleDesc" placeholder="Mô tả ngắn">
+      <div class="role-form-row">
+        <select class="form-input" id="roleActive"><option value="true">Đang dùng</option><option value="false">Tạm ẩn</option></select>
+        <input class="form-input" id="roleSort" type="number" placeholder="Thứ tự">
+      </div>
+    </div>
+    <div class="role-list" id="roleList"><div class="role-empty">Đang tải vai trò...</div></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn btn-outline" onclick="resetRoleForm()">Mới</button>
+      <button class="btn btn-outline" onclick="closeRoleManager()">Đóng</button>
+      <button class="btn btn-teal" id="roleSaveBtn" onclick="saveEmployeeRole()">Lưu vai trò</button>
     </div>
   </div>
 </div>
@@ -747,7 +806,7 @@
 <div id="toast"></div>
 
 <script>
-let employees=[],allLogs=[],editingId=null;
+let employees=[],employeeRoles=[],allLogs=[],editingId=null;
 let _isMgr=false,_isAdmin=false;
 let _atdEditId=null,_atdDelId=null;
 let _captureObjectUrl='',_activeFindingId=null,_activeManualLogId=null;
@@ -777,6 +836,7 @@ let dashboardSummary={},pendingLeaveCount=0;
   document.getElementById('logTo').value=today;
   document.getElementById('auditFrom').value=today;
   document.getElementById('auditTo').value=today;
+  await loadEmployeeRoles();
   await Promise.all([loadSummary(),loadEmployees(),loadLogs(),loadPendingLeaveCount()]);
   await refreshAuditPanel();
   applyInitialDashboardTab();
@@ -864,16 +924,153 @@ async function loadEmployees(){
     const status=document.getElementById('filterStatus').value;
     const url='/api/employees'+(status===''||status==='false'?'?active_only=false':'');
     const r=await authFetch(url);employees=await r.json();
-    populateDeptFilter();populateEmployeeFilters();renderEmployees(employees);
+    populateRoleFilter();populateEmployeeFilters();renderEmployees(employees);
   }catch(e){showToast('Lỗi tải danh sách nhân viên','error');}
 }
 
-function populateDeptFilter(){
-  const depts=[...new Set(employees.map(e=>e.department).filter(Boolean))].sort();
-  const sel=document.getElementById('filterDept');const curr=sel.value;
-  sel.innerHTML='<option value="">Tất cả phòng ban</option>';
-  depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
-  sel.value=curr;
+async function loadEmployeeRoles(){
+  try{
+    const r=await authFetch('/api/employee-roles?active_only=false');
+    if(!r.ok)throw new Error('Không tải được vai trò');
+    employeeRoles=await r.json();
+    populateRoleFilter();
+    populateEmployeeRoleSelect();
+    renderEmployeeRoles();
+  }catch(e){
+    employeeRoles=[];
+    renderEmployeeRoles();
+  }
+}
+
+function roleLabel(code){
+  const role=employeeRoles.find(r=>r.code===code);
+  return role?role.name:(code||'Chưa phân vai trò');
+}
+
+function employmentLabel(value){
+  return {full_time:'Full-time',part_time:'Part-time',casual:'Thời vụ'}[value]||'Full-time';
+}
+
+function employeeRoleCode(emp){
+  if(!emp)return '';
+  return emp.job_role||emp.position||'';
+}
+
+function populateRoleFilter(){
+  const sel=document.getElementById('filterRole');if(!sel)return;
+  const curr=sel.value;
+  const codes=[...new Set([
+    ...employeeRoles.filter(r=>r.is_active!==false).map(r=>r.code),
+    ...employees.map(employeeRoleCode).filter(Boolean),
+  ])];
+  sel.innerHTML='<option value="">Tất cả vai trò</option>';
+  codes.forEach(code=>{
+    const o=document.createElement('option');
+    o.value=code;o.textContent=roleLabel(code);
+    sel.appendChild(o);
+  });
+  sel.value=codes.includes(curr)?curr:'';
+}
+
+function populateEmployeeRoleSelect(){
+  const sel=document.getElementById('mEmpRole');if(!sel)return;
+  const curr=sel.value;
+  const active=employeeRoles.filter(r=>r.is_active!==false);
+  sel.innerHTML='<option value="">Chưa phân vai trò</option>';
+  active.forEach(r=>{
+    const o=document.createElement('option');
+    o.value=r.code;o.textContent=r.name;
+    sel.appendChild(o);
+  });
+  if(curr)sel.value=curr;
+}
+
+function renderEmployeeRoles(){
+  const list=document.getElementById('roleList');if(!list)return;
+  if(!employeeRoles.length){
+    list.innerHTML='<div class="role-empty">Chưa có vai trò. Thêm vai trò đầu tiên để phân nhân viên theo vị trí vận hành.</div>';
+    return;
+  }
+  list.innerHTML=employeeRoles.map(r=>`
+    <div class="role-row">
+      <div>
+        <div class="role-name">${rosterSafe(r.name)}</div>
+        <div class="role-code">${rosterSafe(r.code)} · ${r.employee_count||0} nhân viên</div>
+        ${r.description?`<div class="role-desc">${rosterSafe(r.description)}</div>`:''}
+      </div>
+      <div class="role-actions">
+        <span class="role-chip ${r.is_active?'':'off'}">${r.is_active?'Đang dùng':'Tạm ẩn'}</span>
+        <button class="log-btn" onclick="editEmployeeRole(${r.id})">Sửa</button>
+        <button class="log-btn del" onclick="deleteEmployeeRole(${r.id})">Xóa</button>
+      </div>
+    </div>`).join('');
+}
+
+function openRoleManager(){
+  resetRoleForm();
+  renderEmployeeRoles();
+  document.getElementById('roleModal').classList.add('open');
+}
+
+function closeRoleManager(){
+  document.getElementById('roleModal').classList.remove('open');
+}
+
+function resetRoleForm(){
+  document.getElementById('roleId').value='';
+  document.getElementById('roleName').value='';
+  document.getElementById('roleCode').value='';
+  document.getElementById('roleDesc').value='';
+  document.getElementById('roleSort').value='';
+  document.getElementById('roleActive').value='true';
+  document.getElementById('roleSaveBtn').textContent='Lưu vai trò';
+}
+
+function editEmployeeRole(id){
+  const role=employeeRoles.find(r=>r.id===id);if(!role)return;
+  document.getElementById('roleId').value=role.id;
+  document.getElementById('roleName').value=role.name||'';
+  document.getElementById('roleCode').value=role.code||'';
+  document.getElementById('roleDesc').value=role.description||'';
+  document.getElementById('roleSort').value=role.sort_order||0;
+  document.getElementById('roleActive').value=String(role.is_active!==false);
+  document.getElementById('roleSaveBtn').textContent='Cập nhật vai trò';
+}
+
+async function saveEmployeeRole(){
+  const id=document.getElementById('roleId').value;
+  const name=document.getElementById('roleName').value.trim();
+  if(!name){showToast('Nhập tên vai trò','error');return;}
+  const payload={
+    name,
+    code:document.getElementById('roleCode').value.trim()||null,
+    description:document.getElementById('roleDesc').value.trim(),
+    sort_order:parseInt(document.getElementById('roleSort').value||'0',10)||0,
+    is_active:document.getElementById('roleActive').value==='true',
+  };
+  const btn=document.getElementById('roleSaveBtn');
+  btn.disabled=true;btn.textContent=id?'Đang cập nhật...':'Đang lưu...';
+  try{
+    const res=await authFetch('/api/employee-roles'+(id?`/${id}`:''),{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!res.ok)throw new Error((await res.json()).detail||'Không lưu được vai trò');
+    showToast(id?'Đã cập nhật vai trò':'Đã thêm vai trò','success');
+    resetRoleForm();
+    await loadEmployeeRoles();
+    await loadEmployees();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent=document.getElementById('roleId').value?'Cập nhật vai trò':'Lưu vai trò';}
+}
+
+async function deleteEmployeeRole(id){
+  const role=employeeRoles.find(r=>r.id===id);if(!role)return;
+  if(!confirm(`Ngừng dùng vai trò "${role.name}"? Nhân viên đang gắn vai trò này vẫn được giữ dữ liệu.`))return;
+  try{
+    const res=await authFetch(`/api/employee-roles/${id}`,{method:'DELETE'});
+    if(!res.ok)throw new Error((await res.json()).detail||'Không xóa được vai trò');
+    showToast('Đã ngừng dùng vai trò','success');
+    await loadEmployeeRoles();
+    await loadEmployees();
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
 }
 
 function _fillEmployeeSelect(sel,placeholder){
@@ -913,32 +1110,41 @@ function _logRange(){
 
 function renderEmployees(list){
   const tbody=document.getElementById('empTableBody');
-  const deptFilter=document.getElementById('filterDept').value;
+  const roleFilter=document.getElementById('filterRole').value;
+  const employmentFilter=document.getElementById('filterEmployment').value;
   const statusFilter=document.getElementById('filterStatus').value;
   let filtered=list;
-  if(deptFilter)filtered=filtered.filter(e=>e.department===deptFilter);
+  if(roleFilter)filtered=filtered.filter(e=>employeeRoleCode(e)===roleFilter);
+  if(employmentFilter)filtered=filtered.filter(e=>(e.employment_type||'full_time')===employmentFilter);
   if(statusFilter!=='')filtered=filtered.filter(e=>String(e.is_active)===statusFilter);
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="7" class="empty">Không có nhân viên nào</td></tr>';return;}
   tbody.innerHTML=filtered.map(e=>`
     <tr>
       <td><div class="emp-cell">
-        <div class="emp-avatar">${e.avatar_url?`<img src="${e.avatar_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${(e.name||'?')[0]}'">`:((e.name||'?')[0])}</div>
-        <div><div style="font-weight:600;font-size:13px">${e.name}</div><div style="font-size:11px;color:var(--muted)">${e.email||''}</div></div>
+        <div class="emp-avatar">${e.avatar_url?`<img src="${rosterSafe(e.avatar_url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${rosterSafe((e.name||'?')[0])}'">`:rosterSafe((e.name||'?')[0])}</div>
+        <div><div style="font-weight:700;font-size:13px">${rosterSafe(e.name)}</div><div class="emp-meta-line">${rosterSafe(e.email||'Chưa có email')}</div></div>
       </div></td>
-      <td><span style="font-family:var(--font-mono);font-size:12px">${e.emp_code}</span></td>
-      <td>${e.department||'—'}</td><td>${e.position||'—'}</td>
+      <td><span style="font-family:var(--font-mono);font-size:12px">${rosterSafe(e.emp_code)}</span></td>
+      <td><span class="emp-role-pill">${rosterSafe(roleLabel(employeeRoleCode(e)))}</span></td>
+      <td>${rosterSafe(e.phone||'—')}</td>
+      <td>${rosterSafe(employmentLabel(e.employment_type))}</td>
       <td><span class="badge ${e.is_active?'badge-active':'badge-inactive'}">${e.is_active?'● Đang làm':'○ Đã nghỉ'}</span></td>
-      <td style="color:var(--muted);font-size:12px">${e.created_at||''}</td>
       <td style="text-align:right"><div style="display:flex;gap:6px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="openEditModal(${e.id})" style="padding:5px 10px">Sửa</button>
-        <button class="btn btn-red" onclick="deleteEmployee(${e.id},'${e.name}')" style="padding:5px 10px">Xóa</button>
+        <button class="btn btn-red" onclick="deleteEmployee(${e.id})" style="padding:5px 10px">Xóa</button>
       </div></td>
     </tr>`).join('');
 }
 
 function filterEmployees(){
   const q=document.getElementById('searchEmp').value.toLowerCase();
-  const f=q?employees.filter(e=>e.name.toLowerCase().includes(q)||e.emp_code.toLowerCase().includes(q)):employees;
+  const f=q?employees.filter(e=>
+    (e.name||'').toLowerCase().includes(q)||
+    (e.emp_code||'').toLowerCase().includes(q)||
+    (e.email||'').toLowerCase().includes(q)||
+    (e.phone||'').toLowerCase().includes(q)||
+    roleLabel(employeeRoleCode(e)).toLowerCase().includes(q)
+  ):employees;
   renderEmployees(f);
 }
 
@@ -1074,7 +1280,7 @@ function renderLogs(list){
       </div></td>
       <td><span class="badge ${l.check_type==='check_in'?'badge-in':'badge-out'}">${l.check_type==='check_in'?'▲ Vào':'▼ Ra'}</span></td>
       <td style="font-family:var(--font-mono);font-size:12px">${l.time}<br><span style="color:var(--muted);font-size:10px">${l.date}</span></td>
-      <td>${l.department||'—'}</td>
+      <td>${rosterSafe(l.role_label||roleLabel(l.job_role)||'—')}</td>
       <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
       <td>${_confidenceCell(l,false)}</td>
       <td>${_evidenceCell(l,false,'history')}</td>
@@ -1208,7 +1414,10 @@ function openAddModal(){
   document.getElementById('modalTitle').textContent='Thêm nhân viên';
   document.getElementById('modalEmpId').value='';
   document.getElementById('modalActiveRow').style.display='none';
-  ['mEmpCode','mEmpName','mEmpDept','mEmpPos','mEmpEmail','mEmpPhone'].forEach(id=>document.getElementById(id).value='');
+  populateEmployeeRoleSelect();
+  ['mEmpCode','mEmpName','mEmpEmail','mEmpPhone'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mEmpRole').value='';
+  document.getElementById('mEmpEmployment').value='full_time';
   document.getElementById('mEmpCode').disabled=false;
   document.getElementById('empModal').classList.add('open');
 }
@@ -1219,7 +1428,9 @@ function openEditModal(id){
   document.getElementById('modalEmpId').value=id;
   document.getElementById('mEmpCode').value=emp.emp_code;document.getElementById('mEmpCode').disabled=true;
   document.getElementById('mEmpName').value=emp.name;
-  document.getElementById('mEmpDept').value=emp.department||'';document.getElementById('mEmpPos').value=emp.position||'';
+  populateEmployeeRoleSelect();
+  document.getElementById('mEmpRole').value=employeeRoleCode(emp);
+  document.getElementById('mEmpEmployment').value=emp.employment_type||'full_time';
   document.getElementById('mEmpEmail').value=emp.email||'';document.getElementById('mEmpPhone').value=emp.phone||'';
   document.getElementById('mEmpActive').value=String(emp.is_active);
   document.getElementById('modalActiveRow').style.display='';
@@ -1230,7 +1441,14 @@ async function saveEmployee(){
   const btn=document.getElementById('modalSaveBtn');btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   try{
     if(editingId){
-      const payload={name:document.getElementById('mEmpName').value.trim(),department:document.getElementById('mEmpDept').value.trim(),position:document.getElementById('mEmpPos').value.trim(),email:document.getElementById('mEmpEmail').value.trim(),phone:document.getElementById('mEmpPhone').value.trim(),is_active:document.getElementById('mEmpActive').value==='true'};
+      const payload={
+        name:document.getElementById('mEmpName').value.trim(),
+        job_role:document.getElementById('mEmpRole').value,
+        employment_type:document.getElementById('mEmpEmployment').value,
+        email:document.getElementById('mEmpEmail').value.trim(),
+        phone:document.getElementById('mEmpPhone').value.trim(),
+        is_active:document.getElementById('mEmpActive').value==='true',
+      };
       const r=await authFetch('/api/employees/'+editingId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!r.ok)throw new Error((await r.json()).detail||'Lỗi cập nhật');
       showToast('Đã cập nhật nhân viên','success');
@@ -1240,11 +1458,13 @@ async function saveEmployee(){
       showToast('Chuyển sang trang đăng ký khuôn mặt...','success');
       setTimeout(()=>{window.location='/register';},1200);
     }
-    closeModal();await loadEmployees();await loadSummary();
+    closeModal();await loadEmployeeRoles();await loadEmployees();await loadSummary();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
   finally{btn.textContent='Lưu';btn.disabled=false;}
 }
-async function deleteEmployee(id,name){
+async function deleteEmployee(id){
+  const emp=employees.find(e=>e.id===id);
+  const name=emp?.name||'nhân viên này';
   if(!confirm('Vô hiệu hóa nhân viên "'+name+'"?'))return;
   try{
     const r=await authFetch('/api/employees/'+id,{method:'DELETE'});
@@ -1344,7 +1564,7 @@ function _leaveInfoHtml(id){
   const l=leaveRequests.find(x=>x.id===id);if(!l)return '';
   const rtypeLabel={leave:'📅 Nghỉ phép',remote:'🏠 Remote'};
   const dates=(l.dates||[]).map(d=>d.date+(d.half?` (${d.half==='am'?'Sáng':'Chiều'})`:'')). join(', ');
-  return `<b>${l.emp_name}</b> — ${l.department||''}<br>Loại: ${rtypeLabel[l.request_type]||l.request_type}<br>Ngày: ${dates}<br>${l.reason?'Lý do: '+l.reason:''}`;
+  return `<b>${l.emp_name}</b><br>Loại: ${rtypeLabel[l.request_type]||l.request_type}<br>Ngày: ${dates}<br>${l.reason?'Lý do: '+l.reason:''}`;
 }
 function approveLeave(id){_leaveActionId=id;document.getElementById('approveLeaveInfo').innerHTML=_leaveInfoHtml(id);document.getElementById('approveLeaveNote').value='';document.getElementById('approveLeaveModal').classList.add('open');setTimeout(()=>document.getElementById('approveLeaveNote').focus(),100);}
 function closeApproveModal(){document.getElementById('approveLeaveModal').classList.remove('open');_leaveActionId=null;}
@@ -1442,10 +1662,13 @@ function rosterTone(shift){
 function fillRosterDept(){
   const sel=document.getElementById('rosterDept');if(!sel)return;
   const curr=sel.value;
-  const depts=[...new Set(employees.map(e=>e.department).filter(Boolean))].sort();
-  sel.innerHTML='<option value="">Tất cả bộ phận</option>';
-  depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
-  if(depts.includes(curr))sel.value=curr;
+  const codes=[...new Set([
+    ...employeeRoles.filter(r=>r.is_active!==false).map(r=>r.code),
+    ...employees.map(employeeRoleCode).filter(Boolean),
+  ])];
+  sel.innerHTML='<option value="">Tất cả vai trò</option>';
+  codes.forEach(code=>{const o=document.createElement('option');o.value=code;o.textContent=roleLabel(code);sel.appendChild(o);});
+  if(codes.includes(curr))sel.value=curr;
 }
 function setRosterView(mode){
   rosterViewMode=mode==='employee'?'employee':'shift';
@@ -1528,13 +1751,14 @@ function renderShiftRosterTable(){
 }
 function rosterFilteredEmployees(){
   const q=(document.getElementById('rosterSearch')?.value||'').trim().toLowerCase();
-  const dept=document.getElementById('rosterDept')?.value||'';
+  const role=document.getElementById('rosterDept')?.value||'';
   let visible=employees.filter(e=>e.is_active!==false);
-  if(dept)visible=visible.filter(e=>e.department===dept);
+  if(role)visible=visible.filter(e=>employeeRoleCode(e)===role);
   if(q)visible=visible.filter(e=>
     (e.name||'').toLowerCase().includes(q)||
     (e.emp_code||'').toLowerCase().includes(q)||
-    (e.position||'').toLowerCase().includes(q)
+    (e.position||'').toLowerCase().includes(q)||
+    roleLabel(employeeRoleCode(e)).toLowerCase().includes(q)
   );
   return visible;
 }
@@ -1585,7 +1809,7 @@ function renderRosterByShift(){
         <div class="roster-avatar">${rosterAvatar(emp)}</div>
         <div class="roster-person-main">
           <div class="roster-person-name">${rosterSafe(emp?.name||a.emp_code)}</div>
-          <div class="roster-person-meta">${rosterSafe(a.emp_code)} · ${rosterSafe(emp?.department||'Chưa có bộ phận')}</div>
+          <div class="roster-person-meta">${rosterSafe(a.emp_code)} · ${rosterSafe(roleLabel(employeeRoleCode(emp||{})))}</div>
         </div>
         ${a.note?`<div class="roster-note" title="${rosterSafe(a.note)}">${rosterSafe(a.note)}</div>`:''}
       </div>`;
@@ -1667,7 +1891,7 @@ function renderRosterPeriodByEmployee(){
           <div class="roster-avatar">${rosterAvatar(emp)}</div>
           <div>
             <div style="font-weight:700;font-size:13px">${rosterSafe(emp.name)}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${rosterSafe(emp.emp_code)} · ${rosterSafe(emp.department||'Chưa có bộ phận')}</div>
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${rosterSafe(emp.emp_code)} · ${rosterSafe(roleLabel(employeeRoleCode(emp)))}</div>
           </div>
         </div>
       </td>
@@ -1721,7 +1945,7 @@ function renderRosterMatrix(){
           <div class="roster-avatar">${rosterAvatar(emp)}</div>
           <div>
             <div style="font-weight:700;font-size:13px">${rosterSafe(emp.name)}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${rosterSafe(emp.emp_code)} · ${rosterSafe(emp.department||'Chưa có bộ phận')}</div>
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${rosterSafe(emp.emp_code)} · ${rosterSafe(roleLabel(employeeRoleCode(emp)))}</div>
           </div>
         </div>
       </td>
@@ -1862,7 +2086,7 @@ function openAtdEdit(logId){
   const log=allLogs.find(l=>l.id===logId);if(!log)return;
   _atdEditId=logId;
   document.getElementById('atdEditName').textContent=log.name||log.emp_code;
-  document.getElementById('atdEditMeta').textContent=`ID #${log.id}  ·  ${log.emp_code}  ·  ${log.department||'—'}`;
+  document.getElementById('atdEditMeta').textContent=`ID #${log.id}  ·  ${log.emp_code}  ·  ${log.role_label||roleLabel(log.job_role)||'—'}`;
   document.getElementById('atdEditType').value=log.check_type;
   document.getElementById('atdEditTs').value=_dtLocal(log.timestamp);
   document.getElementById('atdEditNote').value='';
