@@ -234,6 +234,13 @@
 .audit-table{width:100%;border-collapse:collapse}
 .audit-table th{position:sticky;top:0;background:var(--panel);font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
 .audit-table td{padding:8px 10px;border-bottom:1px solid rgba(26,47,80,.45);font-size:12px}
+.review-type-pill{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(26,47,80,.9);border-radius:6px;padding:5px 8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.review-type-pill.absent{color:var(--red);background:rgba(255,77,106,.08);border-color:rgba(255,77,106,.28)}
+.review-type-pill.missing_checkout{color:#f6c90e;background:rgba(246,201,14,.08);border-color:rgba(246,201,14,.25)}
+.review-type-pill.overtime{color:#a78bfa;background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.28)}
+.review-actions{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.review-actions .approve{border-color:rgba(0,212,170,.35);color:var(--teal);background:rgba(0,212,170,.08)}
+.review-actions .reject{border-color:rgba(255,77,106,.35);color:var(--red);background:rgba(255,77,106,.08)}
 .risk-pill{display:inline-flex;align-items:center;justify-content:center;width:72px;height:22px;border-radius:999px;border:1px solid rgba(90,122,154,.35);font-family:var(--font-mono);font-size:10px;font-weight:800;text-transform:uppercase;white-space:nowrap;overflow:hidden}
 .risk-pill.high{color:var(--red);border-color:rgba(255,77,106,.45);background:rgba(255,77,106,.1)}
 .risk-pill.medium{color:#f6c90e;border-color:rgba(246,201,14,.45);background:rgba(246,201,14,.1)}
@@ -574,6 +581,7 @@ let _isMgr=false,_isAdmin=false;
 let _atdEditId=null,_atdDelId=null;
 let _captureObjectUrl='',_activeFindingId=null,_activeManualLogId=null;
 let auditFindings=[],manualReviewLogs=[],auditVisionConfigured=false,auditProvider='',auditMode='manual',manualLowOnly=false,auditLastRunNote='',auditAiCount=0;
+let attendanceReviewItems=[],attendanceReviewCount=0;
 let dashboardSummary={},pendingLeaveCount=0;
 const ACTIVE_PAGE='{{ active_page|default("overview") }}';
 
@@ -600,12 +608,12 @@ const ACTIVE_PAGE='{{ active_page|default("overview") }}';
   });
 
   const today=new Date().toISOString().split('T')[0];
-  ['logFrom','logTo','auditFrom','auditTo','rosterDate'].forEach(id=>{
+  ['logFrom','logTo','auditFrom','auditTo','reviewFrom','reviewTo','rosterDate'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.value=today;
   });
 
-  await loadPendingLeaveCount();
+  await Promise.all([loadPendingLeaveCount(),loadAttendanceReviewCount()]);
   if(ACTIVE_PAGE==='overview'){
     await Promise.all([loadSummary(),loadLogs()]);
     return;
@@ -615,6 +623,9 @@ const ACTIVE_PAGE='{{ active_page|default("overview") }}';
     await loadEmployees();
     await loadLogs();
     await refreshAuditPanel();
+    await loadAttendanceReviewItems();
+    const section=new URLSearchParams(location.search).get('section');
+    if(section==='review'||section==='audit')setAttendanceSection(section);
     return;
   }
   if(ACTIVE_PAGE==='employees'){
@@ -662,6 +673,18 @@ async function loadPendingLeaveCount(){
   }catch{}
 }
 
+async function loadAttendanceReviewCount(){
+  if(!_isMgr)return;
+  try{
+    const r=await authFetch('/api/attendance/review-count');
+    if(!r.ok)return;
+    const d=await r.json();
+    attendanceReviewCount=d.total||0;
+    updateAttendanceReviewBadge(attendanceReviewCount);
+    updateOperationsOverview();
+  }catch{}
+}
+
 function updateLeaveBadges(count){
   const n=Number(count)||0;
   const badge=document.getElementById('leaveBadge');
@@ -677,6 +700,15 @@ function updateLeaveBadges(count){
   if(window.updateLeaveNavBadge)window.updateLeaveNavBadge(n);
 }
 
+function updateAttendanceReviewBadge(count){
+  const n=Number(count)||0;
+  const badge=document.getElementById('attendanceReviewBadge');
+  if(badge){
+    badge.textContent=n>99?'99+':String(n);
+    badge.className='tab-badge'+(n===0?' zero':'');
+  }
+}
+
 function setOpsCard(id,value,note,state){
   const card=document.getElementById(id);
   if(!card)return;
@@ -690,19 +722,21 @@ function updateOperationsOverview(){
   const checkedIn=dashboardSummary.checked_in||0;
   const checkedOut=dashboardSummary.checked_out||0;
   const absent=dashboardSummary.absent||0;
+  const reviewCount=attendanceReviewCount||dashboardSummary.pending_attendance_reviews||0;
   const missingCheckout=Math.max(checkedIn-checkedOut,0);
   const lateCount=allLogs.filter(l=>l.check_type==='check_in'&&l.status&&l.status.toLowerCase().includes('muộn')).length;
   setOpsCard('opsMissingCheckout',missingCheckout,missingCheckout?'Cần nhắc nhân viên ra ca hoặc kiểm tra auto checkout.':'Không có nhân viên đang mở ca.',missingCheckout?'danger':'');
   setOpsCard('opsLate',lateCount,lateCount?'Có lượt vào ca bị đánh dấu đi muộn.':'Chưa ghi nhận lượt đi muộn hôm nay.',lateCount?'warn':'');
   setOpsCard('opsLeave',pendingLeaveCount,pendingLeaveCount?'Đơn nghỉ phép/remote đang chờ quản lý duyệt.':'Không có đơn chờ duyệt.',pendingLeaveCount?'info':'');
   setOpsCard('opsAbsent',absent,absent?'Nhân viên chưa check-in theo dữ liệu hôm nay.':'Tất cả nhân viên đã có check-in.',absent?'danger':'');
-  renderWorkItems({missingCheckout,lateCount,pendingLeaveCount,absent});
+  renderWorkItems({missingCheckout,lateCount,pendingLeaveCount,absent,reviewCount});
 }
 
 function renderWorkItems(data){
   const tbody=document.getElementById('workItemsBody');
   if(!tbody)return;
   const rows=[
+    {label:'Duyệt chấm công',note:'Vắng, quên checkout hoặc OT đang chờ xác nhận',count:data.reviewCount,state:'warn',url:'/attendance?section=review'},
     {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',url:'/attendance'},
     {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',url:'/attendance'},
     {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép/remote đang chờ xử lý',count:data.pendingLeaveCount,state:'info',url:'/leave'},
@@ -998,11 +1032,15 @@ function _syncLogFilters(from,to,empCode){
 
 function setAttendanceSection(section){
   const isAudit=section==='audit';
+  const isReview=section==='review';
   document.getElementById('auditPanel').classList.toggle('hidden',!isAudit);
-  document.getElementById('logPanel').classList.toggle('hidden',isAudit);
+  document.getElementById('reviewPanel').classList.toggle('hidden',!isReview);
+  document.getElementById('logPanel').classList.toggle('hidden',isAudit||isReview);
   document.getElementById('attendanceViewAuditBtn').classList.toggle('active',isAudit);
-  document.getElementById('attendanceViewHistoryBtn').classList.toggle('active',!isAudit);
+  document.getElementById('attendanceViewReviewBtn').classList.toggle('active',isReview);
+  document.getElementById('attendanceViewHistoryBtn').classList.toggle('active',!isAudit&&!isReview);
   if(isAudit)refreshAuditPanel();
+  else if(isReview)loadAttendanceReviewItems();
   else loadLogs({refreshAudit:false});
 }
 
@@ -1082,6 +1120,77 @@ function _evidenceStatusText(log,finding){
 }
 function _auditPersonCell(name,time,date){
   return `<b>${name||'—'}</b><br><span style="color:var(--muted);font-family:var(--font-mono);font-size:10px">${time||'—'} ${date||''}</span>`;
+}
+
+function _reviewRange(){
+  let from=document.getElementById('reviewFrom').value||new Date().toISOString().slice(0,10);
+  let to=document.getElementById('reviewTo').value||from;
+  if(new Date(to)<new Date(from)){
+    to=from;
+    document.getElementById('reviewTo').value=to;
+  }
+  return {from,to,type:document.getElementById('reviewType').value||''};
+}
+function _fmtDateTime(iso){
+  if(!iso)return '—';
+  const d=new Date(iso),p=n=>String(n).padStart(2,'0');
+  return `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
+}
+function _reviewTypePill(type){
+  const labels={absent:'Vắng',missing_checkout:'Quên checkout',overtime:'OT'};
+  return `<span class="review-type-pill ${type||''}">${labels[type]||'Cần duyệt'}</span>`;
+}
+function _reviewDetail(item){
+  if(item.review_type==='absent')return item.note||'Không check-in cả ca';
+  if(item.review_type==='missing_checkout')return 'Hệ thống tự checkout tại giờ kết thúc ca';
+  if(item.review_type==='overtime')return `OT ${item.overtime_minutes||0} phút, cần quản lý duyệt`;
+  return item.note||'Cần quản lý xác nhận';
+}
+async function loadAttendanceReviewItems(){
+  if(!_isMgr)return;
+  const body=document.getElementById('attendanceReviewBody');
+  if(body)body.innerHTML='<tr><td colspan="6" class="empty">Đang tải danh sách cần duyệt...</td></tr>';
+  const {from,to,type}=_reviewRange();
+  try{
+    const qs=`from_date=${from}&to_date=${to}&status=pending_review${type?'&type='+encodeURIComponent(type):''}`;
+    const res=await authFetch('/api/attendance/review-items?'+qs);
+    if(!res.ok)throw new Error((await res.json()).detail||'Không tải được danh sách cần duyệt');
+    const data=await res.json();
+    attendanceReviewItems=data.items||[];
+    renderAttendanceReviewItems();
+    await loadAttendanceReviewCount();
+  }catch(e){
+    if(body)body.innerHTML=`<tr><td colspan="6" class="empty">Lỗi tải danh sách: ${rosterSafe(e.message)}</td></tr>`;
+  }
+}
+function renderAttendanceReviewItems(){
+  const body=document.getElementById('attendanceReviewBody');
+  if(!body)return;
+  if(!attendanceReviewItems.length){
+    body.innerHTML='<tr><td colspan="6" class="empty">Không có mục chấm công cần duyệt trong bộ lọc này</td></tr>';
+    return;
+  }
+  body.innerHTML=attendanceReviewItems.map(item=>`
+    <tr>
+      <td>${_reviewTypePill(item.review_type)}</td>
+      <td><div style="font-weight:700">${rosterSafe(item.emp_name||'—')}</div><div style="font-size:11px;color:var(--muted)">${rosterSafe(item.emp_code||'')}</div></td>
+      <td>${rosterSafe(item.shift_name||'—')}<br><span style="color:var(--muted);font-size:10px">${item.work_date||'—'}</span></td>
+      <td style="font-family:var(--font-mono);font-size:12px">Vào: ${_fmtDateTime(item.check_in_at)}<br>Ra: ${_fmtDateTime(item.check_out_at)}</td>
+      <td>${rosterSafe(_reviewDetail(item))}<br><span style="color:var(--muted);font-size:10px">Muộn ${item.late_minutes||0}p · OT ${item.overtime_minutes||0}p</span></td>
+      <td style="text-align:right"><div class="review-actions">
+        <button class="log-btn approve" onclick="reviewAttendanceSession(${item.id},'approved')">Duyệt</button>
+        <button class="log-btn reject" onclick="reviewAttendanceSession(${item.id},'rejected')">Từ chối</button>
+      </div></td>
+    </tr>`).join('');
+}
+async function reviewAttendanceSession(sessionId,status){
+  const note=prompt(status==='approved'?'Ghi chú duyệt (tuỳ chọn)':'Lý do từ chối (tuỳ chọn)')||'';
+  try{
+    const res=await authFetch(`/api/attendance/sessions/${sessionId}/review`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({review_status:status,note})});
+    if(!res.ok)throw new Error((await res.json()).detail||'Không cập nhật được trạng thái');
+    showToast(status==='approved'?'Đã duyệt mục chấm công':'Đã từ chối mục chấm công','success');
+    await Promise.all([loadAttendanceReviewItems(),loadSummary(),loadLogs({refreshAudit:false})]);
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
 }
 
 function renderLogs(list){

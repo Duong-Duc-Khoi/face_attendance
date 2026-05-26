@@ -2,7 +2,32 @@
   <div class="dashboard-page-section" id="attendance-page">
     <div class="attendance-subnav">
       <button class="attendance-view-btn active" id="attendanceViewHistoryBtn" onclick="setAttendanceSection('history')">Lịch sử & chỉnh sửa</button>
+      <button class="attendance-view-btn" id="attendanceViewReviewBtn" onclick="setAttendanceSection('review')">Cần duyệt <span class="tab-badge zero" id="attendanceReviewBadge">0</span></button>
       <button class="attendance-view-btn" id="attendanceViewAuditBtn" onclick="setAttendanceSection('audit')">Đối soát</button>
+    </div>
+    <div class="panel attendance-section hidden" id="reviewPanel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Vắng, quên checkout & OT cần duyệt</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" class="filter-input" id="reviewFrom" onchange="loadAttendanceReviewItems()" style="font-size:12px">
+          <input type="date" class="filter-input" id="reviewTo" onchange="loadAttendanceReviewItems()" style="font-size:12px">
+          <select class="filter-input" id="reviewType" onchange="loadAttendanceReviewItems()" style="font-size:12px">
+            <option value="">Tất cả loại</option>
+            <option value="absent">Vắng</option>
+            <option value="missing_checkout">Quên checkout</option>
+            <option value="overtime">OT</option>
+          </select>
+          <button class="log-btn" onclick="loadAttendanceReviewItems()">Tải lại</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:520px;overflow-y:auto">
+        <table class="data-table review-table">
+          <thead><tr>
+            <th>Loại</th><th>Nhân viên</th><th>Ca / ngày</th><th>Giờ công</th><th>Chi tiết</th><th style="text-align:right">Duyệt</th>
+          </tr></thead>
+          <tbody id="attendanceReviewBody"><tr><td colspan="6" class="empty">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
     </div>
     <div class="panel audit-panel attendance-section hidden" id="auditPanel">
       <div class="panel-header">
