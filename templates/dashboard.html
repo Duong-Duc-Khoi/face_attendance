@@ -164,6 +164,8 @@
 .employee-role-panel{position:sticky;top:18px}
 .employee-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 150px 150px 130px;gap:8px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
 .role-list{display:flex;flex-direction:column;padding:8px;max-height:420px;overflow:auto}
+.role-manager-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.role-manager-sub{font-size:12px;color:var(--muted);line-height:1.45}
 .role-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px;border-bottom:1px solid rgba(26,47,80,.45);align-items:center}
 .role-row:last-child{border-bottom:0}
 .role-name{font-size:13px;font-weight:800;color:var(--text);line-height:1.25}
@@ -342,22 +344,47 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h16"/></svg>
       <span>Quản lý vai trò công việc</span>
     </div>
-    <div class="role-form" style="padding:0 0 14px;border-bottom:1px solid var(--border);margin-bottom:8px;background:transparent">
-      <input type="hidden" id="roleId">
-      <div class="role-form-row">
-        <input class="form-input" id="roleName" placeholder="Tên vai trò, ví dụ: Host">
-        <input class="form-input" id="roleCode" placeholder="Mã">
-      </div>
-      <input class="form-input" id="roleDesc" placeholder="Mô tả ngắn">
-      <div class="role-form-row">
-        <select class="form-input" id="roleActive"><option value="true">Đang dùng</option><option value="false">Tạm ẩn</option></select>
-        <input class="form-input" id="roleSort" type="number" placeholder="Thứ tự">
-      </div>
+    <div class="role-manager-head">
+      <div class="role-manager-sub">Danh sách vai trò dùng để phân loại nhân viên theo vị trí vận hành.</div>
+      <button class="btn btn-teal" onclick="openRoleEditor()">+ Thêm vai trò</button>
     </div>
     <div class="role-list" id="roleList"><div class="role-empty">Đang tải vai trò...</div></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-      <button class="btn btn-outline" onclick="resetRoleForm()">Mới</button>
       <button class="btn btn-outline" onclick="closeRoleManager()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add/Edit employee role -->
+<div class="modal-overlay" id="roleEditorModal" onclick="if(event.target===this)closeRoleEditor()">
+  <div class="modal" style="max-width:520px;width:min(520px,calc(100vw - 28px))">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      <span id="roleEditorTitle">Thêm vai trò</span>
+    </div>
+    <div class="role-form" style="padding:0;background:transparent;border-bottom:0">
+      <input type="hidden" id="roleId">
+      <div class="role-form-row">
+        <div class="form-group">
+          <label class="form-label" for="roleName">Tên vai trò *</label>
+          <input class="form-input" id="roleName" placeholder="Ví dụ: Host">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="roleCode">Mã vai trò</label>
+          <input class="form-input" id="roleCode" placeholder="Tự tạo nếu bỏ trống">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="roleDesc">Mô tả</label>
+        <input class="form-input" id="roleDesc" placeholder="Mô tả ngắn về trách nhiệm">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="roleActive">Trạng thái</label>
+        <select class="form-input" id="roleActive"><option value="true">Đang dùng</option><option value="false">Tạm ẩn</option></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn btn-outline" onclick="closeRoleEditor()">Hủy</button>
       <button class="btn btn-teal" id="roleSaveBtn" onclick="saveEmployeeRole()">Lưu vai trò</button>
     </div>
   </div>
@@ -777,13 +804,25 @@ function renderEmployeeRoles(){
 }
 
 function openRoleManager(){
-  resetRoleForm();
   renderEmployeeRoles();
   document.getElementById('roleModal').classList.add('open');
 }
 
 function closeRoleManager(){
   document.getElementById('roleModal').classList.remove('open');
+  closeRoleEditor();
+}
+
+function openRoleEditor(id=null){
+  resetRoleForm();
+  if(id)fillRoleEditor(id);
+  document.getElementById('roleEditorModal').classList.add('open');
+  setTimeout(()=>document.getElementById('roleName').focus(),80);
+}
+
+function closeRoleEditor(){
+  const modal=document.getElementById('roleEditorModal');
+  if(modal)modal.classList.remove('open');
 }
 
 function resetRoleForm(){
@@ -791,19 +830,23 @@ function resetRoleForm(){
   document.getElementById('roleName').value='';
   document.getElementById('roleCode').value='';
   document.getElementById('roleDesc').value='';
-  document.getElementById('roleSort').value='';
   document.getElementById('roleActive').value='true';
+  document.getElementById('roleEditorTitle').textContent='Thêm vai trò';
   document.getElementById('roleSaveBtn').textContent='Lưu vai trò';
 }
 
 function editEmployeeRole(id){
+  openRoleEditor(id);
+}
+
+function fillRoleEditor(id){
   const role=employeeRoles.find(r=>r.id===id);if(!role)return;
   document.getElementById('roleId').value=role.id;
   document.getElementById('roleName').value=role.name||'';
   document.getElementById('roleCode').value=role.code||'';
   document.getElementById('roleDesc').value=role.description||'';
-  document.getElementById('roleSort').value=role.sort_order||0;
   document.getElementById('roleActive').value=String(role.is_active!==false);
+  document.getElementById('roleEditorTitle').textContent='Sửa vai trò';
   document.getElementById('roleSaveBtn').textContent='Cập nhật vai trò';
 }
 
@@ -815,7 +858,6 @@ async function saveEmployeeRole(){
     name,
     code:document.getElementById('roleCode').value.trim()||null,
     description:document.getElementById('roleDesc').value.trim(),
-    sort_order:parseInt(document.getElementById('roleSort').value||'0',10)||0,
     is_active:document.getElementById('roleActive').value==='true',
   };
   const btn=document.getElementById('roleSaveBtn');
@@ -825,6 +867,7 @@ async function saveEmployeeRole(){
     if(!res.ok)throw new Error((await res.json()).detail||'Không lưu được vai trò');
     showToast(id?'Đã cập nhật vai trò':'Đã thêm vai trò','success');
     resetRoleForm();
+    closeRoleEditor();
     await loadEmployeeRoles();
     await loadEmployees();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
