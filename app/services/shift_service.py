@@ -11,7 +11,6 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
 from app.models.employee import Employee
@@ -277,11 +276,7 @@ def get_shift_for_employee(emp_code: str, work_date: date, db: Session) -> dict:
     """
     Trả về thông tin ca làm việc của 1 nhân viên trong 1 ngày.
     
-    Thứ tự ưu tiên:
-    1. ShiftAssignment cụ thể cho ngày đó
-    2. Fallback về config WORK_START / WORK_END trong .env
-    
-    Luôn trả về dict với work_start, work_end, late_threshold_minutes.
+    Chỉ trả về ca khi có ShiftAssignment cụ thể cho ngày đó.
     """
     assignment = (
         db.query(ShiftAssignment)
@@ -304,15 +299,14 @@ def get_shift_for_employee(emp_code: str, work_date: date, db: Session) -> dict:
                 "late_threshold_minutes": shift.late_threshold_minutes,
             }
 
-    # Fallback
     return {
-        "source":      "default",
+        "source":      "none",
         "shift_id":    None,
-        "shift_name":  "Mặc định",
-        "shift_code":  "default",
-        "work_start":  settings.WORK_START,
-        "work_end":    settings.WORK_END,
-        "late_threshold_minutes": settings.LATE_THRESHOLD_MINUTES,
+        "shift_name":  "",
+        "shift_code":  "",
+        "work_start":  "",
+        "work_end":    "",
+        "late_threshold_minutes": 0,
     }
 
 
@@ -529,11 +523,7 @@ def calc_status_for_shift(check_time: datetime, emp_code: str, db: Session) -> s
         threshold = shift.late_threshold_minutes
         shift_name = shift.name
     else:
-        shift_info = get_shift_for_employee(emp_code, check_time.date(), db)
-        h, m = map(int, shift_info["work_start"].split(":"))
-        work_dt = check_time.replace(hour=h, minute=m, second=0, microsecond=0)
-        threshold = shift_info["late_threshold_minutes"]
-        shift_name = shift_info["shift_name"]
+        return "Chưa có ca phân công"
     late_minutes = int((check_time - work_dt).total_seconds() / 60)
 
     if late_minutes > threshold:

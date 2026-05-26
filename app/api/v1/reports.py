@@ -17,9 +17,16 @@ from typing import Optional
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.attendance import AttendanceAuditFinding, AttendanceEvent, AttendanceEvidence, AttendanceLog
+from app.models.attendance import (
+    AttendanceAuditFinding,
+    AttendanceEvent,
+    AttendanceEvidence,
+    AttendanceLog,
+    AttendanceSession,
+)
 from app.models.branch import Branch
 from app.models.employee import Employee
+from app.models.shift import ShiftAssignment
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
@@ -174,12 +181,42 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
     ).all()
     emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
+    assignments = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.work_date >= start.date(),
+              ShiftAssignment.work_date <= end.date(),
+              ShiftAssignment.status != "cancelled",
+          )
+          .all()
+    )
+    assignment_ids = [a.id for a in assignments]
+    sessions = []
+    if assignment_ids:
+        sessions = (
+            db.query(AttendanceSession)
+              .filter(AttendanceSession.shift_assignment_id.in_(assignment_ids))
+              .all()
+        )
+    session_by_assignment = {s.shift_assignment_id: s for s in sessions}
     by_date: dict[str, dict] = {}
-    for log in logs:
-        day = log.timestamp.strftime("%Y-%m-%d")
+    for assignment in assignments:
+        day = assignment.work_date.isoformat()
         if day not in by_date:
-            by_date[day] = {"check_in": set(), "check_out": set()}
-        by_date[day][log.check_type].add(log.emp_code)
+            by_date[day] = {
+                "assigned": 0,
+                "scheduled_emp": set(),
+                "checked_in": 0,
+                "checked_out": 0,
+            }
+        row = by_date[day]
+        row["assigned"] += 1
+        row["scheduled_emp"].add(assignment.emp_code)
+        session = session_by_assignment.get(assignment.id)
+        if session and session.check_in_at:
+            row["checked_in"] += 1
+        if session and session.check_out_at:
+            row["checked_out"] += 1
 
     role_stats: dict[str, int] = {}
     branch_stats: dict[str, int] = {}
@@ -195,7 +232,14 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
         "to_date":    to_date,
         "total_logs": len(logs),
         "by_date": [
-            {"date": d, "checked_in": len(v["check_in"]), "checked_out": len(v["check_out"])}
+            {
+                "date": d,
+                "assigned": v["assigned"],
+                "scheduled_employees": len(v["scheduled_emp"]),
+                "checked_in": v["checked_in"],
+                "checked_out": v["checked_out"],
+                "absent": max(0, v["assigned"] - v["checked_in"]),
+            }
             for d, v in sorted(by_date.items())
         ],
         "by_role": [{"role": k, "count": v} for k, v in role_stats.items()],

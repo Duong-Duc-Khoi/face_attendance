@@ -645,7 +645,7 @@ async function loadSummary(){
     const statAbsent=document.getElementById('statAbsent');
     if(statAbsent)statAbsent.textContent=d.absent||0;
     const statDate=document.getElementById('statDate');
-    if(statDate)statDate.textContent='hôm nay '+d.date;
+    if(statDate)statDate.textContent=`${d.date} · ${d.scheduled_employees||0} nhân viên`;
     const overviewToday=document.getElementById('overviewToday');
     if(overviewToday)overviewToday.textContent=`${d.date||'Hôm nay'} · Theo dõi tình trạng vào ca, ra ca và các việc cần duyệt.`;
     updateOperationsOverview();
@@ -706,7 +706,7 @@ function renderWorkItems(data){
     {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',url:'/attendance'},
     {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',url:'/attendance'},
     {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép/remote đang chờ xử lý',count:data.pendingLeaveCount,state:'info',url:'/leave'},
-    {label:'Theo dõi vắng mặt',note:'Nhân viên chưa check-in trong ngày',count:data.absent,state:'danger',url:'/attendance'}
+    {label:'Theo dõi chưa vào ca',note:'Lượt phân ca chưa có check-in',count:data.absent,state:'danger',url:'/attendance'}
   ];
   tbody.innerHTML=rows.map(r=>`
     <tr style="cursor:pointer" onclick="location.href='${r.url}'">

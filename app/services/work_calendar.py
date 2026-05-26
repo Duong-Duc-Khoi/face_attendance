@@ -11,9 +11,11 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.models.attendance import AttendanceLog
+from app.models.attendance import AttendanceLog, AttendanceSession
 from app.models.calendar import WorkCalendar
 from app.models.leave import LeaveRequest
+from app.models.shift import Shift, ShiftAssignment
+from app.services.shift_service import shift_window
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -75,6 +77,58 @@ def get_calendar_month(year: int, month: int, db: Session) -> list[dict]:
     return result
 
 
+def _assigned_shift_rows(emp_code: str, d: date, db: Session) -> list[tuple[ShiftAssignment, Shift]]:
+    rows = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.emp_code == emp_code,
+              ShiftAssignment.work_date == d,
+              ShiftAssignment.status != "cancelled",
+          )
+          .order_by(ShiftAssignment.id)
+          .all()
+    )
+    result = []
+    for assignment in rows:
+        shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
+        if shift:
+            result.append((assignment, shift))
+    return result
+
+
+def _session_or_logs_for_assignment(
+    emp_code: str,
+    assignment: ShiftAssignment,
+    shift: Shift,
+    db: Session,
+) -> tuple[datetime | None, datetime | None]:
+    session = (
+        db.query(AttendanceSession)
+          .filter_by(shift_assignment_id=assignment.id)
+          .first()
+    )
+    if session:
+        return session.check_in_at, session.check_out_at
+
+    _start, _end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+    logs = (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.emp_code == emp_code,
+              AttendanceLog.timestamp >= checkin_from,
+              AttendanceLog.timestamp <= checkout_until,
+          )
+          .order_by(AttendanceLog.timestamp.asc())
+          .all()
+    )
+    check_in = next((log.timestamp for log in logs if log.check_type == "check_in"), None)
+    check_out_candidates = [
+        log.timestamp for log in logs
+        if log.check_type == "check_out" and (not check_in or log.timestamp >= check_in)
+    ]
+    return check_in, (check_out_candidates[-1] if check_out_candidates else None)
+
+
 # ── Tính trạng thái ngày công của 1 nhân viên ───────────────────
 
 def get_day_status(emp_code: str, d: date, db: Session) -> dict:
@@ -90,38 +144,21 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
       detail: str — chi tiết thêm (vd: "Muộn 12 phút")
     """
     today = date.today()
+    assigned_shifts = _assigned_shift_rows(emp_code, d, db)
+    total_shifts = len(assigned_shifts)
 
     # 1. Ngày tương lai
     if d > today:
         cal = get_calendar_day(d, db)
         return {"status": "future", "work_value": 0.0,
                 "label": "Chưa đến", "detail": cal.get("label", ""),
-                "day_type": cal["day_type"]}
+                "day_type": "scheduled" if total_shifts else cal["day_type"],
+                "total_shifts": total_shifts}
 
     cal = get_calendar_day(d, db)
-    day_type = cal["day_type"]
+    day_type = "scheduled" if total_shifts else cal["day_type"]
 
-    # 2. Ngày nghỉ chính thức / ngày lễ
-    if day_type in ("off", "holiday"):
-        label_map = {"off": "Ngày nghỉ", "holiday": "Ngày lễ"}
-        return {"status": day_type, "work_value": 0.0,
-                "label": label_map[day_type],
-                "detail": cal.get("label", ""),
-                "day_type": day_type}
-
-    # 3. Lấy log chấm công trong ngày
-    day_start = datetime.combine(d, datetime.min.time())
-    day_end   = datetime.combine(d, datetime.max.time())
-    logs = db.query(AttendanceLog).filter(
-        AttendanceLog.emp_code == emp_code,
-        AttendanceLog.timestamp >= day_start,
-        AttendanceLog.timestamp <= day_end,
-    ).order_by(AttendanceLog.timestamp).all()
-
-    check_in_log  = next((l for l in logs if l.check_type == "check_in"), None)
-    check_out_log = next((l for l in logs if l.check_type == "check_out"), None)
-
-    # 4. Lấy đơn nghỉ/remote có hiệu lực trong ngày
+    # 2. Lấy đơn nghỉ/remote có hiệu lực trong ngày
     date_str = d.isoformat()
     leave_requests = db.query(LeaveRequest).filter(
         LeaveRequest.emp_code == emp_code,
@@ -151,63 +188,74 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
             elif req.request_type == "remote":
                 pending_remote = (req, half)
 
-    work_start_h, work_start_m = _parse_time(cal["work_start"])
-    late_threshold = getattr(settings, "LATE_THRESHOLD_MINUTES", 15)
-    half_cutoff_h, half_cutoff_m = _parse_time(
-        getattr(settings, "HALF_DAY_CUTOFF", "12:00")
-    )
+    if not total_shifts:
+        if active_leave:
+            req, _half = active_leave
+            return {"status": "approved_leave", "work_value": 0.0,
+                    "label": "Nghỉ phép", "detail": req.reason or "",
+                    "day_type": day_type, "total_shifts": 0}
+        label_map = {"holiday": "Ngày lễ", "off": "Không có ca"}
+        return {"status": "day_off", "work_value": 0.0,
+                "label": label_map.get(cal["day_type"], "Không có ca"),
+                "detail": cal.get("label", ""),
+                "day_type": day_type,
+                "total_shifts": 0}
 
-    # 5. Có check_in → present / late (điểm danh thắng tất cả)
-    if check_in_log:
-        ci = check_in_log.timestamp
-        total_late = (ci.hour * 60 + ci.minute) - (work_start_h * 60 + work_start_m)
+    shift_states = []
+    for assignment, shift in assigned_shifts:
+        check_in_at, check_out_at = _session_or_logs_for_assignment(emp_code, assignment, shift, db)
+        shift_start, _shift_end, _from, _until = shift_window(assignment.work_date, shift)
+        raw_late = int((check_in_at - shift_start).total_seconds() / 60) if check_in_at else 0
+        is_late = bool(check_in_at and raw_late > (shift.late_threshold_minutes or 0))
+        shift_states.append({
+            "assignment": assignment,
+            "shift": shift,
+            "check_in_at": check_in_at,
+            "check_out_at": check_out_at,
+            "late_minutes": raw_late if is_late else 0,
+            "is_late": is_late,
+        })
 
-        # Với ngày half_am/half_pm từ lịch công ty
-        if day_type == "half_am":
-            # Chỉ cần vào buổi sáng
-            status = "present"
-            work_value = 0.5
-            detail = ""
-            if total_late > late_threshold:
-                status = "late"
-                detail = f"Muộn {total_late} phút"
-            return {"status": status, "work_value": work_value,
-                    "label": "Có mặt (½ ngày)", "detail": detail,
-                    "day_type": day_type}
+    checked_in = [s for s in shift_states if s["check_in_at"]]
+    late_items = [s for s in checked_in if s["is_late"]]
+    if checked_in:
+        if late_items:
+            max_late = max(s["late_minutes"] for s in late_items)
+            return {"status": "late", "work_value": len(checked_in),
+                    "label": f"Muộn {max_late} phút",
+                    "detail": f"{len(checked_in)}/{total_shifts} ca đã vào",
+                    "day_type": day_type,
+                    "total_shifts": total_shifts}
 
-        if total_late > late_threshold:
-            return {"status": "late", "work_value": 1.0,
-                    "label": f"Muộn {total_late} phút",
-                    "detail": f"Check-in {ci.strftime('%H:%M')}",
-                    "day_type": day_type}
-
-        # Có đơn remote approved nhưng vẫn vào → present bình thường
-        return {"status": "present", "work_value": 1.0,
+        return {"status": "present", "work_value": len(checked_in),
                 "label": "Có mặt" + (" (Remote)" if active_remote else ""),
-                "detail": "",
-                "day_type": day_type}
+                "detail": f"{len(checked_in)}/{total_shifts} ca đã vào",
+                "day_type": day_type,
+                "total_shifts": total_shifts}
 
-    # 6. Không có check_in — xét đơn
-    # 6a. Nghỉ phép approved
+    # 3. Không có check_in — xét đơn
     if active_leave:
         req, half = active_leave
         if half in ("am", "pm"):
             return {"status": "approved_leave_half", "work_value": 0.0,
                     "label": f"Nghỉ phép ½ ngày ({'Sáng' if half=='am' else 'Chiều'})",
                     "detail": req.reason or "",
-                    "day_type": day_type}
+                    "day_type": day_type,
+                    "total_shifts": total_shifts}
         return {"status": "approved_leave", "work_value": 0.0,
                 "label": "Nghỉ phép", "detail": req.reason or "",
-                "day_type": day_type}
+                "day_type": day_type,
+                "total_shifts": total_shifts}
 
     # 6b. Remote approved
     if active_remote:
         req, half = active_remote
-        work_val = 0.5 if half in ("am", "pm") else 1.0
+        work_val = 0.5 if half in ("am", "pm") else total_shifts
         return {"status": "approved_remote", "work_value": work_val,
                 "label": "🏠 Remote" + (" ½ ngày" if half else ""),
                 "detail": req.reason or "",
-                "day_type": day_type}
+                "day_type": day_type,
+                "total_shifts": total_shifts}
 
     # 6c. Đơn pending leave → tính absent (chưa duyệt)
     # (nhưng nếu manager duyệt sau thì query lần sau sẽ thành approved_leave)
@@ -215,25 +263,21 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
         return {"status": "pending_leave", "work_value": 0.0,
                 "label": "⏳ Chờ duyệt nghỉ",
                 "detail": "Đơn chưa được duyệt",
-                "day_type": day_type}
+                "day_type": day_type,
+                "total_shifts": total_shifts}
 
     # 6d. Đơn pending remote → absent (không điểm danh, chưa duyệt)
     if pending_remote:
         return {"status": "absent", "work_value": 0.0,
                 "label": "Vắng mặt",
                 "detail": "Đơn remote chưa được duyệt",
-                "day_type": day_type}
+                "day_type": day_type,
+                "total_shifts": total_shifts}
 
-    # 6e. Overtime — không phạt nếu không vào
-    if day_type == "overtime":
-        return {"status": "overtime_absent", "work_value": 0.0,
-                "label": "Không tăng ca", "detail": cal.get("label", ""),
-                "day_type": day_type}
-
-    # 6f. Vắng không phép
     return {"status": "absent", "work_value": 0.0,
-            "label": "Vắng mặt", "detail": "",
-            "day_type": day_type}
+            "label": "Chưa vào ca", "detail": f"0/{total_shifts} ca đã vào",
+            "day_type": day_type,
+            "total_shifts": total_shifts}
 
 
 # ── Thống kê nhân viên ───────────────────────────────────────────
@@ -256,25 +300,23 @@ def get_employee_stats(emp_code: str, year: int, db: Session) -> dict:
             d = date(year, month, day)
             if d > today:
                 break
-            cal = get_calendar_day(d, db)
-            if cal["day_type"] in ("off", "holiday"):
-                continue
-            total_work_days += 1
             st = get_day_status(emp_code, d, db)
+            shift_count = st.get("total_shifts", 0)
+            if not shift_count:
+                continue
+            total_work_days += shift_count
             s = st["status"]
             if s == "present":
-                present_days += 1.0
+                present_days += st.get("work_value", 0.0)
             elif s == "late":
-                present_days += 1.0
+                present_days += st.get("work_value", 1.0)
                 late_days += 1
             elif s in ("approved_leave", "approved_leave_half"):
-                approved_leave += st["work_value"] if s == "approved_leave_half" else 1.0
-                # approved_leave_half = 0 công, nhưng tính 0.5 ngày nghỉ phép
-                approved_leave = approved_leave  # đã đúng
+                approved_leave += 0.5 if s == "approved_leave_half" else shift_count
             elif s == "approved_remote":
                 remote_days += st["work_value"]
             elif s == "absent":
-                absent_days += 1.0
+                absent_days += shift_count
 
     return {
         "emp_code":        emp_code,
@@ -292,13 +334,11 @@ def get_employee_stats(emp_code: str, year: int, db: Session) -> dict:
 def get_employee_stats_month(emp_code: str, year: int, month: int, db: Session) -> dict:
     """Thống kê 1 tháng chi tiết từng ngày."""
     from calendar import monthrange
-    today = date.today()
     _, days_in = monthrange(year, month)
     days = []
     for day in range(1, days_in + 1):
         d = date(year, month, day)
         cal = get_calendar_day(d, db)
-        st  = get_day_status(emp_code, d, db) if d <= today else {
-            "status": "future", "work_value": 0.0, "label": "Chưa đến", "detail": ""}
+        st = get_day_status(emp_code, d, db)
         days.append({**cal, **st, "day": day})
     return {"year": year, "month": month, "days": days}

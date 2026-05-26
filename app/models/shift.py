@@ -42,8 +42,7 @@ class ShiftAssignment(Base):
     """
     Phân công ca cho nhân viên theo ngày cụ thể.
     Một nhân viên có thể có ca khác nhau mỗi ngày.
-    Nếu không có assignment cho ngày đó → fallback về Shift mặc định của phòng ban
-    hoặc cấu hình WORK_START/WORK_END trong .env.
+    Nếu không có assignment cho ngày đó thì nhân viên không có ca cần chấm công.
     """
     __tablename__ = "shift_assignments"
 
