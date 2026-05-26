@@ -197,42 +197,70 @@ class CameraStream:
             confidence_text = f"{float(confidence) * 100:.0f}%"
         except (TypeError, ValueError):
             confidence_text = "--"
-        lines = [
-            "FaceAttend - Bang chung cham cong",
-            f"Thoi gian: {captured_at.strftime('%H:%M:%S %d/%m/%Y')}",
-            f"Nhan vien: {name} ({emp_code})",
-            f"Loai: {check_type}   Do chinh xac: {confidence_text}",
-        ]
+        log_ref = metadata.get("log_id") or metadata.get("id") or "-"
+        time_text = captured_at.strftime("%H:%M:%S")
+        date_text = captured_at.strftime("%d/%m/%Y")
+        iso_text = captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        trace_text = f"{settings.APP_NAME} | {iso_text} | {emp_code} | LOG {log_ref}"
 
         if PIL_AVAILABLE:
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(rgb).convert("RGBA")
             overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay)
-            x, y = 24, 22
-            line_height = 25
-            panel_w = min(image.width - 32, 620)
-            panel_h = 28 + line_height * len(lines)
+            margin = max(14, int(min(image.width, image.height) * 0.018))
+
+            # Audit border and corner ticks make cropping or replacement easier to notice.
+            border = (0, 212, 170, 130)
+            draw.rectangle((margin, margin, image.width - margin, image.height - margin), outline=border, width=2)
+            tick = max(28, int(min(image.width, image.height) * 0.055))
+            for x1, y1, x2, y2 in (
+                (margin, margin, margin + tick, margin),
+                (margin, margin, margin, margin + tick),
+                (image.width - margin - tick, margin, image.width - margin, margin),
+                (image.width - margin, margin, image.width - margin, margin + tick),
+                (margin, image.height - margin, margin + tick, image.height - margin),
+                (margin, image.height - margin - tick, margin, image.height - margin),
+                (image.width - margin - tick, image.height - margin, image.width - margin, image.height - margin),
+                (image.width - margin, image.height - margin - tick, image.width - margin, image.height - margin),
+            ):
+                draw.line((x1, y1, x2, y2), fill=(255, 255, 255, 150), width=2)
+
+            panel_w = min(image.width - margin * 2, 680)
+            panel_h = 104
+            panel_x = margin
+            panel_y = image.height - margin - panel_h
+            for i in range(panel_h):
+                alpha = int(210 - (i / panel_h) * 42)
+                draw.line((panel_x, panel_y + i, panel_x + panel_w, panel_y + i), fill=(4, 12, 24, alpha))
             draw.rounded_rectangle(
-                (16, 14, 16 + panel_w, 14 + panel_h),
-                radius=10,
-                fill=(8, 18, 32, 205),
-                outline=(0, 212, 170, 190),
+                (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h),
+                radius=8,
+                outline=(0, 212, 170, 210),
                 width=2,
             )
-            for i, text in enumerate(lines):
-                font = _capture_font if i == 0 else _capture_font_small
-                color = (0, 212, 170, 255) if i == 0 else (245, 248, 252, 255)
-                draw.text((x, y + i * line_height), text, font=font, fill=color)
+            draw.rectangle((panel_x, panel_y, panel_x + 6, panel_y + panel_h), fill=(0, 212, 170, 230))
+            draw.text((panel_x + 20, panel_y + 14), time_text, font=_capture_font, fill=(255, 255, 255, 255))
+            draw.text((panel_x + 130, panel_y + 18), date_text, font=_capture_font_small, fill=(203, 213, 225, 255))
+            draw.text((panel_x + 20, panel_y + 48), f"{name} ({emp_code})", font=_capture_font_small, fill=(248, 250, 252, 255))
+            draw.text((panel_x + 20, panel_y + 73), f"{check_type}  |  Confidence {confidence_text}  |  Log #{log_ref}", font=_capture_font_small, fill=(203, 213, 225, 255))
             image = Image.alpha_composite(image, overlay).convert("RGB")
             return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
         out = frame.copy()
-        cv2.rectangle(out, (16, 14), (636, 138), (8, 18, 32), -1)
-        cv2.rectangle(out, (16, 14), (636, 138), (0, 212, 170), 2)
-        for i, text in enumerate(lines):
-            color = (0, 212, 170) if i == 0 else (245, 248, 252)
-            cv2.putText(out, text, (24, 42 + i * 27), cv2.FONT_HERSHEY_SIMPLEX, 0.58, color, 1, cv2.LINE_AA)
+        cv2.rectangle(out, (16, 16), (out.shape[1] - 16, out.shape[0] - 16), (0, 212, 170), 2)
+        panel_h = 104
+        y0 = out.shape[0] - panel_h - 18
+        panel = out.copy()
+        cv2.rectangle(panel, (18, y0), (690, y0 + panel_h), (8, 18, 32), -1)
+        out = cv2.addWeighted(panel, 0.72, out, 0.28, 0)
+        cv2.rectangle(out, (18, y0), (690, y0 + panel_h), (0, 212, 170), 2)
+        cv2.rectangle(out, (18, y0), (26, y0 + panel_h), (0, 212, 170), -1)
+        cv2.putText(out, time_text, (40, y0 + 34), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(out, date_text, (168, y0 + 34), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (203, 213, 225), 1, cv2.LINE_AA)
+        cv2.putText(out, f"{name} ({emp_code})", (40, y0 + 64), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (248, 250, 252), 1, cv2.LINE_AA)
+        cv2.putText(out, f"{check_type} | Confidence {confidence_text} | Log #{log_ref}", (40, y0 + 91),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (203, 213, 225), 1, cv2.LINE_AA)
         return out
 
     def capture_snapshot(
