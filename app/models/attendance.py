@@ -45,6 +45,12 @@ class AttendanceSession(Base):
     # face | manual | auto
     source        = Column(String(20), default="face")
     note          = Column(Text, default="")
+    review_status = Column(String(30), default="none", index=True)
+    review_type   = Column(String(30), default="", index=True)
+    review_note   = Column(Text, default="")
+    reviewed_by   = Column(String(150), default="")
+    reviewed_at   = Column(DateTime, nullable=True)
+    manager_alert_sent_at = Column(DateTime, nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     updated_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at    = Column(DateTime, default=datetime.now)

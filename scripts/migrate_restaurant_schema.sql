@@ -91,11 +91,24 @@ CREATE TABLE IF NOT EXISTS attendance_sessions (
     break_minutes INTEGER DEFAULT 0,
     source VARCHAR(20) DEFAULT 'face',
     note TEXT DEFAULT '',
+    review_status VARCHAR(30) DEFAULT 'none',
+    review_type VARCHAR(30) DEFAULT '',
+    review_note TEXT DEFAULT '',
+    reviewed_by VARCHAR(150) DEFAULT '',
+    reviewed_at TIMESTAMP,
+    manager_alert_sent_at TIMESTAMP,
     created_by_id INTEGER,
     updated_by_id INTEGER,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS review_status VARCHAR(30) DEFAULT 'none';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS review_type VARCHAR(30) DEFAULT '';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS review_note TEXT DEFAULT '';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(150) DEFAULT '';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS manager_alert_sent_at TIMESTAMP;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_attendance_session_assignment
     ON attendance_sessions(shift_assignment_id)
@@ -105,6 +118,8 @@ CREATE INDEX IF NOT EXISTS ix_attendance_sessions_branch_id ON attendance_sessio
 CREATE INDEX IF NOT EXISTS ix_attendance_sessions_shift_id ON attendance_sessions(shift_id);
 CREATE INDEX IF NOT EXISTS ix_attendance_sessions_work_date ON attendance_sessions(work_date);
 CREATE INDEX IF NOT EXISTS ix_attendance_sessions_status ON attendance_sessions(status);
+CREATE INDEX IF NOT EXISTS ix_attendance_sessions_review_status ON attendance_sessions(review_status);
+CREATE INDEX IF NOT EXISTS ix_attendance_sessions_review_type ON attendance_sessions(review_type);
 
 CREATE TABLE IF NOT EXISTS attendance_events (
     id SERIAL PRIMARY KEY,
@@ -281,6 +296,10 @@ UPDATE employees SET employment_type = 'full_time' WHERE employment_type IS NULL
 UPDATE employees SET status = CASE WHEN is_active THEN 'active' ELSE 'inactive' END
 WHERE status IS NULL OR status = '';
 UPDATE shifts SET is_overnight = TRUE WHERE work_end <= work_start;
+UPDATE shifts
+SET late_threshold_minutes = 15
+WHERE code IN ('morning', 'lunch', 'evening', 'night')
+  AND COALESCE(late_threshold_minutes, 0) = 10;
 
 INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
 SELECT 'server', 'Phục vụ', 'Nhân viên phục vụ bàn', 10, TRUE, NOW(), NOW()
@@ -302,19 +321,19 @@ SELECT 'shift_lead', 'Quản lý ca', 'Điều phối vận hành trong ca', 60,
 WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'shift_lead');
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca sang', 'morning', '06:00', '11:00', 10, 30, 180, 0, FALSE, TRUE, '', NOW(), NOW()
+SELECT 'Ca sang', 'morning', '06:00', '11:00', 15, 30, 180, 0, FALSE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'morning' AND branch_id IS NULL);
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca trua', 'lunch', '10:00', '15:00', 10, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
+SELECT 'Ca trua', 'lunch', '10:00', '15:00', 15, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'lunch' AND branch_id IS NULL);
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca toi', 'evening', '16:00', '22:00', 10, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
+SELECT 'Ca toi', 'evening', '16:00', '22:00', 15, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'evening' AND branch_id IS NULL);
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca dem', 'night', '22:00', '06:00', 10, 30, 180, 30, TRUE, TRUE, '', NOW(), NOW()
+SELECT 'Ca dem', 'night', '22:00', '06:00', 15, 30, 180, 30, TRUE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'night' AND branch_id IS NULL);
 
 -- Normalize relational integrity without forcing a full legacy-data cleanup during app startup.
@@ -611,6 +630,16 @@ BEGIN
         ALTER TABLE attendance_sessions
             ADD CONSTRAINT ck_attendance_sessions_check_out_status
             CHECK (check_out_status IN ('', 'normal', 'early_leave', 'overtime', 'manual', 'auto')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_review_status') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT ck_attendance_sessions_review_status
+            CHECK (review_status IN ('none', 'pending_review', 'approved', 'rejected')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_review_type') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT ck_attendance_sessions_review_type
+            CHECK (review_type IN ('', 'absent', 'missing_checkout', 'overtime')) NOT VALID;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_events_event_type') THEN
         ALTER TABLE attendance_events

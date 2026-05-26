@@ -67,6 +67,8 @@ class Settings:
 
     # ── Chấm công ──────────────────────────────────────
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))
+    CHECKIN_GRACE_MINUTES: int = int(os.getenv("CHECKIN_GRACE_MINUTES", "15"))
+    OVERTIME_APPROVAL_THRESHOLD_MINUTES: int = int(os.getenv("OVERTIME_APPROVAL_THRESHOLD_MINUTES", "30"))
     WORK_START:             str  = os.getenv("WORK_START", "08:30")
     WORK_END:               str  = os.getenv("WORK_END",   "17:30")
     LATE_THRESHOLD:         int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))

@@ -11,6 +11,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
 from app.models.employee import Employee
@@ -443,7 +444,7 @@ def _reconcile_assignment_attendance(
     if check_in_log:
         session.check_in_at = check_in_log.timestamp
         raw_late_minutes = max(0, int((check_in_log.timestamp - shift_start).total_seconds() / 60))
-        grace_minutes = shift.late_threshold_minutes or 0
+        grace_minutes = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES
         session.late_minutes = max(0, raw_late_minutes - grace_minutes)
         session.check_in_status = "late" if raw_late_minutes > grace_minutes else "on_time"
 
@@ -451,11 +452,14 @@ def _reconcile_assignment_attendance(
         session.check_out_at = check_out_log.timestamp
         session.status = "completed"
         session.early_leave_minutes = max(0, int((shift_end - check_out_log.timestamp).total_seconds() / 60))
-        session.overtime_minutes = max(0, int((check_out_log.timestamp - shift_end).total_seconds() / 60))
+        raw_overtime = max(0, int((check_out_log.timestamp - shift_end).total_seconds() / 60))
+        session.overtime_minutes = raw_overtime if raw_overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES else 0
         if session.early_leave_minutes > 0:
             session.check_out_status = "early_leave"
         elif session.overtime_minutes > 0:
             session.check_out_status = "overtime"
+            session.review_type = "overtime"
+            session.review_status = "pending_review"
         else:
             session.check_out_status = "normal"
     elif check_in_log and session.check_out_at is None:
@@ -520,14 +524,14 @@ def calc_status_for_shift(check_time: datetime, emp_code: str, db: Session) -> s
     assignment, shift = find_shift_assignment_for_time(emp_code, check_time, db)
     if shift and assignment:
         work_dt, _end, _from, _until = shift_window(assignment.work_date, shift)
-        threshold = shift.late_threshold_minutes
+        threshold = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES
         shift_name = shift.name
     else:
         return "Chưa có ca phân công"
     late_minutes = int((check_time - work_dt).total_seconds() / 60)
 
     if late_minutes > threshold:
-        return f"Đi muộn {late_minutes} phút ({shift_name})"
+        return f"Đi muộn {late_minutes - threshold} phút ({shift_name})"
     return f"Đúng giờ ({shift_name})"
 
 
@@ -539,10 +543,10 @@ def seed_default_shifts(db: Session):
         return
 
     defaults = [
-        {"name": "Ca sáng", "code": "morning", "work_start": "06:00", "work_end": "11:00", "late_threshold_minutes": 10, "break_minutes": 0},
-        {"name": "Ca trưa", "code": "lunch",   "work_start": "10:00", "work_end": "15:00", "late_threshold_minutes": 10, "break_minutes": 30},
-        {"name": "Ca tối",  "code": "evening", "work_start": "16:00", "work_end": "22:00", "late_threshold_minutes": 10, "break_minutes": 30},
-        {"name": "Ca đêm",  "code": "night",   "work_start": "22:00", "work_end": "06:00", "late_threshold_minutes": 10, "break_minutes": 30, "is_overnight": True},
+        {"name": "Ca sáng", "code": "morning", "work_start": "06:00", "work_end": "11:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 0},
+        {"name": "Ca trưa", "code": "lunch",   "work_start": "10:00", "work_end": "15:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 30},
+        {"name": "Ca tối",  "code": "evening", "work_start": "16:00", "work_end": "22:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 30},
+        {"name": "Ca đêm",  "code": "night",   "work_start": "22:00", "work_end": "06:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 30, "is_overnight": True},
     ]
     for d in defaults:
         db.add(Shift(**d))
