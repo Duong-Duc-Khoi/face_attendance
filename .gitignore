@@ -36,3 +36,8 @@ phancong.png
 skills-lock.json
 .agents/skills/frontend-design/SKILL.md
 .agents/skills/frontend-design/LICENSE.txt
+
+# Generated schema review artifacts
+docs/*.svg
+scripts/check_restaurant_integrity.sql
+scripts/validate_restaurant_constraints.sql
