@@ -26,7 +26,7 @@ from app.models.attendance import (
 )
 from app.models.branch import Branch
 from app.models.employee import Employee
-from app.models.shift import ShiftAssignment
+from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
@@ -366,6 +366,47 @@ class AuditReviewRequest(BaseModel):
     note: Optional[str] = ""
 
 
+class AttendanceSessionReviewRequest(BaseModel):
+    review_status: str
+    note: Optional[str] = ""
+
+
+def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
+    emp = db.query(Employee).filter_by(id=session.employee_id).first()
+    shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
+    branch = db.query(Branch).filter_by(id=session.branch_id).first() if session.branch_id else None
+    return {
+        "id": session.id,
+        "employee_id": session.employee_id,
+        "emp_code": emp.emp_code if emp else "",
+        "emp_name": emp.name if emp else "",
+        "department": emp.department if emp else "",
+        "role_label": _role_label_for_log(
+            AttendanceLog(emp_code=emp.emp_code if emp else "", department=emp.department if emp else ""),
+            emp,
+        ) if emp else "",
+        "branch_name": branch.name if branch else "",
+        "shift_id": session.shift_id,
+        "shift_name": shift.name if shift else "",
+        "work_date": session.work_date.isoformat() if session.work_date else "",
+        "check_in_at": session.check_in_at.isoformat() if session.check_in_at else None,
+        "check_out_at": session.check_out_at.isoformat() if session.check_out_at else None,
+        "status": session.status,
+        "check_in_status": session.check_in_status or "",
+        "check_out_status": session.check_out_status or "",
+        "late_minutes": session.late_minutes or 0,
+        "early_leave_minutes": session.early_leave_minutes or 0,
+        "overtime_minutes": session.overtime_minutes or 0,
+        "worked_minutes": session.worked_minutes or 0,
+        "review_type": session.review_type or "",
+        "review_status": session.review_status or "none",
+        "review_note": session.review_note or "",
+        "reviewed_by": session.reviewed_by or "",
+        "reviewed_at": session.reviewed_at.isoformat() if session.reviewed_at else None,
+        "note": session.note or "",
+    }
+
+
 # ── GET /api/attendance/sessions/{session_id}/events ─────────────
 
 @router.get("/attendance/sessions/{session_id}/events")
@@ -397,6 +438,72 @@ def get_attendance_session_events(
             for e in rows
         ],
     }
+
+
+# ── GET /api/attendance/review-items ─────────────────────────────
+
+@router.get("/attendance/review-items")
+def get_attendance_review_items(
+    type: str = "",
+    status: str = "pending_review",
+    from_date: str = "",
+    to_date: str = "",
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    q = db.query(AttendanceSession)
+    if status:
+        q = q.filter(AttendanceSession.review_status == status)
+    if type:
+        q = q.filter(AttendanceSession.review_type == type)
+    if from_date:
+        q = q.filter(AttendanceSession.work_date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+    if to_date:
+        q = q.filter(AttendanceSession.work_date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+    rows = q.order_by(AttendanceSession.work_date.desc(), AttendanceSession.id.desc()).limit(500).all()
+    return {"items": [_session_review_to_dict(row, db) for row in rows], "total": len(rows)}
+
+
+@router.get("/attendance/review-count")
+def get_attendance_review_count(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    rows = (
+        db.query(AttendanceSession.review_type, AttendanceSession.id)
+          .filter(AttendanceSession.review_status == "pending_review")
+          .all()
+    )
+    counts = {"total": len(rows), "absent": 0, "missing_checkout": 0, "overtime": 0}
+    for review_type, _id in rows:
+        if review_type in counts:
+            counts[review_type] += 1
+    return counts
+
+
+@router.put("/attendance/sessions/{session_id}/review")
+def review_attendance_session(
+    session_id: int,
+    body: AttendanceSessionReviewRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    if body.review_status not in ("pending_review", "approved", "rejected"):
+        raise HTTPException(status_code=422, detail="review_status không hợp lệ")
+    session = db.query(AttendanceSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
+    session.review_status = body.review_status
+    session.review_note = body.note or ""
+    session.reviewed_by = current_user.full_name or current_user.email
+    session.reviewed_at = datetime.now() if body.review_status != "pending_review" else None
+    session.updated_by_id = current_user.id
+    db.commit()
+    db.refresh(session)
+    return {"success": True, "session": _session_review_to_dict(session, db)}
 
 
 # ── GET /api/attendance/{log_id}/capture ─────────────────────────
