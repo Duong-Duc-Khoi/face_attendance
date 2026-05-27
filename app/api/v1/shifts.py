@@ -16,7 +16,8 @@ from app.models.user import User
 from app.services.shift_service import (
     list_shifts, get_shift, create_shift, update_shift, delete_shift,
     assign_shift, bulk_assign_shift, delete_assignment,
-    get_assignments_by_emp, get_assignments_by_date,
+    get_assignments_by_emp, get_assignments_by_date, get_assignments_by_range,
+    update_assignment,
     get_shift_for_employee,
 )
 from app.services.ai_shift_planner import (
@@ -29,6 +30,23 @@ router = APIRouter(prefix="/api/shifts", tags=["shifts"])
 
 
 # ── Schemas ──────────────────────────────────────────────────────
+
+def _validate_time_value(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return v
+    try:
+        h, m = v.split(":")
+        assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
+    except Exception:
+        raise ValueError("Định dạng giờ phải là HH:MM (ví dụ: 08:30)")
+    return v
+
+
+def _validate_range(v: int, low: int, high: int, label: str) -> int:
+    if v < low or v > high:
+        raise ValueError(f"{label} phải trong khoảng {low}-{high} phút")
+    return v
+
 
 class ShiftCreate(BaseModel):
     branch_id:  Optional[int] = None
@@ -47,12 +65,27 @@ class ShiftCreate(BaseModel):
     @field_validator("work_start", "work_end")
     @classmethod
     def validate_time(cls, v):
-        try:
-            h, m = v.split(":")
-            assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
-        except Exception:
-            raise ValueError("Định dạng giờ phải là HH:MM (ví dụ: 08:30)")
-        return v
+        return _validate_time_value(v)
+
+    @field_validator("late_threshold_minutes")
+    @classmethod
+    def validate_late_threshold(cls, v):
+        return _validate_range(v, 0, 120, "Ngưỡng đi muộn")
+
+    @field_validator("early_checkin_minutes")
+    @classmethod
+    def validate_early_checkin(cls, v):
+        return _validate_range(v, 0, 240, "Cho vào sớm")
+
+    @field_validator("auto_checkout_minutes")
+    @classmethod
+    def validate_auto_checkout(cls, v):
+        return _validate_range(v, 0, 720, "Cho phép chấm ra muộn")
+
+    @field_validator("break_minutes")
+    @classmethod
+    def validate_break_minutes(cls, v):
+        return _validate_range(v, 0, 240, "Nghỉ giữa ca")
 
     @field_validator("code")
     @classmethod
@@ -77,6 +110,39 @@ class ShiftUpdate(BaseModel):
     is_overnight:           Optional[bool] = None
     note:       Optional[str]  = None
     is_active:  Optional[bool] = None
+
+    @field_validator("work_start", "work_end")
+    @classmethod
+    def validate_time(cls, v):
+        return _validate_time_value(v)
+
+    @field_validator("late_threshold_minutes")
+    @classmethod
+    def validate_late_threshold(cls, v):
+        if v is not None:
+            return _validate_range(v, 0, 120, "Ngưỡng đi muộn")
+        return v
+
+    @field_validator("early_checkin_minutes")
+    @classmethod
+    def validate_early_checkin(cls, v):
+        if v is not None:
+            return _validate_range(v, 0, 240, "Cho vào sớm")
+        return v
+
+    @field_validator("auto_checkout_minutes")
+    @classmethod
+    def validate_auto_checkout(cls, v):
+        if v is not None:
+            return _validate_range(v, 0, 720, "Cho phép chấm ra muộn")
+        return v
+
+    @field_validator("break_minutes")
+    @classmethod
+    def validate_break_minutes(cls, v):
+        if v is not None:
+            return _validate_range(v, 0, 240, "Nghỉ giữa ca")
+        return v
 
 
 class AssignRequest(BaseModel):
@@ -109,6 +175,24 @@ class BulkAssignRequest(BaseModel):
             date.fromisoformat(v)
         except Exception:
             raise ValueError("Ngày phải định dạng YYYY-MM-DD")
+        return v
+
+
+class AssignmentUpdate(BaseModel):
+    shift_id: Optional[int] = None
+    work_date: Optional[str] = None
+    note: Optional[str] = None
+    status: Optional[str] = None
+
+    @field_validator("work_date")
+    @classmethod
+    def validate_date(cls, v):
+        if v is None:
+            return v
+        try:
+            date.fromisoformat(v)
+        except Exception:
+            raise ValueError("work_date phải định dạng YYYY-MM-DD")
         return v
 
 
@@ -201,7 +285,10 @@ def api_get_my_shift(
     if not emp:
         raise HTTPException(404, "Tài khoản chưa được liên kết với hồ sơ nhân viên")
 
-    d = date.fromisoformat(work_date) if work_date else date.today()
+    try:
+        d = date.fromisoformat(work_date) if work_date else date.today()
+    except Exception:
+        raise HTTPException(400, "Định dạng ngày phải là YYYY-MM-DD")
     return get_shift_for_employee(emp.emp_code, d, db)
 
 
@@ -297,20 +384,6 @@ def api_delete_shift(
         raise HTTPException(404, "Không tìm thấy ca làm việc")
 
 
-# ── GET /api/shifts/{id} ─────────────────────────────────────────
-
-@router.get("/{shift_id}")
-def api_get_shift(
-    shift_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    result = get_shift(shift_id, db)
-    if not result:
-        raise HTTPException(404, "Không tìm thấy ca làm việc")
-    return result
-
-
 # ── POST /api/shifts/assignments ─────────────────────────────────
 
 @router.post("/assignments", status_code=201)
@@ -354,11 +427,35 @@ def api_bulk_assign(
             shift_id    = body.shift_id,
             dates       = days,
             assigned_by = current_user.email,
+            note        = body.note or "",
             db          = db,
         )
     except ValueError as e:
         raise HTTPException(404, str(e))
     return {"assigned": count, "message": f"Đã phân công {count} ca thành công"}
+
+
+# ── GET /api/shifts/assignments?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD ──
+
+@router.get("/assignments")
+def api_get_range_assignments(
+    from_date: str,
+    to_date: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Xem tất cả phân công ca trong một khoảng ngày."""
+    _require_manager(current_user)
+    try:
+        fd = date.fromisoformat(from_date)
+        td = date.fromisoformat(to_date)
+    except Exception:
+        raise HTTPException(400, "Định dạng ngày phải là YYYY-MM-DD")
+    if td < fd:
+        raise HTTPException(400, "to_date phải >= from_date")
+    if (td - fd).days > 62:
+        raise HTTPException(400, "Khoảng xem lịch tối đa 63 ngày")
+    return get_assignments_by_range(fd, td, db)
 
 
 # ── GET /api/shifts/assignments/employee/{emp_code} ──────────────
@@ -395,6 +492,44 @@ def api_get_date_assignments(
     except Exception:
         raise HTTPException(400, "Định dạng ngày phải là YYYY-MM-DD")
     return get_assignments_by_date(d, db)
+
+
+# ── GET /api/shifts/{id} ─────────────────────────────────────────
+
+@router.get("/{shift_id}")
+def api_get_shift(
+    shift_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = get_shift(shift_id, db)
+    if not result:
+        raise HTTPException(404, "Không tìm thấy ca làm việc")
+    return result
+
+
+# ── PUT /api/shifts/assignments/{id} ─────────────────────────────
+
+@router.put("/assignments/{assignment_id}")
+def api_update_assignment(
+    assignment_id: int,
+    body: AssignmentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_manager(current_user)
+    try:
+        result = update_assignment(
+            assignment_id,
+            body.model_dump(exclude_none=True),
+            assigned_by=current_user.email,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not result:
+        raise HTTPException(404, "Không tìm thấy phân công ca")
+    return result
 
 
 # ── DELETE /api/shifts/assignments/{id} ──────────────────────────
