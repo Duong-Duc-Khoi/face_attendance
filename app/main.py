@@ -144,7 +144,7 @@ async def dashboard_page(request: Request):
         "attendance": "/attendance",
         "employees": "/employees",
         "leave": "/leave",
-        "calendar": "/roster",
+        "calendar": "/work-calendar",
     }
     if legacy_tab in legacy_routes:
         return RedirectResponse(legacy_routes[legacy_tab], status_code=307)
@@ -166,6 +166,14 @@ async def leave_page(request: Request):
 @app.get("/roster")
 async def roster_page(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "roster"})
+
+@app.get("/work-calendar")
+async def work_calendar_page(request: Request):
+    return templates.TemplateResponse("work_calendar.html", {"request": request})
+
+@app.get("/calendar")
+async def calendar_page():
+    return RedirectResponse("/work-calendar", status_code=307)
 
 @app.get("/report")
 async def report_page(request: Request):
