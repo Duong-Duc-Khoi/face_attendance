@@ -23,6 +23,7 @@ from app.models.employee import Employee
 from app.models.user import User
 from app.schemas.employee import (
     EmployeeUpdate,
+    JOB_ROLE_LABELS,
     is_active_for_status,
     normalize_employee_status,
     normalize_employment_type,
@@ -60,6 +61,13 @@ def _optional_decimal(value) -> Decimal | None:
     return Decimal(str(value))
 
 
+def _clean_phone(value: str | None) -> str:
+    phone = (value or "").strip()
+    if len(phone) > 20:
+        raise HTTPException(400, "Số điện thoại tối đa 20 ký tự")
+    return phone
+
+
 def _generate_employee_code(db: Session) -> str:
     rows = db.query(Employee.emp_code).filter(Employee.emp_code.like("NV%")).all()
     max_num = 0
@@ -85,6 +93,7 @@ def _emp_dict(e: Employee) -> dict:
         "department": e.department,
         "position":   e.position,
         "job_role":   _employee_job_role(e),
+        "job_role_label": JOB_ROLE_LABELS.get(_employee_job_role(e), _employee_job_role(e)),
         "employment_type": e.employment_type or "full_time",
         "hourly_rate": _money(e.hourly_rate),
         "base_salary": _money(e.base_salary),
@@ -183,6 +192,7 @@ async def create_employee(
 ):
     if db.query(Employee).filter_by(emp_code=emp_code).first():
         raise HTTPException(400, f"Mã nhân viên '{emp_code}' đã tồn tại")
+    phone = _clean_phone(phone)
 
     cv_images = []
     for upload in images:
@@ -235,6 +245,7 @@ async def register_from_camera(payload: dict, db: Session = Depends(get_db), cur
         raise HTTPException(400, f"Mã '{emp_code}' đã tồn tại")
     if not frames:
         raise HTTPException(400, "Không có ảnh nào")
+    phone = _clean_phone(payload.get("phone"))
 
     cv_images = []
     for b64 in frames:
@@ -265,7 +276,7 @@ async def register_from_camera(payload: dict, db: Session = Depends(get_db), cur
         status     = profile["status"],
         is_active  = profile["is_active"],
         email      = payload.get("email", ""),
-        phone      = payload.get("phone", ""),
+        phone      = phone,
         face_path  = f"data/faces/{emp_code}",
         avatar_url = f"/data/faces/{emp_code}/0.jpg",
     )
@@ -282,6 +293,7 @@ async def self_register(payload: dict, db: Session = Depends(get_db)):
     email    = payload.get("email", "").strip()
     password = payload.get("password", "")
     frames   = payload.get("frames", [])
+    phone    = _clean_phone(payload.get("phone"))
 
     # ── Validate ──────────────────────────────────────────────────
     if not name:
@@ -341,7 +353,7 @@ async def self_register(payload: dict, db: Session = Depends(get_db)):
         status     = profile["status"],
         is_active  = profile["is_active"],
         email      = email,
-        phone      = payload.get("phone", ""),
+        phone      = phone,
         face_path  = f"data/faces/{emp_code}",
         avatar_url = f"/data/faces/{emp_code}/0.jpg",
     )
@@ -387,6 +399,8 @@ def update_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(get
         update_data["employment_type"] = normalize_employment_type(update_data["employment_type"])
     if "job_role" in update_data:
         update_data["job_role"] = normalize_job_role(update_data["job_role"] or "")
+    if "phone" in update_data:
+        update_data["phone"] = _clean_phone(update_data["phone"])
 
     allowed = {
         "name", "full_name", "branch_id", "department", "position", "job_role",
