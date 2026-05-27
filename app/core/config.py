@@ -73,7 +73,7 @@ class Settings:
     WORK_END:               str  = os.getenv("WORK_END",   "17:30")
     LATE_THRESHOLD:         int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
     LATE_THRESHOLD_MINUTES: int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
-    WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5")
+    WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5,6,7")
     HALF_DAY_CUTOFF:        str  = os.getenv("HALF_DAY_CUTOFF", "12:00")
     NOTIFY_LEAVE_CANCEL:    bool = os.getenv("NOTIFY_LEAVE_CANCEL", "true").lower() == "true"
 

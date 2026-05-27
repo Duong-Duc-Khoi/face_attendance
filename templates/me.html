@@ -56,7 +56,6 @@ html,body{min-height:100vh}
 .cal-day.today{border:1px solid var(--teal);color:var(--teal)}
 .cal-day.is-off{color:rgba(90,122,154,.3)}
 .cal-day.is-holiday{color:#f6c90e}
-.cal-day.is-overtime{color:#a78bfa}
 .cal-day.is-half{color:var(--blue)}
 .cal-day.past-locked{opacity:.35;cursor:not-allowed}
 .cal-day.has-approved::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--teal)}
@@ -525,8 +524,6 @@ async function renderCalPicker(){
       if(isToday)cls+=' today';
       if(dtype==='off')cls+=' is-off';
       if(dtype==='holiday')cls+=' is-holiday';
-      if(dtype==='overtime')cls+=' is-overtime';
-      if(dtype==='half_am'||dtype==='half_pm')cls+=' is-half';
       if(hasPend)cls+=' has-pending';
       if(hasAppr)cls+=' has-approved';
       if(isSel)cls+=' selected';
@@ -611,7 +608,7 @@ async function renderSchedule(){
     const firstDay=new Date(schedYear,schedMonth-1,1).getDay();
     const daysInMonth=new Date(schedYear,schedMonth,0).getDate();
     const todayStr=today();
-    const dtCol={full:'var(--teal)',half_am:'var(--blue)',half_pm:'var(--blue)',off:'rgba(90,122,154,.3)',holiday:'#f6c90e',overtime:'#a78bfa'};
+    const dtCol={full:'var(--teal)',off:'rgba(90,122,154,.3)',holiday:'#f6c90e'};
     let html=`<div class="cal-grid" style="padding:8px">
       <div class="cal-dow">CN</div><div class="cal-dow">T2</div><div class="cal-dow">T3</div>
       <div class="cal-dow">T4</div><div class="cal-dow">T5</div><div class="cal-dow">T6</div>
@@ -644,7 +641,7 @@ async function renderMyStatus(){
     const sClass={present:'sb-present',late:'sb-late',approved_leave:'sb-leave',approved_leave_half:'sb-leave',
       approved_remote:'sb-remote',pending_leave:'sb-pending',pending_remote:'sb-pending',
       absent:'sb-absent',day_off:'sb-off',holiday:'sb-off',future:'sb-off',overtime_absent:'sb-off'};
-    const dtLabel={full:'Ngày làm',half_am:'Buổi sáng',half_pm:'Buổi chiều',off:'Ngày nghỉ',holiday:'Ngày lễ',overtime:'Tăng ca'};
+    const dtLabel={full:'Ngày làm',off:'Ngày nghỉ',holiday:'Ngày lễ'};
     const days=(d.days||[]).filter(x=>{
       const ds=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(x.day).padStart(2,'0')}`;
       return ds<=todayStr&&x.day_type!=='off'&&x.day_type!=='holiday';

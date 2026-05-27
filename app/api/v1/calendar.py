@@ -3,8 +3,8 @@ app/api/v1/calendar.py
 Endpoints quản lý lịch làm việc.
 """
 
-from datetime import date, datetime
-from typing import Optional
+from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -14,11 +14,23 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.calendar import WorkCalendar
 from app.models.user import User
-from app.services.work_calendar import get_calendar_month, get_calendar_day
+from app.services.work_calendar import get_calendar_month
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
-VALID_DAY_TYPES = ("full", "half_am", "half_pm", "off", "holiday", "overtime")
+VALID_DAY_TYPES = ("full", "off", "holiday")
+
+
+def _pay_multiplier(value) -> Decimal:
+    if value in (None, ""):
+        return Decimal("1.0")
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        raise HTTPException(400, "Hệ số lương không hợp lệ")
+    if result < 0 or result > 5:
+        raise HTTPException(400, "Hệ số lương phải trong khoảng 0-5")
+    return result.quantize(Decimal("0.01"))
 
 
 # ── GET /api/calendar?year=&month= ──────────────────────────────
@@ -38,10 +50,6 @@ def get_calendar(
         "days": days,
         "defaults": {
             "work_days":  settings.WORK_DAYS,
-            "work_start": settings.WORK_START,
-            "work_end":   settings.WORK_END,
-            "late_threshold_minutes": settings.LATE_THRESHOLD_MINUTES,
-            "half_day_cutoff": settings.HALF_DAY_CUTOFF,
         }
     }
 
@@ -52,10 +60,6 @@ def get_calendar(
 def get_config(current_user: User = Depends(get_current_user)):
     return {
         "work_days":              settings.WORK_DAYS,
-        "work_start":             settings.WORK_START,
-        "work_end":               settings.WORK_END,
-        "late_threshold_minutes": settings.LATE_THRESHOLD_MINUTES,
-        "half_day_cutoff":        settings.HALF_DAY_CUTOFF,
         "notify_leave_cancel":    settings.NOTIFY_LEAVE_CANCEL,
     }
 
@@ -69,7 +73,7 @@ def update_config(payload: dict,
     if current_user.role != "admin":
         raise HTTPException(403, "Chỉ Admin mới được sửa cấu hình")
 
-    import os, re
+    import os
     env_path = None
     for candidate in ["../.env", ".env", "../../.env"]:
         if os.path.exists(candidate):
@@ -81,10 +85,6 @@ def update_config(payload: dict,
 
     mapping = {
         "work_days":              "WORK_DAYS",
-        "work_start":             "WORK_START",
-        "work_end":               "WORK_END",
-        "late_threshold_minutes": "LATE_THRESHOLD_MINUTES",
-        "half_day_cutoff":        "HALF_DAY_CUTOFF",
         "notify_leave_cancel":    "NOTIFY_LEAVE_CANCEL",
     }
 
@@ -158,9 +158,9 @@ def upsert_day(payload: dict,
     existing = db.query(WorkCalendar).filter_by(date=d).first()
     if existing:
         existing.day_type   = day_type
-        existing.work_start = payload.get("work_start") or None
-        existing.work_end   = payload.get("work_end")   or None
         existing.label      = payload.get("label", "")
+        existing.pay_multiplier = _pay_multiplier(payload.get("pay_multiplier"))
+        existing.salary_note = payload.get("salary_note", "")
         existing.created_by = current_user.email
         db.commit()
         db.refresh(existing)
@@ -169,9 +169,9 @@ def upsert_day(payload: dict,
         cal = WorkCalendar(
             date       = d,
             day_type   = day_type,
-            work_start = payload.get("work_start") or None,
-            work_end   = payload.get("work_end")   or None,
             label      = payload.get("label", ""),
+            pay_multiplier = _pay_multiplier(payload.get("pay_multiplier")),
+            salary_note = payload.get("salary_note", ""),
             created_by = current_user.email,
         )
         db.add(cal)
@@ -207,17 +207,17 @@ def batch_upsert(payload: dict,
         existing = db.query(WorkCalendar).filter_by(date=d).first()
         if existing:
             existing.day_type   = day_type
-            existing.work_start = entry.get("work_start") or None
-            existing.work_end   = entry.get("work_end")   or None
             existing.label      = entry.get("label", "")
+            existing.pay_multiplier = _pay_multiplier(entry.get("pay_multiplier"))
+            existing.salary_note = entry.get("salary_note", "")
             existing.created_by = current_user.email
         else:
             db.add(WorkCalendar(
                 date       = d,
                 day_type   = day_type,
-                work_start = entry.get("work_start") or None,
-                work_end   = entry.get("work_end")   or None,
                 label      = entry.get("label", ""),
+                pay_multiplier = _pay_multiplier(entry.get("pay_multiplier")),
+                salary_note = entry.get("salary_note", ""),
                 created_by = current_user.email,
             ))
         saved.append(d_str)
@@ -252,8 +252,8 @@ def _cal_dict(c: WorkCalendar) -> dict:
         "id":         c.id,
         "date":       c.date.isoformat(),
         "day_type":   c.day_type,
-        "work_start": c.work_start,
-        "work_end":   c.work_end,
         "label":      c.label,
+        "pay_multiplier": float(c.pay_multiplier or 1.0),
+        "salary_note": c.salary_note or "",
         "created_by": c.created_by,
     }

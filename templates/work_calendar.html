@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lịch vận hành - FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-2">
+<link rel="stylesheet" href="/static/css/components.css">
+<script src="/static/js/auth-guard.js"></script>
+<style>
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 18% 0%,rgba(0,212,170,.08),transparent 28%),radial-gradient(circle at 86% 18%,rgba(246,201,14,.08),transparent 30%)}
+.ops-page{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:24px}
+.ops-head{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;margin-bottom:18px}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);margin-bottom:8px}
+.ops-title{font-size:26px;font-weight:700;letter-spacing:0;line-height:1.15}
+.ops-sub{margin-top:7px;font-size:13px;color:var(--muted);max-width:760px;line-height:1.6}
+.icon-btn,.chip-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);min-height:36px;padding:0 12px;border-radius:8px;font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer;transition:all .18s}
+.icon-btn:hover,.chip-btn:hover{border-color:var(--teal);background:var(--panel)}
+.icon-btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.icon-btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
+.head-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.metric{min-height:82px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between}
+.metric-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.metric-value{font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--text)}
+.calendar-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+.panel-body{padding:14px}
+.cal-toolbar{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px;border-bottom:1px solid var(--border);background:var(--panel)}
+.month-nav{display:flex;align-items:center;gap:8px}
+.month-label{font-size:15px;font-weight:700;text-align:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;align-items:stretch}
+.cal-dow{text-align:center;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;padding:5px 0}
+.cal-day{position:relative;min-height:98px;border:1px solid rgba(90,122,154,.32);border-radius:8px;background:var(--surface);padding:9px;display:grid;grid-template-rows:auto auto 1fr;gap:7px;cursor:pointer;transition:all .15s;text-align:left}
+.cal-day:hover{border-color:var(--teal);background:var(--panel)}
+.cal-day.empty{visibility:hidden;pointer-events:none}
+.cal-day.selected{border-color:var(--teal);box-shadow:0 0 0 1px rgba(0,212,170,.16) inset}
+.cal-num{font-family:var(--font-mono);font-size:15px;font-weight:800;color:var(--text)}
+.cal-info{min-height:26px;display:grid;align-content:end;gap:3px;overflow:hidden}
+.cal-label{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);line-height:1.2}
+.cal-meta{font-family:var(--font-mono);font-size:10px;color:#f6c90e;line-height:1.2}
+.cal-chip{width:100%;max-width:100%;border-radius:6px;padding:4px 6px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dt-full .cal-chip{background:rgba(0,212,170,.12);color:var(--teal);border:1px solid rgba(0,212,170,.3)}
+.dt-off .cal-chip{background:rgba(90,122,154,.14);color:var(--muted);border:1px solid rgba(90,122,154,.34)}
+.dt-holiday .cal-chip{background:rgba(246,201,14,.14);color:#f6c90e;border:1px solid rgba(246,201,14,.34)}
+.override-dot{position:absolute;top:8px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--teal)}
+.form-stack{display:grid;gap:12px}
+.field{display:grid;gap:6px}
+.field-label{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.input,.select{width:100%;min-height:36px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:var(--font-sans);font-size:12px;outline:none}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dtype-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dtype-btn{border:1px solid var(--border);background:var(--panel);color:var(--muted);border-radius:8px;padding:9px;font-size:11px;font-weight:800;text-align:left;cursor:pointer}
+.dtype-btn.active{border-color:var(--teal);background:rgba(0,212,170,.1);color:var(--teal)}
+.workday-row{display:flex;flex-wrap:wrap;gap:6px}
+.workday-row .dtype-btn{min-width:48px;text-align:center}
+.note-box{font-size:12px;color:var(--muted);line-height:1.55;border:1px dashed var(--border);border-radius:8px;padding:10px;background:var(--surface)}
+@media(max-width:1060px){.calendar-layout{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.ops-page{padding:16px}.ops-head{grid-template-columns:1fr}.head-actions{justify-content:flex-start}.metric-grid{grid-template-columns:1fr}.cal-toolbar{grid-template-columns:1fr}.cal-grid{grid-template-columns:1fr}.cal-dow{display:none}.cal-day.empty{display:none}.field-row,.dtype-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body class="admin-shell">
+<header>
+  <div class="brand">
+    <div class="brand-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg></div>
+    <div><span class="brand-name">FaceAttend</span><span class="brand-section">Lịch vận hành</span></div>
+  </div>
+  <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
+    <span class="nav-section-title">Vận hành</span>
+    <a href="/dashboard" class="nav-link">Tổng quan</a>
+    <a href="/attendance" class="nav-link">Chấm công</a>
+    <a href="/employees" class="nav-link">Nhân viên</a>
+    <a href="/shifts" class="nav-link">Ca làm</a>
+    <a href="/roster" class="nav-link">Bảng phân ca</a>
+    <a href="/work-calendar" class="nav-link active">Lịch vận hành</a>
+    <a href="/leave" class="nav-link">Nghỉ phép</a>
+    <a href="/report" class="nav-link">Báo cáo</a>
+    <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
+    <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
+    <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
+  </nav>
+  <div class="nav-account"><span id="navUserName" class="user-chip"></span><button data-logout class="logout-btn">Đăng xuất</button></div>
+</header>
+
+<main class="ops-page">
+  <section class="ops-head">
+    <div>
+      <div class="eyebrow">Operating Calendar</div>
+      <h1 class="ops-title">Lịch vận hành</h1>
+      <p class="ops-sub">Đánh dấu ngày làm, ngày nghỉ/đóng cửa và ngày lễ có hệ số lương đặc biệt. Giờ làm và tăng ca được xử lý theo từng ca.</p>
+    </div>
+    <div class="head-actions">
+      <button class="icon-btn" onclick="loadAll()">Làm mới</button>
+      <button class="icon-btn primary" onclick="saveDayOverride()">Lưu ngày</button>
+    </div>
+  </section>
+
+  <section class="metric-grid">
+    <div class="metric"><div class="metric-label">Ngày đặc biệt</div><div class="metric-value" id="statOverrides">0</div></div>
+    <div class="metric"><div class="metric-label">Ngày lễ</div><div class="metric-value" id="statHoliday">0</div></div>
+    <div class="metric"><div class="metric-label">Đóng/nghỉ</div><div class="metric-value" id="statClosed">0</div></div>
+    <div class="metric"><div class="metric-label">Hệ số cao nhất</div><div class="metric-value" id="statMaxPay">1.0x</div></div>
+  </section>
+
+  <section class="calendar-layout">
+    <div class="panel">
+      <div class="cal-toolbar">
+        <div class="month-nav">
+          <button class="icon-btn" onclick="calNav(-1)">‹</button>
+          <button class="icon-btn" onclick="calNav(1)">›</button>
+        </div>
+        <div class="month-label" id="calLabel"></div>
+        <button class="chip-btn" onclick="goThisMonth()">Tháng này</button>
+      </div>
+      <div class="panel-body">
+        <div id="calBody"></div>
+      </div>
+    </div>
+
+    <aside class="form-stack">
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Ngày đang chọn</div></div>
+        <div class="panel-body form-stack">
+          <div class="note-box" id="editDayTitle">Chọn một ngày trên lịch để chỉnh cấu hình.</div>
+          <div class="dtype-grid" id="dayTypePicker">
+            <button class="dtype-btn active" data-dt="full" onclick="selectDayType(this,'full')">Ngày làm</button>
+            <button class="dtype-btn" data-dt="off" onclick="selectDayType(this,'off')">Ngày nghỉ / đóng cửa</button>
+            <button class="dtype-btn" data-dt="holiday" onclick="selectDayType(this,'holiday')">Ngày lễ</button>
+          </div>
+          <div class="field"><label class="field-label">Nhãn riêng</label><input class="input" id="editDayLabel" placeholder="Chỉ nhập khi cần: Tết, Nghỉ bảo trì, Lễ 30/4"></div>
+          <div class="field-row">
+            <div class="field"><label class="field-label">Hệ số lương</label><input class="input" type="number" min="0" max="5" step="0.25" id="editPayMultiplier" value="1"></div>
+            <div class="field"><label class="field-label">Ghi chú lương</label><input class="input" id="editSalaryNote" placeholder="VD: x2 lương ngày Tết"></div>
+          </div>
+          <div class="head-actions">
+            <button class="icon-btn primary" onclick="saveDayOverride()">Lưu ngày</button>
+            <button class="icon-btn danger" onclick="deleteDayOverride()">Xóa override</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Lịch mở cửa mặc định</div></div>
+        <div class="panel-body form-stack">
+          <div class="field">
+            <label class="field-label">Ngày làm mặc định</label>
+            <div class="workday-row" id="workDaysPicker">
+              <button class="dtype-btn" data-wd="1" onclick="toggleWorkDay(this)">T2</button>
+              <button class="dtype-btn" data-wd="2" onclick="toggleWorkDay(this)">T3</button>
+              <button class="dtype-btn" data-wd="3" onclick="toggleWorkDay(this)">T4</button>
+              <button class="dtype-btn" data-wd="4" onclick="toggleWorkDay(this)">T5</button>
+              <button class="dtype-btn" data-wd="5" onclick="toggleWorkDay(this)">T6</button>
+              <button class="dtype-btn" data-wd="6" onclick="toggleWorkDay(this)">T7</button>
+              <button class="dtype-btn" data-wd="7" onclick="toggleWorkDay(this)">CN</button>
+            </div>
+          </div>
+          <button class="icon-btn primary" onclick="saveConfig()">Lưu lịch mở cửa</button>
+        </div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<div id="toast"></div>
+<script src="/static/js/toast.js"></script>
+<script>
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth()+1,calDays=[],editingDate="",editingDayType="full";
+const monthNames=["","Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
+const dayLabels={full:"Ngày làm",off:"Nghỉ/đóng cửa",holiday:"Ngày lễ"};
+const payDefaults={full:1,off:0,holiday:2};
+const pad=n=>String(n).padStart(2,"0");
+const todayIso=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+const normalizeDayType=type=>dayLabels[type]?type:"full";
+
+document.addEventListener("DOMContentLoaded", loadAll);
+async function loadAll(){await Promise.all([loadCalendar(),loadConfig()]);}
+function calNav(dir){calMonth+=dir;if(calMonth>12){calMonth=1;calYear++;}if(calMonth<1){calMonth=12;calYear--;}loadCalendar();}
+function goThisMonth(){const d=new Date();calYear=d.getFullYear();calMonth=d.getMonth()+1;loadCalendar();}
+async function loadCalendar(){
+  document.getElementById("calLabel").textContent=`${monthNames[calMonth]} ${calYear}`;
+  document.getElementById("calBody").innerHTML=`<div class="note-box">Đang tải lịch...</div>`;
+  try{
+    const r=await authFetch(`/api/calendar?year=${calYear}&month=${calMonth}`);
+    const data=await r.json();
+    calDays=data.days||[];
+    renderCalendar();
+    renderStats();
+  }catch(e){
+    document.getElementById("calBody").innerHTML=`<div class="note-box">Không tải được lịch vận hành.</div>`;
+  }
+}
+function renderCalendar(){
+  const firstDow=new Date(calYear,calMonth-1,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth,0).getDate();
+  let html=`<div class="cal-grid"><div class="cal-dow">CN</div><div class="cal-dow">T2</div><div class="cal-dow">T3</div><div class="cal-dow">T4</div><div class="cal-dow">T5</div><div class="cal-dow">T6</div><div class="cal-dow">T7</div>`;
+  for(let i=0;i<firstDow;i++)html+=`<div class="cal-day empty"></div>`;
+  for(let day=1;day<=daysInMonth;day++){
+    const ds=`${calYear}-${pad(calMonth)}-${pad(day)}`;
+    const cal=calDays.find(c=>c.date===ds)||{date:ds,day_type:"full",pay_multiplier:1};
+    const dtype=normalizeDayType(cal.day_type);
+    const label=cal.label||"";
+    html+=`<button class="cal-day dt-${esc(dtype)} ${ds===editingDate?"selected":""}" onclick="selectDay('${ds}')">
+      ${cal.is_override?`<span class="override-dot"></span>`:""}
+      <span class="cal-num">${day}</span>
+      <span class="cal-chip">${esc(dayLabels[dtype])}</span>
+      <span class="cal-info">
+        ${label ? `<span class="cal-label">${esc(label)}</span>` : ""}
+        ${Number(cal.pay_multiplier||1) !== 1 ? `<span class="cal-meta">${Number(cal.pay_multiplier||1).toFixed(2)}x</span>` : ""}
+      </span>
+    </button>`;
+  }
+  html+=`</div>`;
+  document.getElementById("calBody").innerHTML=html;
+}
+function renderStats(){
+  const overrides=calDays.filter(d=>d.is_override);
+  document.getElementById("statOverrides").textContent=overrides.length;
+  document.getElementById("statHoliday").textContent=calDays.filter(d=>d.day_type==="holiday").length;
+  document.getElementById("statClosed").textContent=calDays.filter(d=>normalizeDayType(d.day_type)==="off").length;
+  const maxPay=Math.max(1,...calDays.map(d=>Number(d.pay_multiplier||1)));
+  document.getElementById("statMaxPay").textContent=`${maxPay.toFixed(2)}x`;
+}
+function selectDay(ds){
+  const cal=calDays.find(c=>c.date===ds)||{date:ds,day_type:"full",label:"",pay_multiplier:1,salary_note:""};
+  editingDate=ds;editingDayType=normalizeDayType(cal.day_type);
+  const d=new Date(`${ds}T00:00:00`);
+  document.getElementById("editDayTitle").textContent=`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+  document.getElementById("editDayLabel").value=cal.label||"";
+  document.getElementById("editPayMultiplier").value=Number(cal.pay_multiplier ?? payDefaults[editingDayType] ?? 1);
+  document.getElementById("editSalaryNote").value=cal.salary_note||"";
+  document.querySelectorAll("#dayTypePicker .dtype-btn").forEach(b=>b.classList.toggle("active",b.dataset.dt===editingDayType));
+  renderCalendar();
+}
+function selectDayType(btn,dtype){
+  editingDayType=dtype;
+  document.querySelectorAll("#dayTypePicker .dtype-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("editPayMultiplier").value=payDefaults[dtype] ?? 1;
+}
+async function saveDayOverride(){
+  if(!editingDate)return showToast("Chọn ngày trước", "error");
+  const payload={
+    date:editingDate,
+    day_type:editingDayType,
+    label:document.getElementById("editDayLabel").value.trim(),
+    pay_multiplier:parseFloat(document.getElementById("editPayMultiplier").value || "1"),
+    salary_note:document.getElementById("editSalaryNote").value.trim()
+  };
+  try{
+    const r=await authFetch("/api/calendar/day",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    if(!r.ok)throw new Error((await r.json()).detail||"Không lưu được ngày");
+    showToast("Đã lưu lịch vận hành", "success");
+    await loadCalendar();
+  }catch(e){showToast(e.message, "error");}
+}
+async function deleteDayOverride(){
+  if(!editingDate)return showToast("Chọn ngày trước", "error");
+  if(!confirm(`Xóa cài đặt đặc biệt ngày ${editingDate}?`))return;
+  try{
+    const r=await authFetch(`/api/calendar/day/${editingDate}`,{method:"DELETE"});
+    if(!r.ok)throw new Error((await r.json()).detail||"Không xóa được ngày");
+    showToast("Đã xóa override", "success");
+    await loadCalendar();
+  }catch(e){showToast(e.message, "error");}
+}
+async function loadConfig(){
+  try{
+    const r=await authFetch("/api/calendar/config");
+    const d=await r.json();
+    const days=(d.work_days||"1,2,3,4,5,6,7").split(",").map(Number);
+    document.querySelectorAll("#workDaysPicker .dtype-btn").forEach(b=>b.classList.toggle("active",days.includes(Number(b.dataset.wd))));
+  }catch{}
+}
+function toggleWorkDay(btn){btn.classList.toggle("active");}
+async function saveConfig(){
+  const days=[...document.querySelectorAll("#workDaysPicker .dtype-btn.active")].map(b=>b.dataset.wd).join(",");
+  const payload={work_days:days||"1,2,3,4,5,6,7"};
+  try{
+    const r=await authFetch("/api/calendar/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    if(!r.ok)throw new Error((await r.json()).detail||"Không lưu được cấu hình");
+    showToast("Đã lưu lịch mở cửa", "success");
+    await loadCalendar();
+  }catch(e){showToast(e.message, "error");}
+}
+</script>
+</body>
+</html>

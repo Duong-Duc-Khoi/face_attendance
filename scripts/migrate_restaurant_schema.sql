@@ -69,6 +69,12 @@ ALTER TABLE work_calendar DROP CONSTRAINT IF EXISTS work_calendar_date_key;
 ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS branch_id INTEGER;
 ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS created_by_id INTEGER;
 ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS pay_multiplier NUMERIC(5,2) DEFAULT 1.0;
+ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS salary_note VARCHAR(255) DEFAULT '';
+UPDATE work_calendar SET day_type = 'off' WHERE day_type = 'closed';
+UPDATE work_calendar SET day_type = 'full' WHERE day_type IN ('half_am', 'half_pm', 'overtime', 'special_open');
+ALTER TABLE work_calendar DROP COLUMN IF EXISTS work_start;
+ALTER TABLE work_calendar DROP COLUMN IF EXISTS work_end;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_calendar_branch_date ON work_calendar(COALESCE(branch_id, 0), date);
 CREATE INDEX IF NOT EXISTS ix_work_calendar_branch_id ON work_calendar(branch_id);
 
@@ -611,11 +617,10 @@ BEGIN
             ADD CONSTRAINT ck_shift_assignments_status
             CHECK (status IN ('scheduled', 'swapped', 'cancelled')) NOT VALID;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_work_calendar_day_type') THEN
-        ALTER TABLE work_calendar
-            ADD CONSTRAINT ck_work_calendar_day_type
-            CHECK (day_type IN ('full', 'half_am', 'half_pm', 'off', 'holiday', 'overtime', 'closed', 'special_open')) NOT VALID;
-    END IF;
+    ALTER TABLE work_calendar DROP CONSTRAINT IF EXISTS ck_work_calendar_day_type;
+    ALTER TABLE work_calendar
+        ADD CONSTRAINT ck_work_calendar_day_type
+        CHECK (day_type IN ('full', 'off', 'holiday'));
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_status') THEN
         ALTER TABLE attendance_sessions
             ADD CONSTRAINT ck_attendance_sessions_status

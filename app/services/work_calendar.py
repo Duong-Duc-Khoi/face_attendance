@@ -3,14 +3,12 @@ app/services/work_calendar.py
 Logic nghiệp vụ lịch làm việc và tính trạng thái ngày công.
 """
 
-import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import SessionLocal
 from app.models.attendance import AttendanceLog, AttendanceSession
 from app.models.calendar import WorkCalendar
 from app.models.leave import LeaveRequest
@@ -18,17 +16,9 @@ from app.models.shift import Shift, ShiftAssignment
 from app.services.shift_service import shift_window
 
 
-# ── Helpers ──────────────────────────────────────────────────────
-
-def _parse_time(t: str) -> tuple[int, int]:
-    """'08:30' → (8, 30)"""
-    h, m = t.split(":")
-    return int(h), int(m)
-
-
 def _default_work_days() -> set[int]:
     """Trả về set ISO weekday từ config. 1=Thứ 2 ... 7=CN"""
-    raw = getattr(settings, "WORK_DAYS", "1,2,3,4,5")
+    raw = getattr(settings, "WORK_DAYS", "1,2,3,4,5,6,7")
     return {int(x.strip()) for x in raw.split(",")}
 
 
@@ -45,9 +35,9 @@ def get_calendar_day(d: date, db: Session) -> dict:
         return {
             "date":       d.isoformat(),
             "day_type":   override.day_type,
-            "work_start": override.work_start or settings.WORK_START,
-            "work_end":   override.work_end   or settings.WORK_END,
             "label":      override.label or "",
+            "pay_multiplier": float(override.pay_multiplier or 1.0),
+            "salary_note": override.salary_note or "",
             "is_override": True,
         }
 
@@ -59,9 +49,9 @@ def get_calendar_day(d: date, db: Session) -> dict:
     return {
         "date":       d.isoformat(),
         "day_type":   day_type,
-        "work_start": settings.WORK_START,
-        "work_end":   settings.WORK_END,
         "label":      "",
+        "pay_multiplier": 1.0,
+        "salary_note": "",
         "is_override": False,
     }
 
@@ -138,7 +128,7 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
     Trả về dict:
       status: present | late | approved_leave | approved_leave_half |
               approved_remote | pending_leave | pending_remote |
-              absent | day_off | holiday | overtime | future
+              absent | day_off | holiday | future
       work_value: float — số công (1.0 / 0.5 / 0)
       label: str — nhãn hiển thị
       detail: str — chi tiết thêm (vd: "Muộn 12 phút")
