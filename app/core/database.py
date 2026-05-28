@@ -59,6 +59,8 @@ def init_db():
     db = get_session_factory()()
     try:
         from app.services.shift_service import seed_default_shifts
+        from app.services.employee_roles import seed_default_employee_roles
+        seed_default_employee_roles(db)
         seed_default_shifts(db)
     finally:
         db.close()

@@ -9,7 +9,7 @@
 
 (function () {
   const LOGIN_PAGE = '/auth/login-page';
-  const MANAGER_ONLY = ['/dashboard', '/shifts', '/report', '/users', '/integrations'];
+  const MANAGER_ONLY = ['/dashboard', '/branches', '/shifts', '/report', '/users', '/integrations'];
 
   function getToken() {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
@@ -144,7 +144,7 @@
 
   window.updateLeaveNavBadge = function (count) {
     const n = Number(count) || 0;
-    document.querySelectorAll('a.nav-link[href="/dashboard?tab=leave"]').forEach(function (link) {
+    document.querySelectorAll('a.nav-link[href="/leave"]').forEach(function (link) {
       let badge = link.querySelector('.nav-alert-badge');
       if (!badge) {
         badge = document.createElement('span');
@@ -159,7 +159,7 @@
 
   async function refreshLeaveNavBadge() {
     if (!user || (user.role !== 'admin' && user.role !== 'manager')) return;
-    if (!document.querySelector('a.nav-link[href="/dashboard?tab=leave"]')) return;
+    if (!document.querySelector('a.nav-link[href="/leave"]')) return;
     try {
       const res = await window.authFetch('/api/leave/pending-count');
       const data = await res.json();

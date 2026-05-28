@@ -13,7 +13,7 @@ class LeaveRequest(Base):
     __tablename__ = "leave_requests"
 
     id           = Column(Integer, primary_key=True, index=True)
-    employee_id  = Column(Integer, ForeignKey("employees.id"), nullable=True, index=True)
+    employee_id  = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
     emp_code     = Column(String(20),  index=True, nullable=False)
     emp_name     = Column(String(100), default="")
     department   = Column(String(100), default="")
@@ -34,7 +34,7 @@ class LeaveRequest(Base):
     submitted_at = Column(DateTime, default=datetime.now, index=True)
     reviewed_at  = Column(DateTime, nullable=True)
     reviewed_by  = Column(String(150), nullable=True)   # email người duyệt
-    reviewed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    reviewed_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     note         = Column(Text, default="")             # ghi chú khi duyệt/từ chối
     created_at   = Column(DateTime, default=datetime.now)
     updated_at   = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -71,6 +71,6 @@ class LeaveRequestDay(Base):
     __tablename__ = "leave_request_days"
 
     id               = Column(Integer, primary_key=True, index=True)
-    leave_request_id = Column(Integer, ForeignKey("leave_requests.id"), nullable=False, index=True)
+    leave_request_id = Column(Integer, ForeignKey("leave_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     date             = Column(Date, nullable=False, index=True)
     half_day         = Column(String(10), nullable=True)  # null | am | pm

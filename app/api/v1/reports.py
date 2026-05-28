@@ -17,7 +17,18 @@ from typing import Optional
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.attendance import AttendanceAuditFinding, AttendanceEvent, AttendanceEvidence, AttendanceLog
+from app.services.branch_scope import ensure_branch_access, scoped_branch_filter
+from app.models.attendance import (
+    AttendanceAuditFinding,
+    AttendanceEvent,
+    AttendanceEvidence,
+    AttendanceLog,
+    AttendanceSession,
+)
+from app.models.branch import Branch
+from app.models.employee import Employee
+from app.models.shift import Shift, ShiftAssignment
+from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
     get_log_by_id, update_attendance_log,
@@ -58,6 +69,41 @@ def _require_manager_or_admin(current_user):
         raise HTTPException(status_code=403, detail="Chỉ quản lý (manager/admin) mới được xem bằng chứng chấm công")
 
 
+def _employee_branch_for_log(db: Session, log: AttendanceLog) -> int | None:
+    emp = None
+    if log.employee_id:
+        emp = db.query(Employee).filter_by(id=log.employee_id).first()
+    if not emp and log.emp_code:
+        emp = db.query(Employee).filter_by(emp_code=log.emp_code).first()
+    return emp.branch_id if emp else None
+
+
+def _ensure_log_scope(db: Session, current_user, log: AttendanceLog) -> None:
+    ensure_branch_access(db, current_user, _employee_branch_for_log(db, log))
+
+
+def _ensure_session_scope(db: Session, current_user, session: AttendanceSession) -> None:
+    ensure_branch_access(db, current_user, session.branch_id)
+
+
+def _filter_logs_for_scope(db: Session, current_user, logs: list[AttendanceLog]) -> list[AttendanceLog]:
+    if not current_user or current_user.role == "admin":
+        return logs
+    allowed = scoped_branch_filter(db, current_user)
+    scoped = []
+    for log in logs:
+        if _employee_branch_for_log(db, log) in allowed:
+            scoped.append(log)
+    return scoped
+
+
+def _filter_log_dicts_for_scope(db: Session, current_user, logs: list[dict]) -> list[dict]:
+    if not current_user or current_user.role == "admin":
+        return logs
+    allowed = scoped_branch_filter(db, current_user)
+    return [row for row in logs if row.get("branch_id") in allowed]
+
+
 def _safe_capture_file(raw_path: str, missing_detail: str) -> Path:
     if not raw_path:
         raise HTTPException(status_code=404, detail=missing_detail)
@@ -71,6 +117,45 @@ def _safe_capture_file(raw_path: str, missing_detail: str) -> Path:
     if not capture_path.is_file():
         raise HTTPException(status_code=404, detail="Không tìm thấy file ảnh bằng chứng")
     return capture_path
+
+
+def _employee_report_context(logs: list[AttendanceLog], db: Session) -> tuple[dict[int, Employee], dict[str, Employee], dict[int, str]]:
+    employee_ids = {log.employee_id for log in logs if log.employee_id}
+    emp_codes = {log.emp_code for log in logs if log.emp_code}
+    employees = []
+    if employee_ids or emp_codes:
+        q = db.query(Employee)
+        if employee_ids and emp_codes:
+            from sqlalchemy import or_
+            q = q.filter(or_(Employee.id.in_(list(employee_ids)), Employee.emp_code.in_(list(emp_codes))))
+        elif employee_ids:
+            q = q.filter(Employee.id.in_(list(employee_ids)))
+        else:
+            q = q.filter(Employee.emp_code.in_(list(emp_codes)))
+        employees = q.all()
+    by_id = {e.id: e for e in employees}
+    by_code = {e.emp_code: e for e in employees}
+    branch_ids = {e.branch_id for e in employees if e.branch_id}
+    branches = {
+        b.id: b.name
+        for b in db.query(Branch).filter(Branch.id.in_(list(branch_ids))).all()
+    } if branch_ids else {}
+    return by_id, by_code, branches
+
+
+def _employee_for_log(log: AttendanceLog, by_id: dict[int, Employee], by_code: dict[str, Employee]) -> Employee | None:
+    return by_id.get(log.employee_id) or by_code.get(log.emp_code)
+
+
+def _role_label_for_log(log: AttendanceLog, emp: Employee | None) -> str:
+    role = normalize_job_role((emp.job_role if emp else "") or (emp.position if emp else ""))
+    return JOB_ROLE_LABELS.get(role, role or log.department or "Chưa xác định")
+
+
+def _branch_label_for_log(emp: Employee | None, branches: dict[int, str]) -> str:
+    if emp and emp.branch_id:
+        return branches.get(emp.branch_id, f"Chi nhánh #{emp.branch_id}")
+    return "Chưa xác định"
 
 
 def _capture_file_for_log(log: AttendanceLog) -> Path:
@@ -101,6 +186,7 @@ def _evidence_image_file_for_log(log_id: int, db: Session) -> Path:
 
 @router.get("/attendance")
 def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
+                   db: Session = Depends(get_db),
                    current_user=Depends(_optional_user)):
     if date:
         logs = []
@@ -114,6 +200,7 @@ def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
             d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
             logs.extend(get_logs_by_date(d, emp_code))
     logs.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
+    logs = _filter_log_dicts_for_scope(db, current_user, logs)
     return {"logs": logs, "total": len(logs)}
 
 
@@ -130,28 +217,76 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).all()
+    logs = _filter_logs_for_scope(db, current_user, logs)
+    emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
+    assignments = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.work_date >= start.date(),
+              ShiftAssignment.work_date <= end.date(),
+              ShiftAssignment.status != "cancelled",
+          )
+          .all()
+    )
+    allowed = scoped_branch_filter(db, current_user) if current_user.role != "admin" else None
+    if allowed is not None:
+        assignments = [a for a in assignments if a.branch_id in allowed]
+    assignment_ids = [a.id for a in assignments]
+    sessions = []
+    if assignment_ids:
+        sessions = (
+            db.query(AttendanceSession)
+              .filter(AttendanceSession.shift_assignment_id.in_(assignment_ids))
+              .all()
+        )
+    session_by_assignment = {s.shift_assignment_id: s for s in sessions}
     by_date: dict[str, dict] = {}
-    for log in logs:
-        day = log.timestamp.strftime("%Y-%m-%d")
+    for assignment in assignments:
+        day = assignment.work_date.isoformat()
         if day not in by_date:
-            by_date[day] = {"check_in": set(), "check_out": set()}
-        by_date[day][log.check_type].add(log.emp_code)
+            by_date[day] = {
+                "assigned": 0,
+                "scheduled_emp": set(),
+                "checked_in": 0,
+                "checked_out": 0,
+            }
+        row = by_date[day]
+        row["assigned"] += 1
+        row["scheduled_emp"].add(assignment.emp_code)
+        session = session_by_assignment.get(assignment.id)
+        if session and session.check_in_at:
+            row["checked_in"] += 1
+        if session and session.check_out_at:
+            row["checked_out"] += 1
 
-    dept_stats: dict[str, int] = {}
+    role_stats: dict[str, int] = {}
+    branch_stats: dict[str, int] = {}
     for log in logs:
-        dept = log.department or "Chưa xác định"
-        dept_stats[dept] = dept_stats.get(dept, 0) + 1
+        emp = _employee_for_log(log, emp_by_id, emp_by_code)
+        role = _role_label_for_log(log, emp)
+        branch = _branch_label_for_log(emp, branches)
+        role_stats[role] = role_stats.get(role, 0) + 1
+        branch_stats[branch] = branch_stats.get(branch, 0) + 1
 
     return {
         "from_date":  from_date,
         "to_date":    to_date,
         "total_logs": len(logs),
         "by_date": [
-            {"date": d, "checked_in": len(v["check_in"]), "checked_out": len(v["check_out"])}
+            {
+                "date": d,
+                "assigned": v["assigned"],
+                "scheduled_employees": len(v["scheduled_emp"]),
+                "checked_in": v["checked_in"],
+                "checked_out": v["checked_out"],
+                "absent": max(0, v["assigned"] - v["checked_in"]),
+            }
             for d, v in sorted(by_date.items())
         ],
-        "by_dept": [{"dept": k, "count": v} for k, v in dept_stats.items()],
+        "by_role": [{"role": k, "count": v} for k, v in role_stats.items()],
+        "by_branch": [{"branch": k, "count": v} for k, v in branch_stats.items()],
+        "by_dept": [{"dept": k, "count": v} for k, v in role_stats.items()],
     }
 
 
@@ -170,12 +305,14 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).order_by(AttendanceLog.timestamp).all()
+    logs = _filter_logs_for_scope(db, current_user, logs)
+    emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Báo cáo chấm công"
 
-    ws.merge_cells("A1:G1")
+    ws.merge_cells("A1:H1")
     ws["A1"]           = f"BÁO CÁO CHẤM CÔNG  —  {from_date} đến {to_date}"
     ws["A1"].font      = Font(bold=True, size=14)
     ws["A1"].alignment = Alignment(horizontal="center")
@@ -183,7 +320,7 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
     thin   = Side(border_style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     hdr_fill = PatternFill("solid", fgColor="1A365D")
-    headers  = ["STT", "Mã NV", "Họ tên", "Phòng ban", "Loại", "Thời gian", "Trạng thái"]
+    headers  = ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại", "Thời gian", "Trạng thái"]
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=2, column=col, value=h)
@@ -193,10 +330,13 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         cell.border    = border
 
     for i, log in enumerate(logs, 1):
+        emp = _employee_for_log(log, emp_by_id, emp_by_code)
+        branch_label = _branch_label_for_log(emp, branches)
+        role_label = _role_label_for_log(log, emp)
         fill_color = "F0FFF4" if log.check_type == "check_in" else "EBF4FF"
         row_fill   = PatternFill("solid", fgColor=fill_color)
         for col, val in enumerate([
-            i, log.emp_code, log.emp_name, log.department,
+            i, log.emp_code, log.emp_name, branch_label, role_label,
             "Vào" if log.check_type == "check_in" else "Ra",
             log.timestamp.strftime("%H:%M:%S  %d/%m/%Y"),
             log.note or "",
@@ -206,7 +346,7 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
             cell.border    = border
             cell.fill      = row_fill
 
-    for col, w in enumerate([6, 10, 22, 18, 8, 24, 20], 1):
+    for col, w in enumerate([6, 10, 22, 18, 18, 8, 24, 20], 1):
         ws.column_dimensions[get_column_letter(col)].width = w
 
     settings.EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -269,6 +409,47 @@ class AuditReviewRequest(BaseModel):
     note: Optional[str] = ""
 
 
+class AttendanceSessionReviewRequest(BaseModel):
+    review_status: str
+    note: Optional[str] = ""
+
+
+def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
+    emp = db.query(Employee).filter_by(id=session.employee_id).first()
+    shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
+    branch = db.query(Branch).filter_by(id=session.branch_id).first() if session.branch_id else None
+    return {
+        "id": session.id,
+        "employee_id": session.employee_id,
+        "emp_code": emp.emp_code if emp else "",
+        "emp_name": emp.name if emp else "",
+        "department": emp.department if emp else "",
+        "role_label": _role_label_for_log(
+            AttendanceLog(emp_code=emp.emp_code if emp else "", department=emp.department if emp else ""),
+            emp,
+        ) if emp else "",
+        "branch_name": branch.name if branch else "",
+        "shift_id": session.shift_id,
+        "shift_name": shift.name if shift else "",
+        "work_date": session.work_date.isoformat() if session.work_date else "",
+        "check_in_at": session.check_in_at.isoformat() if session.check_in_at else None,
+        "check_out_at": session.check_out_at.isoformat() if session.check_out_at else None,
+        "status": session.status,
+        "check_in_status": session.check_in_status or "",
+        "check_out_status": session.check_out_status or "",
+        "late_minutes": session.late_minutes or 0,
+        "early_leave_minutes": session.early_leave_minutes or 0,
+        "overtime_minutes": session.overtime_minutes or 0,
+        "worked_minutes": session.worked_minutes or 0,
+        "review_type": session.review_type or "",
+        "review_status": session.review_status or "none",
+        "review_note": session.review_note or "",
+        "reviewed_by": session.reviewed_by or "",
+        "reviewed_at": session.reviewed_at.isoformat() if session.reviewed_at else None,
+        "note": session.note or "",
+    }
+
+
 # ── GET /api/attendance/sessions/{session_id}/events ─────────────
 
 @router.get("/attendance/sessions/{session_id}/events")
@@ -302,6 +483,83 @@ def get_attendance_session_events(
     }
 
 
+# ── GET /api/attendance/review-items ─────────────────────────────
+
+@router.get("/attendance/review-items")
+def get_attendance_review_items(
+    type: str = "",
+    status: str = "pending_review",
+    from_date: str = "",
+    to_date: str = "",
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    q = db.query(AttendanceSession)
+    allowed = scoped_branch_filter(db, current_user) if current_user.role != "admin" else None
+    if allowed is not None:
+        q = q.filter(AttendanceSession.branch_id.in_(allowed))
+    if status:
+        q = q.filter(AttendanceSession.review_status == status)
+    if type:
+        q = q.filter(AttendanceSession.review_type == type)
+    if from_date:
+        q = q.filter(AttendanceSession.work_date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+    if to_date:
+        q = q.filter(AttendanceSession.work_date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+    rows = q.order_by(AttendanceSession.work_date.desc(), AttendanceSession.id.desc()).limit(500).all()
+    return {"items": [_session_review_to_dict(row, db) for row in rows], "total": len(rows)}
+
+
+@router.get("/attendance/review-count")
+def get_attendance_review_count(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    rows = (
+        db.query(AttendanceSession.review_type, AttendanceSession.id)
+          .filter(AttendanceSession.review_status == "pending_review")
+          .all()
+    )
+    if current_user.role != "admin":
+        allowed = scoped_branch_filter(db, current_user)
+        rows = (
+            db.query(AttendanceSession.review_type, AttendanceSession.id)
+              .filter(AttendanceSession.review_status == "pending_review", AttendanceSession.branch_id.in_(allowed))
+              .all()
+        )
+    counts = {"total": len(rows), "absent": 0, "missing_checkout": 0, "overtime": 0}
+    for review_type, _id in rows:
+        if review_type in counts:
+            counts[review_type] += 1
+    return counts
+
+
+@router.put("/attendance/sessions/{session_id}/review")
+def review_attendance_session(
+    session_id: int,
+    body: AttendanceSessionReviewRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    if body.review_status not in ("pending_review", "approved", "rejected"):
+        raise HTTPException(status_code=422, detail="review_status không hợp lệ")
+    session = db.query(AttendanceSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
+    _ensure_session_scope(db, current_user, session)
+    session.review_status = body.review_status
+    session.review_note = body.note or ""
+    session.reviewed_by = current_user.full_name or current_user.email
+    session.reviewed_at = datetime.now() if body.review_status != "pending_review" else None
+    session.updated_by_id = current_user.id
+    db.commit()
+    db.refresh(session)
+    return {"success": True, "session": _session_review_to_dict(session, db)}
+
+
 # ── GET /api/attendance/{log_id}/capture ─────────────────────────
 
 @router.get("/attendance/{log_id}/capture")
@@ -315,6 +573,7 @@ def get_attendance_capture(
     log = db.query(AttendanceLog).filter_by(id=log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log)
     try:
         capture_file = _evidence_image_file_for_log(log_id, db)
     except HTTPException:
@@ -335,6 +594,10 @@ def create_attendance_audit_run(
     current_user=Depends(get_current_user),
 ):
     _require_manager_or_admin(current_user)
+    if current_user.role != "admin" and body.emp_code:
+        emp = db.query(Employee).filter_by(emp_code=body.emp_code).first()
+        if emp:
+            ensure_branch_access(db, current_user, emp.branch_id)
     try:
         if body.date:
             from_date = to_date = datetime.strptime(body.date, "%Y-%m-%d").date()
@@ -383,6 +646,10 @@ def get_attendance_audit_findings(
     current_user=Depends(get_current_user),
 ):
     _require_manager_or_admin(current_user)
+    if current_user.role != "admin" and emp_code:
+        emp = db.query(Employee).filter_by(emp_code=emp_code).first()
+        if emp:
+            ensure_branch_access(db, current_user, emp.branch_id)
     providers = list_ai_provider_settings(db)
     vision_ready = any(p.get("configured") and p.get("is_enabled") for p in providers)
     return {
@@ -429,6 +696,7 @@ def review_attendance_log_manually(
     log = db.query(AttendanceLog).filter_by(id=log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log)
     evidence = (
         db.query(AttendanceEvidence)
           .filter_by(log_id=log.id)
@@ -467,9 +735,14 @@ def review_attendance_log_manually(
 @router.get("/attendance/{log_id}")
 def get_attendance_log(
     log_id: int,
+    db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """Lấy thông tin 1 bản ghi điểm danh theo ID."""
+    log_row = db.query(AttendanceLog).filter_by(id=log_id).first()
+    if not log_row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log_row)
     log = get_log_by_id(log_id)
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
@@ -482,6 +755,7 @@ def get_attendance_log(
 def edit_attendance_log(
     log_id: int,
     body: AttendanceUpdateRequest,
+    db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """
@@ -495,6 +769,10 @@ def edit_attendance_log(
             status_code=403,
             detail="Chỉ quản lý (manager/admin) mới được chỉnh sửa điểm danh",
         )
+    log_row = db.query(AttendanceLog).filter_by(id=log_id).first()
+    if not log_row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log_row)
 
     if body.check_type and body.check_type not in ("check_in", "check_out"):
         raise HTTPException(status_code=422, detail="check_type phải là 'check_in' hoặc 'check_out'")
@@ -549,6 +827,7 @@ def remove_attendance_log(
 @router.post("/attendance/manual")
 def add_manual_attendance(
     body: AttendanceCreateRequest,
+    db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """
@@ -563,6 +842,9 @@ def add_manual_attendance(
 
     if body.check_type not in ("check_in", "check_out"):
         raise HTTPException(status_code=422, detail="check_type phải là 'check_in' hoặc 'check_out'")
+    emp = db.query(Employee).filter_by(emp_code=body.emp_code).first()
+    if emp:
+        ensure_branch_access(db, current_user, emp.branch_id)
 
     try:
         new_log = create_manual_attendance_log(

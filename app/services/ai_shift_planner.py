@@ -8,7 +8,6 @@ explicitly applies the draft.
 import json
 import urllib.error
 import urllib.request
-import unicodedata
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
@@ -16,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.employee import Employee
+from app.schemas.employee import normalize_job_role, normalize_job_roles, normalize_text
 from app.models.shift import Shift, ShiftAssignment, ShiftPlanDraft, ShiftPlanDraftAssignment
 from app.services.integration_settings import get_ai_provider_runtime_configs
 from app.services.shift_service import assign_shift
@@ -40,6 +40,7 @@ def _json_loads(value: str, fallback: Any) -> Any:
 def _shift_dict(s: Shift) -> dict:
     return {
         "id": s.id,
+        "branch_id": s.branch_id,
         "name": s.name,
         "code": s.code,
         "work_start": s.work_start,
@@ -51,11 +52,22 @@ def _shift_dict(s: Shift) -> dict:
 
 
 def _employee_dict(e: Employee) -> dict:
+    job_role = e.job_role or normalize_job_role(e.position or "")
+    try:
+        job_roles = normalize_job_roles(json.loads(e.job_roles or "[]"))
+    except Exception:
+        job_roles = []
+    if job_role and job_role not in job_roles:
+        job_roles.insert(0, job_role)
     return {
         "emp_code": e.emp_code,
         "name": e.name,
+        "branch_id": e.branch_id,
         "department": e.department or "",
         "position": e.position or "",
+        "job_role": job_role,
+        "job_roles": job_roles,
+        "employment_type": e.employment_type or "full_time",
     }
 
 
@@ -295,10 +307,12 @@ def _heuristic_plan(context: dict) -> dict:
             shift_id = int(shift["id"])
             need = max(per_shift.get(shift_id, default_min + weekend_boost) - existing_by_date_shift.get((work_date, shift_id), 0), 0)
             required_position = _normalize_role(shift.get("required_position", ""))
+            shift_branch_id = shift.get("branch_id")
             for _ in range(need):
                 pool = [
                     e for e in employees
-                    if not required_position or required_position in _normalize_role(e.get("position", ""))
+                    if (not shift_branch_id or not e.get("branch_id") or e.get("branch_id") == shift_branch_id)
+                    and (not required_position or _role_matches(required_position, e))
                 ]
                 if required_position and not pool:
                     warnings.append(f"Không có nhân viên vị trí {shift.get('required_position')} cho {shift['name']}")
@@ -364,19 +378,25 @@ def _planner_schema() -> dict:
 
 
 def _normalize_role(value: str) -> str:
-    raw = (value or "").replace("đ", "d").replace("Đ", "D")
-    return "".join(
-        ch for ch in unicodedata.normalize("NFKD", raw.lower())
-        if not unicodedata.combining(ch)
-    ).strip()
+    return normalize_text(normalize_job_role(value or ""))
+
+
+def _role_matches(required_role: str, employee: dict) -> bool:
+    employee_roles = {
+        _normalize_role(employee.get("job_role", "")),
+        _normalize_role(employee.get("position", "")),
+        *[_normalize_role(role) for role in employee.get("job_roles", [])],
+    }
+    employee_roles.discard("")
+    return required_role in employee_roles
 
 
 def _planner_instruction() -> str:
     return (
-        "Bạn là trợ lý lập lịch ca nhà hàng. Chỉ tạo bản nháp phân ca, "
+        "Bạn là trợ lý lập lịch ca cho chuỗi cửa hàng sữa chua trân châu Hạ Long. Chỉ tạo bản nháp phân ca, "
         "không xoá lịch hiện có. Ưu tiên đủ người mỗi ca, chia đều tải, "
-        "không xếp quá 2 ca/người/ngày, chỉ gán nhân viên có position phù hợp "
-        "khi ca có required_position, và tôn trọng dữ liệu đầu vào. "
+        "không xếp quá 2 ca/người/ngày, chỉ gán nhân viên có một trong các job_roles phù hợp "
+        "khi ca có required_position; position chỉ là dữ liệu cũ để tham khảo. "
         "Chỉ trả JSON đúng schema."
     )
 

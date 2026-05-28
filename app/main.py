@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -28,18 +28,29 @@ from app.api.v1.shifts import router as shifts_router
 from app.core.config import settings
 from app.core.database import init_db
 from app.services.face_engine import face_engine
-from app.services.camera import get_camera, release_camera, start_camera, stop_camera, is_camera_enabled
+from app.services.camera import (
+    camera_status,
+    get_camera,
+    heartbeat_camera,
+    release_camera,
+    start_camera,
+    stop_camera,
+)
 from app.services.attendance import get_summary_today
 from app.services.notify import notify_daily_report_async
 from app.api.v1 import employees, reports
+from app.api.v1.branches import router as branches_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
 from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
 from app.api.v1.integrations import router as integrations_router
-from app.services.attendance import get_summary_today, auto_checkout_missing
+from app.api.v1.employee_roles import router as employee_roles_router
+from app.api.v1.mobile_attendance import router as mobile_attendance_router
+from app.services.attendance import get_summary_today, auto_checkout_missing, mark_absent_sessions
 from app.services.attendance_audit import cleanup_old_evidence
+from app.services.mobile_attendance_policy import classify_device
 scheduler = AsyncIOScheduler()
 
 
@@ -58,7 +69,8 @@ async def lifespan(app: FastAPI):
 
     async def _auto_checkout():
         count = auto_checkout_missing()
-        print(f"  ✓ Auto checkout: {count} nhân viên chưa check out")
+        absent_count = mark_absent_sessions()
+        print(f"  ✓ Auto checkout: {count} nhân viên chưa check out; vắng chờ duyệt: {absent_count}")
 
     async def _cleanup_evidence():
         result = cleanup_old_evidence()
@@ -99,15 +111,22 @@ app.mount("/data/faces", StaticFiles(directory="data/faces"), name="faces")
 
 templates = Jinja2Templates(directory="templates")
 
+
+def _is_mobile_user_agent(user_agent: str) -> bool:
+    return classify_device(user_agent).is_mobile
+
 # Routers
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(employees.router)
+app.include_router(employee_roles_router)
+app.include_router(branches_router)
 app.include_router(reports.router)
 app.include_router(leave_router)
 app.include_router(calendar_router)
 app.include_router(shifts_router)
 app.include_router(integrations_router)
+app.include_router(mobile_attendance_router)
 
 # ── Auth pages ───────────────────────────────────────────────────
 @app.get("/auth/login-page")
@@ -117,11 +136,17 @@ async def login_page(request: Request):
 # ── HTML pages ───────────────────────────────────────────────────
 @app.get("/")
 async def kiosk_page(request: Request):
+    if _is_mobile_user_agent(request.headers.get("user-agent", "")):
+        return RedirectResponse("/mobile/attendance", status_code=307)
     return templates.TemplateResponse("kiosk.html", {"request": request})
 
 @app.get("/me")
 async def me_page(request: Request):
     return templates.TemplateResponse("me.html", {"request": request})
+
+@app.get("/mobile/attendance")
+async def mobile_attendance_page(request: Request):
+    return templates.TemplateResponse("mobile_attendance.html", {"request": request})
 
 @app.get("/register")
 async def register_page_face(request: Request):
@@ -129,8 +154,45 @@ async def register_page_face(request: Request):
 
 @app.get("/dashboard")
 async def dashboard_page(request: Request):
+    legacy_tab = request.query_params.get("tab")
+    legacy_routes = {
+        "attendance": "/attendance",
+        "employees": "/employees",
+        "leave": "/leave",
+        "calendar": "/work-calendar",
+    }
+    if legacy_tab in legacy_routes:
+        return RedirectResponse(legacy_routes[legacy_tab], status_code=307)
     summary = get_summary_today()
-    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": summary})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": summary, "active_page": "overview"})
+
+@app.get("/attendance")
+async def attendance_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "attendance"})
+
+@app.get("/employees")
+async def employees_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "employees"})
+
+@app.get("/branches")
+async def branches_page(request: Request):
+    return templates.TemplateResponse("branches.html", {"request": request})
+
+@app.get("/leave")
+async def leave_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "leave"})
+
+@app.get("/roster")
+async def roster_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "roster"})
+
+@app.get("/work-calendar")
+async def work_calendar_page(request: Request):
+    return templates.TemplateResponse("work_calendar.html", {"request": request})
+
+@app.get("/calendar")
+async def calendar_page():
+    return RedirectResponse("/work-calendar", status_code=307)
 
 @app.get("/report")
 async def report_page(request: Request):
@@ -181,18 +243,38 @@ async def ws_attendance_route(websocket: WebSocket):
 
 
 # ── Camera control ───────────────────────────────────────────────
+async def _camera_client_id(request: Request) -> str:
+    if request.query_params.get("client_id"):
+        return request.query_params.get("client_id", "")
+    try:
+        payload = await request.json()
+        if isinstance(payload, dict):
+            return str(payload.get("client_id") or "")
+        if isinstance(payload, str):
+            return payload
+    except Exception:
+        try:
+            return (await request.body()).decode("utf-8").strip()
+        except Exception:
+            return ""
+    return ""
+
+
 @app.post("/api/camera/start")
-def api_camera_start():
-    return start_camera()
+async def api_camera_start(request: Request):
+    return start_camera(owner_id=await _camera_client_id(request))
 
 @app.post("/api/camera/stop")
-def api_camera_stop():
-    return stop_camera()
+async def api_camera_stop(request: Request):
+    return stop_camera(owner_id=await _camera_client_id(request))
+
+@app.post("/api/camera/heartbeat")
+async def api_camera_heartbeat(request: Request):
+    return heartbeat_camera(owner_id=await _camera_client_id(request))
 
 @app.get("/api/camera/status")
-def api_camera_status():
-    cam = get_camera()
-    return {"enabled": is_camera_enabled(), "opened": cam.cap.isOpened() if cam and cam.cap else False}
+def api_camera_status(client_id: str = ""):
+    return camera_status(client_id=client_id)
 
 
 # ── Misc ─────────────────────────────────────────────────────────

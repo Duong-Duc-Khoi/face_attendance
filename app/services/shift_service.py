@@ -3,6 +3,7 @@ app/services/shift_service.py
 Business logic cho ca làm việc.
 """
 
+import json
 import re
 import unicodedata
 from datetime import date, datetime, time, timedelta
@@ -12,10 +13,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import SessionLocal
 from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
+from app.schemas.employee import normalize_job_role, normalize_job_roles, normalize_text
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -56,6 +57,32 @@ def _assignment_to_dict(a: ShiftAssignment, shift: Optional[Shift] = None) -> di
     if shift:
         d["shift"] = _shift_to_dict(shift)
     return d
+
+
+def _employee_role_matches_shift(emp: Employee | None, shift: Shift) -> bool:
+    required = normalize_text(normalize_job_role(shift.required_position or ""))
+    if not required or not emp:
+        return True
+    try:
+        multi_roles = json.loads(emp.job_roles or "[]")
+    except Exception:
+        multi_roles = []
+    employee_roles = {
+        normalize_text(normalize_job_role(emp.job_role or "")),
+        normalize_text(normalize_job_role(emp.position or "")),
+        *[normalize_text(role) for role in normalize_job_roles(multi_roles)],
+    }
+    employee_roles.discard("")
+    return required in employee_roles
+
+
+def _ensure_assignable_workday(work_date: date, db: Session) -> None:
+    from app.services.work_calendar import get_calendar_day
+
+    cal = get_calendar_day(work_date, db)
+    if cal.get("day_type") == "off":
+        label = cal.get("label") or "ngày nghỉ/đóng cửa"
+        raise ValueError(f"Không thể xếp ca vào {label}")
 
 
 # ── CRUD Ca làm việc ─────────────────────────────────────────────
@@ -128,7 +155,7 @@ def update_shift(shift_id: int, data: dict, db: Session) -> Optional[dict]:
     ):
         if field in data:
             setattr(s, field, data[field])
-    if "work_start" in data or "work_end" in data:
+    if ("work_start" in data or "work_end" in data) and "is_overnight" not in data:
         s.is_overnight = _is_overnight(s.work_start, s.work_end)
     db.commit()
     db.refresh(s)
@@ -154,10 +181,16 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
     Nếu đã có cùng ca trong ngày → cập nhật (upsert).
     Nhà hàng có thể phân nhiều ca khác nhau cho cùng một nhân viên trong ngày.
     """
+    _ensure_assignable_workday(work_date, db)
     emp = db.query(Employee).filter_by(emp_code=emp_code).first()
     shift = db.query(Shift).filter_by(id=shift_id).first()
     if not shift:
         raise ValueError(f"Không tìm thấy ca #{shift_id}")
+    if not shift.is_active:
+        raise ValueError(f"Ca #{shift_id} đã tắt, không thể phân công")
+    if emp and not _employee_role_matches_shift(emp, shift):
+        role = emp.job_role or emp.position or "chưa xác định"
+        raise ValueError(f"Nhân viên {emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
 
     existing = (
         db.query(ShiftAssignment)
@@ -196,7 +229,7 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
 
 def bulk_assign_shift(emp_codes: list[str], shift_id: int,
                       dates: list[date], assigned_by: str = "",
-                      db: Session = None) -> int:
+                      note: str = "", db: Session = None) -> int:
     """
     Phân công ca hàng loạt: nhiều nhân viên × nhiều ngày.
     Trả về số assignment đã tạo/cập nhật.
@@ -204,7 +237,7 @@ def bulk_assign_shift(emp_codes: list[str], shift_id: int,
     count = 0
     for emp_code in emp_codes:
         for d in dates:
-            assign_shift(emp_code, shift_id, d, assigned_by=assigned_by, db=db)
+            assign_shift(emp_code, shift_id, d, assigned_by=assigned_by, note=note, db=db)
             count += 1
     return count
 
@@ -246,11 +279,87 @@ def get_assignments_by_date(work_date: date, db: Session) -> list[dict]:
     return result
 
 
+def get_assignments_by_range(from_date: date, to_date: date, db: Session) -> list[dict]:
+    """Lấy tất cả phân công ca trong một khoảng ngày."""
+    rows = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.work_date >= from_date,
+              ShiftAssignment.work_date <= to_date,
+              ShiftAssignment.status != "cancelled",
+          )
+          .order_by(ShiftAssignment.work_date, ShiftAssignment.shift_id, ShiftAssignment.emp_code)
+          .all()
+    )
+    result = []
+    for a in rows:
+        shift = db.query(Shift).filter_by(id=a.shift_id).first()
+        result.append(_assignment_to_dict(a, shift))
+    return result
+
+
+def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db: Session = None) -> Optional[dict]:
+    a = db.query(ShiftAssignment).filter_by(id=assignment_id).first()
+    if not a:
+        return None
+
+    new_shift_id = data.get("shift_id", a.shift_id)
+    new_work_date = data.get("work_date", a.work_date)
+    if isinstance(new_work_date, str):
+        new_work_date = date.fromisoformat(new_work_date)
+    _ensure_assignable_workday(new_work_date, db)
+
+    shift = db.query(Shift).filter_by(id=new_shift_id).first()
+    if not shift:
+        raise ValueError(f"Không tìm thấy ca #{new_shift_id}")
+    if not shift.is_active:
+        raise ValueError(f"Ca #{new_shift_id} đã tắt, không thể phân công")
+
+    emp = db.query(Employee).filter_by(emp_code=a.emp_code).first()
+    if emp and not _employee_role_matches_shift(emp, shift):
+        role = emp.job_role or emp.position or "chưa xác định"
+        raise ValueError(f"Nhân viên {a.emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
+
+    duplicate = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.id != a.id,
+              ShiftAssignment.emp_code == a.emp_code,
+              ShiftAssignment.work_date == new_work_date,
+              ShiftAssignment.shift_id == new_shift_id,
+              ShiftAssignment.status != "cancelled",
+          )
+          .first()
+    )
+    if duplicate:
+        raise ValueError("Nhân viên đã có ca này trong ngày đã chọn")
+
+    a.shift_id = new_shift_id
+    a.work_date = new_work_date
+    a.employee_id = emp.id if emp else a.employee_id
+    a.branch_id = shift.branch_id or (emp.branch_id if emp else a.branch_id)
+    a.assigned_by = assigned_by or a.assigned_by
+    if "note" in data:
+        a.note = data.get("note") or ""
+    if "status" in data:
+        a.status = data.get("status") or "scheduled"
+
+    db.commit()
+    db.refresh(a)
+    _reconcile_assignment_attendance(a, shift, emp, db)
+    db.commit()
+    db.refresh(a)
+    return _assignment_to_dict(a, shift)
+
+
 def delete_assignment(assignment_id: int, db: Session) -> bool:
     a = db.query(ShiftAssignment).filter_by(id=assignment_id).first()
     if not a:
         return False
-    db.delete(a)
+    # Giữ bản ghi để attendance_sessions còn tham chiếu được lịch sử ca.
+    # Các query lịch đã lọc status != "cancelled", nên thao tác này vẫn ẩn
+    # phân công khỏi UI mà không phá khóa ngoại.
+    a.status = "cancelled"
     db.commit()
     return True
 
@@ -261,42 +370,53 @@ def get_shift_for_employee(emp_code: str, work_date: date, db: Session) -> dict:
     """
     Trả về thông tin ca làm việc của 1 nhân viên trong 1 ngày.
     
-    Thứ tự ưu tiên:
-    1. ShiftAssignment cụ thể cho ngày đó
-    2. Fallback về config WORK_START / WORK_END trong .env
-    
-    Luôn trả về dict với work_start, work_end, late_threshold_minutes.
+    Chỉ trả về ca khi có ShiftAssignment cụ thể cho ngày đó.
     """
-    assignment = (
+    assignments = (
         db.query(ShiftAssignment)
           .filter_by(emp_code=emp_code, work_date=work_date)
           .filter(ShiftAssignment.status != "cancelled")
           .order_by(ShiftAssignment.id)
-          .first()
+          .all()
     )
 
-    if assignment:
+    shift_rows = []
+    for assignment in assignments:
         shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
         if shift:
-            return {
-                "source":      "assignment",
-                "shift_id":    shift.id,
-                "shift_name":  shift.name,
-                "shift_code":  shift.code,
-                "work_start":  shift.work_start,
-                "work_end":    shift.work_end,
+            shift_rows.append({
+                "assignment_id": assignment.id,
+                "shift_id":      shift.id,
+                "shift_name":    shift.name,
+                "shift_code":    shift.code,
+                "work_start":    shift.work_start,
+                "work_end":      shift.work_end,
                 "late_threshold_minutes": shift.late_threshold_minutes,
-            }
+                "note":          assignment.note or "",
+            })
 
-    # Fallback
+    if shift_rows:
+        first = shift_rows[0]
+        return {
+            "source":      "assignment",
+            "shift_id":    first["shift_id"],
+            "shift_name":  first["shift_name"],
+            "shift_code":  first["shift_code"],
+            "work_start":  first["work_start"],
+            "work_end":    first["work_end"],
+            "late_threshold_minutes": first["late_threshold_minutes"],
+            "shifts":      shift_rows,
+        }
+
     return {
-        "source":      "default",
+        "source":      "none",
         "shift_id":    None,
-        "shift_name":  "Mặc định",
-        "shift_code":  "default",
-        "work_start":  settings.WORK_START,
-        "work_end":    settings.WORK_END,
-        "late_threshold_minutes": settings.LATE_THRESHOLD_MINUTES,
+        "shift_name":  "",
+        "shift_code":  "",
+        "work_start":  "",
+        "work_end":    "",
+        "late_threshold_minutes": 0,
+        "shifts":      [],
     }
 
 
@@ -433,7 +553,7 @@ def _reconcile_assignment_attendance(
     if check_in_log:
         session.check_in_at = check_in_log.timestamp
         raw_late_minutes = max(0, int((check_in_log.timestamp - shift_start).total_seconds() / 60))
-        grace_minutes = shift.late_threshold_minutes or 0
+        grace_minutes = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES
         session.late_minutes = max(0, raw_late_minutes - grace_minutes)
         session.check_in_status = "late" if raw_late_minutes > grace_minutes else "on_time"
 
@@ -441,11 +561,14 @@ def _reconcile_assignment_attendance(
         session.check_out_at = check_out_log.timestamp
         session.status = "completed"
         session.early_leave_minutes = max(0, int((shift_end - check_out_log.timestamp).total_seconds() / 60))
-        session.overtime_minutes = max(0, int((check_out_log.timestamp - shift_end).total_seconds() / 60))
+        raw_overtime = max(0, int((check_out_log.timestamp - shift_end).total_seconds() / 60))
+        session.overtime_minutes = raw_overtime if raw_overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES else 0
         if session.early_leave_minutes > 0:
             session.check_out_status = "early_leave"
         elif session.overtime_minutes > 0:
             session.check_out_status = "overtime"
+            session.review_type = "overtime"
+            session.review_status = "pending_review"
         else:
             session.check_out_status = "normal"
     elif check_in_log and session.check_out_at is None:
@@ -510,18 +633,14 @@ def calc_status_for_shift(check_time: datetime, emp_code: str, db: Session) -> s
     assignment, shift = find_shift_assignment_for_time(emp_code, check_time, db)
     if shift and assignment:
         work_dt, _end, _from, _until = shift_window(assignment.work_date, shift)
-        threshold = shift.late_threshold_minutes
+        threshold = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES
         shift_name = shift.name
     else:
-        shift_info = get_shift_for_employee(emp_code, check_time.date(), db)
-        h, m = map(int, shift_info["work_start"].split(":"))
-        work_dt = check_time.replace(hour=h, minute=m, second=0, microsecond=0)
-        threshold = shift_info["late_threshold_minutes"]
-        shift_name = shift_info["shift_name"]
+        return "Chưa có ca phân công"
     late_minutes = int((check_time - work_dt).total_seconds() / 60)
 
     if late_minutes > threshold:
-        return f"Đi muộn {late_minutes} phút ({shift_name})"
+        return f"Đi muộn {late_minutes - threshold} phút ({shift_name})"
     return f"Đúng giờ ({shift_name})"
 
 
@@ -533,10 +652,10 @@ def seed_default_shifts(db: Session):
         return
 
     defaults = [
-        {"name": "Ca sáng", "code": "morning", "work_start": "06:00", "work_end": "11:00", "late_threshold_minutes": 10, "break_minutes": 0},
-        {"name": "Ca trưa", "code": "lunch",   "work_start": "10:00", "work_end": "15:00", "late_threshold_minutes": 10, "break_minutes": 30},
-        {"name": "Ca tối",  "code": "evening", "work_start": "16:00", "work_end": "22:00", "late_threshold_minutes": 10, "break_minutes": 30},
-        {"name": "Ca đêm",  "code": "night",   "work_start": "22:00", "work_end": "06:00", "late_threshold_minutes": 10, "break_minutes": 30, "is_overnight": True},
+        {"name": "Ca sáng", "code": "morning", "work_start": "06:00", "work_end": "11:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 0},
+        {"name": "Ca trưa", "code": "lunch",   "work_start": "10:00", "work_end": "15:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 30},
+        {"name": "Ca tối",  "code": "evening", "work_start": "16:00", "work_end": "22:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 30},
+        {"name": "Ca đêm",  "code": "night",   "work_start": "22:00", "work_end": "06:00", "late_threshold_minutes": settings.CHECKIN_GRACE_MINUTES, "break_minutes": 30, "is_overnight": True},
     ]
     for d in defaults:
         db.add(Shift(**d))

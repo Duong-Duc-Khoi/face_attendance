@@ -1,0 +1,39 @@
+  <!-- TAB: Nhân viên -->
+  <div class="dashboard-page-section" id="employees-page">
+    <div class="employee-layout">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-header-left"><span class="dot"></span> Danh sách nhân viên nhà hàng</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-outline" onclick="openRoleManager()">Vai trò</button>
+            <a class="btn btn-teal" href="/register">+ Đăng ký khuôn mặt</a>
+          </div>
+        </div>
+        <div class="employee-toolbar">
+          <input class="filter-input employee-search" id="searchEmp" placeholder="Tìm tên, mã NV, email, vai trò..." oninput="filterEmployees()">
+          <select class="filter-input" id="filterRole" onchange="filterEmployees()"><option value="">Tất cả vai trò</option></select>
+          <select class="filter-input" id="filterEmployment" onchange="filterEmployees()">
+            <option value="">Mọi loại hợp đồng</option>
+            <option value="full_time">Full-time</option>
+            <option value="part_time">Part-time</option>
+            <option value="casual">Thời vụ</option>
+          </select>
+          <select class="filter-input" id="filterStatus" onchange="loadEmployees()">
+            <option value="true">Đang làm</option>
+            <option value="">Tất cả</option>
+            <option value="false">Đã nghỉ</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th>Nhân viên</th><th>Mã NV</th><th>Vai trò</th>
+              <th>Liên hệ</th><th>Loại</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th>
+            </tr></thead>
+            <tbody id="empTableBody"><tr><td colspan="7" class="empty">Đang tải...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+

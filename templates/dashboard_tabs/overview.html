@@ -1,0 +1,75 @@
+  <!-- TAB: Overview -->
+  <div class="dashboard-page-section" id="overview-page">
+  <section class="overview-head">
+    <div>
+      <div class="overview-kicker">Restaurant Operations</div>
+      <h1 class="overview-title">Tổng quan hôm nay</h1>
+      <div class="overview-sub" id="overviewToday">Đang tải dữ liệu vận hành...</div>
+    </div>
+    <div class="overview-actions">
+      <a class="overview-action" href="/">Mở kiosk</a>
+      <a class="overview-action primary" href="/shifts">Chia ca</a>
+      <a class="overview-action" href="/leave">Duyệt nghỉ <span class="action-badge" id="overviewLeaveActionBadge">0</span></a>
+      <a class="overview-action" href="/attendance">Xem chấm công</a>
+    </div>
+  </section>
+
+  <section class="ops-alert-grid" aria-label="Cảnh báo vận hành">
+    <article class="ops-alert-card danger" id="opsMissingCheckout">
+      <div class="ops-alert-top"><div class="ops-alert-label">Chưa checkout</div><div class="ops-alert-icon">!</div></div>
+      <div class="ops-alert-value" id="opsMissingCheckoutVal">—</div>
+      <div class="ops-alert-note" id="opsMissingCheckoutNote">Nhân viên đã vào ca nhưng chưa ra.</div>
+    </article>
+    <article class="ops-alert-card warn" id="opsLate">
+      <div class="ops-alert-top"><div class="ops-alert-label">Đi muộn</div><div class="ops-alert-icon">⏱</div></div>
+      <div class="ops-alert-value" id="opsLateVal">—</div>
+      <div class="ops-alert-note" id="opsLateNote">Lượt check-in có trạng thái đi muộn.</div>
+    </article>
+    <article class="ops-alert-card info" id="opsLeave">
+      <div class="ops-alert-top"><div class="ops-alert-label">Đơn chờ duyệt</div><div class="ops-alert-icon">↗</div></div>
+      <div class="ops-alert-value" id="opsLeaveVal">—</div>
+      <div class="ops-alert-note" id="opsLeaveNote">Đơn nghỉ phép/remote cần xử lý.</div>
+    </article>
+    <article class="ops-alert-card" id="opsAbsent">
+      <div class="ops-alert-top"><div class="ops-alert-label">Vắng mặt</div><div class="ops-alert-icon">•</div></div>
+      <div class="ops-alert-value" id="opsAbsentVal">—</div>
+      <div class="ops-alert-note" id="opsAbsentNote">Theo số nhân viên chưa check-in.</div>
+    </article>
+  </section>
+
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-label">Lượt phân ca</div><div class="stat-value" id="statTotal">—</div><div class="stat-sub">cần chấm công hôm nay</div></div>
+    <div class="stat-card"><div class="stat-label">Đã vào ca</div><div class="stat-value teal" id="statIn">—</div><div class="stat-sub">theo phân công ca</div></div>
+    <div class="stat-card"><div class="stat-label">Đã ra ca</div><div class="stat-value blue" id="statOut">—</div><div class="stat-sub">theo phân công ca</div></div>
+    <div class="stat-card"><div class="stat-label">Chưa vào ca</div><div class="stat-value red" id="statAbsent">—</div><div class="stat-sub" id="statDate">hôm nay</div></div>
+  </div>
+
+  <div class="overview-workspace">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Việc cần xử lý</div>
+      </div>
+      <table class="work-table">
+        <tbody id="workItemsBody">
+          <tr><td><b>Đang tải dữ liệu</b><small>Hệ thống đang tổng hợp tình trạng hôm nay</small></td><td class="work-count">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel overview-log-panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Chấm công gần đây</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Nhân viên</th><th>Loại</th><th>Thời gian</th><th>Trạng thái</th></tr></thead>
+          <tbody id="recentLogPreviewBody"><tr><td colspan="4" class="empty">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="preview-foot">
+        <a class="log-btn" href="/attendance">Xem tất cả</a>
+      </div>
+    </div>
+  </div>
+  </div><!-- /overview-page -->
+

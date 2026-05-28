@@ -35,6 +35,7 @@ except ImportError:
     PIL_AVAILABLE = False
 
 _EMP_MAP_TTL = 30.0  # giây — làm mới employee map từ DB
+_CAMERA_LEASE_TIMEOUT = 10.0
 
 
 class CameraStream:
@@ -66,12 +67,22 @@ class CameraStream:
             self.cap = cv2.VideoCapture(self.camera_id)
 
         if self.cap.isOpened():
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
             self.cap.set(cv2.CAP_PROP_FPS,          30)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE,   1)
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS,    1)
-            print(f"  ✓ Camera {self.camera_id} đã kết nối")
+            actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            actual_fps = self.cap.get(cv2.CAP_PROP_FPS) or 0
+            fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC) or 0)
+            fourcc_text = "".join(chr((fourcc >> 8 * i) & 0xFF) for i in range(4))
+            fourcc_text = "".join(ch for ch in fourcc_text if ch.isprintable()).strip()
+            print(
+                f"  ✓ Camera {self.camera_id} đã kết nối — "
+                f"{actual_width}x{actual_height}@{actual_fps:.1f}fps codec={fourcc_text or fourcc}"
+            )
             self._start_capture_thread()
         else:
             print(f"  ⚠ Không thể kết nối camera {self.camera_id}")
@@ -138,7 +149,7 @@ class CameraStream:
 
     # ── MJPEG stream ────────────────────────────────────────────
     def generate_mjpeg(self):
-        INTERVAL      = 1.0 / 25
+        INTERVAL      = 1.0 / 30
         last_fid      = -1
         cached_packet = None
 
@@ -153,7 +164,7 @@ class CameraStream:
                 last_fid = fid
                 frame    = frame if frame is not None else self._make_placeholder()
                 frame    = cv2.flip(frame, 1)
-                _, jpeg  = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                _, jpeg  = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 94])
                 cached_packet = (
                     b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
                     + jpeg.tobytes()
@@ -197,42 +208,70 @@ class CameraStream:
             confidence_text = f"{float(confidence) * 100:.0f}%"
         except (TypeError, ValueError):
             confidence_text = "--"
-        lines = [
-            "FaceAttend - Bang chung cham cong",
-            f"Thoi gian: {captured_at.strftime('%H:%M:%S %d/%m/%Y')}",
-            f"Nhan vien: {name} ({emp_code})",
-            f"Loai: {check_type}   Do chinh xac: {confidence_text}",
-        ]
+        log_ref = metadata.get("log_id") or metadata.get("id") or "-"
+        time_text = captured_at.strftime("%H:%M:%S")
+        date_text = captured_at.strftime("%d/%m/%Y")
+        iso_text = captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        trace_text = f"{settings.APP_NAME} | {iso_text} | {emp_code} | LOG {log_ref}"
 
         if PIL_AVAILABLE:
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(rgb).convert("RGBA")
             overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay)
-            x, y = 24, 22
-            line_height = 25
-            panel_w = min(image.width - 32, 620)
-            panel_h = 28 + line_height * len(lines)
+            margin = max(14, int(min(image.width, image.height) * 0.018))
+
+            # Audit border and corner ticks make cropping or replacement easier to notice.
+            border = (0, 212, 170, 130)
+            draw.rectangle((margin, margin, image.width - margin, image.height - margin), outline=border, width=2)
+            tick = max(28, int(min(image.width, image.height) * 0.055))
+            for x1, y1, x2, y2 in (
+                (margin, margin, margin + tick, margin),
+                (margin, margin, margin, margin + tick),
+                (image.width - margin - tick, margin, image.width - margin, margin),
+                (image.width - margin, margin, image.width - margin, margin + tick),
+                (margin, image.height - margin, margin + tick, image.height - margin),
+                (margin, image.height - margin - tick, margin, image.height - margin),
+                (image.width - margin - tick, image.height - margin, image.width - margin, image.height - margin),
+                (image.width - margin, image.height - margin - tick, image.width - margin, image.height - margin),
+            ):
+                draw.line((x1, y1, x2, y2), fill=(255, 255, 255, 150), width=2)
+
+            panel_w = min(image.width - margin * 2, 680)
+            panel_h = 104
+            panel_x = margin
+            panel_y = image.height - margin - panel_h
+            for i in range(panel_h):
+                alpha = int(210 - (i / panel_h) * 42)
+                draw.line((panel_x, panel_y + i, panel_x + panel_w, panel_y + i), fill=(4, 12, 24, alpha))
             draw.rounded_rectangle(
-                (16, 14, 16 + panel_w, 14 + panel_h),
-                radius=10,
-                fill=(8, 18, 32, 205),
-                outline=(0, 212, 170, 190),
+                (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h),
+                radius=8,
+                outline=(0, 212, 170, 210),
                 width=2,
             )
-            for i, text in enumerate(lines):
-                font = _capture_font if i == 0 else _capture_font_small
-                color = (0, 212, 170, 255) if i == 0 else (245, 248, 252, 255)
-                draw.text((x, y + i * line_height), text, font=font, fill=color)
+            draw.rectangle((panel_x, panel_y, panel_x + 6, panel_y + panel_h), fill=(0, 212, 170, 230))
+            draw.text((panel_x + 20, panel_y + 14), time_text, font=_capture_font, fill=(255, 255, 255, 255))
+            draw.text((panel_x + 130, panel_y + 18), date_text, font=_capture_font_small, fill=(203, 213, 225, 255))
+            draw.text((panel_x + 20, panel_y + 48), f"{name} ({emp_code})", font=_capture_font_small, fill=(248, 250, 252, 255))
+            draw.text((panel_x + 20, panel_y + 73), f"{check_type}  |  Confidence {confidence_text}  |  Log #{log_ref}", font=_capture_font_small, fill=(203, 213, 225, 255))
             image = Image.alpha_composite(image, overlay).convert("RGB")
             return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
         out = frame.copy()
-        cv2.rectangle(out, (16, 14), (636, 138), (8, 18, 32), -1)
-        cv2.rectangle(out, (16, 14), (636, 138), (0, 212, 170), 2)
-        for i, text in enumerate(lines):
-            color = (0, 212, 170) if i == 0 else (245, 248, 252)
-            cv2.putText(out, text, (24, 42 + i * 27), cv2.FONT_HERSHEY_SIMPLEX, 0.58, color, 1, cv2.LINE_AA)
+        cv2.rectangle(out, (16, 16), (out.shape[1] - 16, out.shape[0] - 16), (0, 212, 170), 2)
+        panel_h = 104
+        y0 = out.shape[0] - panel_h - 18
+        panel = out.copy()
+        cv2.rectangle(panel, (18, y0), (690, y0 + panel_h), (8, 18, 32), -1)
+        out = cv2.addWeighted(panel, 0.72, out, 0.28, 0)
+        cv2.rectangle(out, (18, y0), (690, y0 + panel_h), (0, 212, 170), 2)
+        cv2.rectangle(out, (18, y0), (26, y0 + panel_h), (0, 212, 170), -1)
+        cv2.putText(out, time_text, (40, y0 + 34), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(out, date_text, (168, y0 + 34), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (203, 213, 225), 1, cv2.LINE_AA)
+        cv2.putText(out, f"{name} ({emp_code})", (40, y0 + 64), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (248, 250, 252), 1, cv2.LINE_AA)
+        cv2.putText(out, f"{check_type} | Confidence {confidence_text} | Log #{log_ref}", (40, y0 + 91),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (203, 213, 225), 1, cv2.LINE_AA)
         return out
 
     def capture_snapshot(
@@ -276,40 +315,130 @@ class CameraStream:
 # ── Singleton & ON/OFF control ──────────────────────────────────
 _camera_instance: CameraStream | None = None
 _camera_enabled: bool = False
+_camera_owner_id: str = ""
+_camera_last_heartbeat: float = 0.0
+_camera_lock = threading.Lock()
+_watchdog_started = False
 
 
 def is_camera_enabled() -> bool:
+    _expire_camera_lease()
     return _camera_enabled
 
 
-def start_camera(camera_id: int = settings.CAMERA_ID) -> dict:
-    global _camera_instance, _camera_enabled
-    if _camera_enabled and _camera_instance:
-        return {"success": True, "message": "Camera đang chạy"}
-    try:
-        _camera_instance = CameraStream(camera_id=camera_id)
-        _camera_enabled  = True
-        return {"success": True, "message": "Đã bật camera"}
-    except Exception as e:
-        return {"success": False, "message": f"Lỗi khi bật camera: {e}"}
-
-
-def stop_camera() -> dict:
-    global _camera_instance, _camera_enabled
+def _release_camera_unlocked():
+    global _camera_instance, _camera_enabled, _camera_owner_id, _camera_last_heartbeat
     _camera_enabled = False
+    _camera_owner_id = ""
+    _camera_last_heartbeat = 0.0
     if _camera_instance:
         _camera_instance.release()
         _camera_instance = None
-    return {"success": True, "message": "Đã tắt camera"}
+
+
+def _expire_camera_lease():
+    with _camera_lock:
+        if (
+            _camera_enabled
+            and _camera_owner_id
+            and time.monotonic() - _camera_last_heartbeat > _CAMERA_LEASE_TIMEOUT
+        ):
+            print("  ⚠ Camera lease hết hạn — tự tắt camera")
+            _release_camera_unlocked()
+
+
+def _watchdog_loop():
+    while True:
+        time.sleep(2.0)
+        _expire_camera_lease()
+
+
+def _ensure_watchdog():
+    global _watchdog_started
+    with _camera_lock:
+        if _watchdog_started:
+            return
+        _watchdog_started = True
+    threading.Thread(target=_watchdog_loop, daemon=True).start()
+
+
+def _camera_status_unlocked(client_id: str = "") -> dict:
+    opened = _camera_instance.cap.isOpened() if _camera_instance and _camera_instance.cap else False
+    return {
+        "enabled": _camera_enabled,
+        "opened": opened,
+        "owner_id": _camera_owner_id,
+        "owned_by_current": bool(client_id and _camera_owner_id == client_id),
+    }
+
+
+def camera_status(client_id: str = "") -> dict:
+    _expire_camera_lease()
+    with _camera_lock:
+        return _camera_status_unlocked(client_id)
+
+
+def start_camera(camera_id: int = settings.CAMERA_ID, owner_id: str = "") -> dict:
+    global _camera_instance, _camera_enabled, _camera_owner_id, _camera_last_heartbeat
+    _ensure_watchdog()
+    owner_id = str(owner_id or "")
+    with _camera_lock:
+        if _camera_enabled and _camera_instance:
+            if _camera_owner_id and owner_id and _camera_owner_id != owner_id:
+                return {
+                    "success": False,
+                    "message": "Camera đang được dùng bởi tab khác",
+                    **_camera_status_unlocked(owner_id),
+                }
+            if owner_id:
+                _camera_owner_id = owner_id
+                _camera_last_heartbeat = time.monotonic()
+            return {"success": True, "message": "Camera đang chạy", **_camera_status_unlocked(owner_id)}
+    try:
+        cam = CameraStream(camera_id=camera_id)
+        with _camera_lock:
+            _camera_instance = cam
+            _camera_enabled = True
+            _camera_owner_id = owner_id
+            _camera_last_heartbeat = time.monotonic() if owner_id else 0.0
+            return {"success": True, "message": "Đã bật camera", **_camera_status_unlocked(owner_id)}
+    except Exception as e:
+        with _camera_lock:
+            _release_camera_unlocked()
+        return {"success": False, "message": f"Lỗi khi bật camera: {e}"}
+
+
+def heartbeat_camera(owner_id: str = "") -> dict:
+    global _camera_last_heartbeat
+    owner_id = str(owner_id or "")
+    _expire_camera_lease()
+    with _camera_lock:
+        if not _camera_enabled:
+            return {"success": False, "message": "Camera đang tắt", **_camera_status_unlocked(owner_id)}
+        if _camera_owner_id and owner_id != _camera_owner_id:
+            return {"success": False, "message": "Tab hiện tại không sở hữu camera", **_camera_status_unlocked(owner_id)}
+        _camera_last_heartbeat = time.monotonic()
+        return {"success": True, "message": "Camera heartbeat ok", **_camera_status_unlocked(owner_id)}
+
+
+def stop_camera(owner_id: str = "") -> dict:
+    owner_id = str(owner_id or "")
+    with _camera_lock:
+        if _camera_owner_id and owner_id and _camera_owner_id != owner_id:
+            return {
+                "success": False,
+                "message": "Tab hiện tại không sở hữu camera",
+                **_camera_status_unlocked(owner_id),
+            }
+        _release_camera_unlocked()
+        return {"success": True, "message": "Đã tắt camera", **_camera_status_unlocked(owner_id)}
 
 
 def get_camera() -> CameraStream | None:
+    _expire_camera_lease()
     return _camera_instance if _camera_enabled else None
 
 
 def release_camera():
-    global _camera_instance, _camera_enabled
-    _camera_enabled = False
-    if _camera_instance:
-        _camera_instance.release()
-        _camera_instance = None
+    with _camera_lock:
+        _release_camera_unlocked()

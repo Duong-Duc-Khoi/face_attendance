@@ -67,11 +67,18 @@ class Settings:
 
     # ── Chấm công ──────────────────────────────────────
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))
+    CHECKIN_GRACE_MINUTES: int = int(os.getenv("CHECKIN_GRACE_MINUTES", "15"))
+    OVERTIME_APPROVAL_THRESHOLD_MINUTES: int = int(os.getenv("OVERTIME_APPROVAL_THRESHOLD_MINUTES", "30"))
+    MOBILE_ATTENDANCE_ENABLED: bool = os.getenv("MOBILE_ATTENDANCE_ENABLED", "true").lower() == "true"
+    MOBILE_GEOFENCE_RADIUS_DEFAULT_M: int = int(os.getenv("MOBILE_GEOFENCE_RADIUS_DEFAULT_M", "50"))
+    MOBILE_GPS_MAX_ACCURACY_M: int = int(os.getenv("MOBILE_GPS_MAX_ACCURACY_M", "100"))
+    MOBILE_FACE_THRESHOLD: float = float(os.getenv("MOBILE_FACE_THRESHOLD", os.getenv("FACE_THRESHOLD", "0.50")))
+    MOBILE_CAPTURE_FRAMES: int = int(os.getenv("MOBILE_CAPTURE_FRAMES", "3"))
     WORK_START:             str  = os.getenv("WORK_START", "08:30")
     WORK_END:               str  = os.getenv("WORK_END",   "17:30")
     LATE_THRESHOLD:         int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
     LATE_THRESHOLD_MINUTES: int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
-    WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5")
+    WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5,6,7")
     HALF_DAY_CUTOFF:        str  = os.getenv("HALF_DAY_CUTOFF", "12:00")
     NOTIFY_LEAVE_CANCEL:    bool = os.getenv("NOTIFY_LEAVE_CANCEL", "true").lower() == "true"
 

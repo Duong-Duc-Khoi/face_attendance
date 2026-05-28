@@ -1,0 +1,49 @@
+  <!-- TAB: Bảng phân ca -->
+  <div class="dashboard-page-section" id="roster-page">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span class="dot"></span> Bảng nhân viên theo ca</div>
+        <a href="/shifts" class="log-btn">Mở trang chia ca</a>
+      </div>
+      <div class="roster-toolbar">
+        <button class="roster-date-btn" onclick="rosterNav(-1)" title="Ngày trước">&#8249;</button>
+        <input class="filter-input" id="rosterDate" type="date" onchange="loadShiftRoster()">
+        <button class="roster-date-btn" onclick="rosterNav(1)" title="Ngày sau">&#8250;</button>
+        <input class="filter-input roster-search" id="rosterSearch" placeholder="Tìm nhân viên, mã NV..." oninput="renderShiftRosterTable()">
+        <select class="filter-input roster-dept" id="rosterDept" onchange="renderShiftRosterTable()"><option value="">Tất cả vai trò</option></select>
+        <button class="btn btn-teal roster-refresh" onclick="loadShiftRoster()">Tải lại</button>
+        <div class="roster-view-toggle">
+          <button class="roster-view-btn active" id="rosterPeriodWeek" onclick="setRosterPeriod('week')">Tuần</button>
+          <button class="roster-view-btn" id="rosterPeriodMonth" onclick="setRosterPeriod('month')">Tháng</button>
+        </div>
+        <div class="roster-view-toggle">
+          <button class="roster-view-btn active" id="rosterViewShift" onclick="setRosterView('shift')">Theo ca</button>
+          <button class="roster-view-btn" id="rosterViewEmployee" onclick="setRosterView('employee')">Theo nhân viên</button>
+        </div>
+        <span class="roster-range-label" id="rosterRangeLabel">—</span>
+        <button class="log-btn" id="rosterBackBtn" onclick="returnToRosterPeriod()" style="display:none">Quay lại</button>
+      </div>
+      <div class="roster-summary">
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricAssigned">0</div><div class="roster-metric-label">Lượt phân ca</div></div>
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricEmployees">0</div><div class="roster-metric-label">Nhân viên có ca</div></div>
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricUnassigned">0</div><div class="roster-metric-label">Chưa có ca</div></div>
+        <div class="roster-metric"><div class="roster-metric-num" id="rosterMetricShifts">0</div><div class="roster-metric-label">Ca đang mở</div></div>
+      </div>
+      <div class="roster-shift-grid" id="shiftRosterGroups">
+        <div class="roster-empty">Đang tải bảng phân ca...</div>
+      </div>
+      <div class="roster-period-wrap" id="shiftRosterPeriod">
+        <table class="roster-period-table">
+          <thead id="shiftRosterPeriodHead"></thead>
+          <tbody id="shiftRosterPeriodBody"><tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="roster-table-wrap" id="shiftRosterMatrix" style="display:none">
+        <table class="shift-roster-table">
+          <thead id="shiftRosterHead"></thead>
+          <tbody id="shiftRosterBody"><tr><td class="roster-empty">Đang tải bảng phân ca...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+

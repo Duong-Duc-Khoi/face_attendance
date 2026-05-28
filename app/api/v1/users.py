@@ -20,7 +20,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models.employee import Employee
 from app.models.user import User
+from app.services.branch_scope import ensure_branch_access, scoped_branch_filter
 from app.services.auth_service import (
     require_admin,
     require_manager,
@@ -43,6 +45,44 @@ def _user_dict(u: User) -> dict:
         "created_at":        u.created_at.strftime("%d/%m/%Y %H:%M") if u.created_at else "",
         "last_login":        u.last_login.strftime("%d/%m/%Y %H:%M") if u.last_login else None,
     }
+
+
+def _scope_users_query(db: Session, current_user: User, q):
+    if current_user.role == "admin":
+        return q
+    allowed = scoped_branch_filter(db, current_user)
+    employee_user_ids = [
+        row[0]
+        for row in db.query(Employee.user_id)
+        .filter(Employee.branch_id.in_(allowed), Employee.user_id.isnot(None))
+        .all()
+    ]
+    employee_emails = [
+        row[0]
+        for row in db.query(Employee.email)
+        .filter(Employee.branch_id.in_(allowed), Employee.email != "")
+        .all()
+    ]
+    if not employee_user_ids and not employee_emails:
+        return q.filter(User.id == -1)
+    from sqlalchemy import or_
+    return q.filter(or_(User.id.in_(employee_user_ids), User.email.in_(employee_emails)))
+
+
+def _ensure_user_scope(db: Session, current_user: User, target_user: User) -> None:
+    if current_user.role == "admin":
+        return
+    if target_user.role in ("manager", "admin"):
+        raise HTTPException(403, "Không có quyền thao tác với tài khoản này")
+    emp = (
+        db.query(Employee)
+        .filter((Employee.user_id == target_user.id) | (Employee.email == target_user.email))
+        .order_by(Employee.id.asc())
+        .first()
+    )
+    if not emp:
+        raise HTTPException(403, "Tài khoản này chưa gắn với nhân viên trong cửa hàng của bạn")
+    ensure_branch_access(db, current_user, emp.branch_id)
 
 
 # ── Schemas ──────────────────────────────────────────────────────
@@ -75,9 +115,9 @@ def list_users(
     if role:
         q = q.filter_by(role=role)
 
-    # Manager không được thấy danh sách admin
     if current_user.role == "manager":
         q = q.filter(User.role != "admin")
+        q = _scope_users_query(db, current_user, q)
 
     users = q.order_by(User.created_at.desc()).all()
     return {"success": True, "users": [_user_dict(u) for u in users], "total": len(users)}
@@ -94,6 +134,7 @@ def list_pending_users(
 
     if current_user.role == "manager":
         q = q.filter(User.role != "admin")
+        q = _scope_users_query(db, current_user, q)
 
     users = q.order_by(User.created_at.asc()).all()
     return {"success": True, "users": [_user_dict(u) for u in users], "total": len(users)}
@@ -124,6 +165,7 @@ def approve_user(
     # Manager không được duyệt admin/manager khác
     if current_user.role == "manager" and user.role in ("manager", "admin"):
         raise HTTPException(403, "Manager chỉ được duyệt tài khoản role staff")
+    _ensure_user_scope(db, current_user, user)
 
     user.is_approved = True
     user.is_active   = True   # Kích hoạt tài khoản khi được duyệt
@@ -156,6 +198,7 @@ def reject_user(
 
     if current_user.role == "manager" and user.role in ("manager", "admin"):
         raise HTTPException(403, "Không có quyền thao tác với tài khoản này")
+    _ensure_user_scope(db, current_user, user)
 
     # Không được tự thu hồi chính mình
     if user.id == current_user.id:
@@ -219,6 +262,7 @@ def set_user_active(
 
     if current_user.role == "manager" and user.role in ("manager", "admin"):
         raise HTTPException(403, "Không có quyền thao tác với tài khoản này")
+    _ensure_user_scope(db, current_user, user)
 
     user.is_active = req.is_active
     db.commit()

@@ -29,3 +29,19 @@
 .otp-timer span{font-family:var(--font-mono);color:var(--yellow);font-weight:700}
 .otp-resend{color:var(--teal);cursor:pointer;text-decoration:underline;display:none}
 .otp-resend.show{display:inline}
+
+.login-link-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:2px 0 18px;font-size:12px;color:var(--muted);
+}
+.text-link{
+  border:0;background:none;color:var(--teal);font:inherit;font-weight:700;
+  cursor:pointer;padding:0;text-decoration:none;
+}
+.text-link:hover{text-decoration:underline}
+.reset-note{
+  background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.22);
+  color:var(--muted);border-radius:9px;padding:12px 14px;
+  font-size:12px;line-height:1.65;margin-bottom:16px;
+}
+.reset-note strong{color:var(--text)}

@@ -8,19 +8,55 @@ CREATE TABLE IF NOT EXISTS branches (
     name VARCHAR(150) NOT NULL UNIQUE,
     address VARCHAR(255) DEFAULT '',
     phone VARCHAR(30) DEFAULT '',
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    geofence_radius_m INTEGER DEFAULT 50,
+    mobile_attendance_enabled BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS geofence_radius_m INTEGER DEFAULT 50;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS mobile_attendance_enabled BOOLEAN DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS ix_branches_mobile_attendance_enabled ON branches(mobile_attendance_enabled);
 
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS user_id INTEGER;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS branch_id INTEGER;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS full_name VARCHAR(100) DEFAULT '';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS store_role VARCHAR(30) DEFAULT 'staff';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS job_role VARCHAR(50) DEFAULT '';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS job_roles TEXT DEFAULT '[]';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS employment_type VARCHAR(30) DEFAULT 'full_time';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_rate NUMERIC(12, 2);
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS base_salary NUMERIC(12, 2);
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS hire_date DATE;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
 CREATE UNIQUE INDEX IF NOT EXISTS ux_employees_user_id ON employees(user_id) WHERE user_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_employees_branch_id ON employees(branch_id);
+CREATE INDEX IF NOT EXISTS ix_employees_store_role ON employees(store_role);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_employees_one_store_manager
+    ON employees(branch_id, store_role)
+    WHERE branch_id IS NOT NULL AND is_active = TRUE AND store_role IN ('store_manager', 'assistant_manager');
+CREATE INDEX IF NOT EXISTS ix_employees_job_role ON employees(job_role);
+CREATE INDEX IF NOT EXISTS ix_employees_employment_type ON employees(employment_type);
 CREATE INDEX IF NOT EXISTS ix_employees_status ON employees(status);
+
+CREATE TABLE IF NOT EXISTS employee_roles (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255) DEFAULT '',
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_roles_code ON employee_roles(code);
+CREATE INDEX IF NOT EXISTS ix_employee_roles_code ON employee_roles(code);
+CREATE INDEX IF NOT EXISTS ix_employee_roles_sort_order ON employee_roles(sort_order);
+CREATE INDEX IF NOT EXISTS ix_employee_roles_is_active ON employee_roles(is_active);
 
 ALTER TABLE shifts DROP CONSTRAINT IF EXISTS shifts_code_key;
 ALTER TABLE shifts ADD COLUMN IF NOT EXISTS branch_id INTEGER;
@@ -48,6 +84,12 @@ ALTER TABLE work_calendar DROP CONSTRAINT IF EXISTS work_calendar_date_key;
 ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS branch_id INTEGER;
 ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS created_by_id INTEGER;
 ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS pay_multiplier NUMERIC(5,2) DEFAULT 1.0;
+ALTER TABLE work_calendar ADD COLUMN IF NOT EXISTS salary_note VARCHAR(255) DEFAULT '';
+UPDATE work_calendar SET day_type = 'off' WHERE day_type = 'closed';
+UPDATE work_calendar SET day_type = 'full' WHERE day_type IN ('half_am', 'half_pm', 'overtime', 'special_open');
+ALTER TABLE work_calendar DROP COLUMN IF EXISTS work_start;
+ALTER TABLE work_calendar DROP COLUMN IF EXISTS work_end;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_calendar_branch_date ON work_calendar(COALESCE(branch_id, 0), date);
 CREATE INDEX IF NOT EXISTS ix_work_calendar_branch_id ON work_calendar(branch_id);
 
@@ -70,11 +112,24 @@ CREATE TABLE IF NOT EXISTS attendance_sessions (
     break_minutes INTEGER DEFAULT 0,
     source VARCHAR(20) DEFAULT 'face',
     note TEXT DEFAULT '',
+    review_status VARCHAR(30) DEFAULT 'none',
+    review_type VARCHAR(30) DEFAULT '',
+    review_note TEXT DEFAULT '',
+    reviewed_by VARCHAR(150) DEFAULT '',
+    reviewed_at TIMESTAMP,
+    manager_alert_sent_at TIMESTAMP,
     created_by_id INTEGER,
     updated_by_id INTEGER,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS review_status VARCHAR(30) DEFAULT 'none';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS review_type VARCHAR(30) DEFAULT '';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS review_note TEXT DEFAULT '';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(150) DEFAULT '';
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS manager_alert_sent_at TIMESTAMP;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_attendance_session_assignment
     ON attendance_sessions(shift_assignment_id)
@@ -84,6 +139,8 @@ CREATE INDEX IF NOT EXISTS ix_attendance_sessions_branch_id ON attendance_sessio
 CREATE INDEX IF NOT EXISTS ix_attendance_sessions_shift_id ON attendance_sessions(shift_id);
 CREATE INDEX IF NOT EXISTS ix_attendance_sessions_work_date ON attendance_sessions(work_date);
 CREATE INDEX IF NOT EXISTS ix_attendance_sessions_status ON attendance_sessions(status);
+CREATE INDEX IF NOT EXISTS ix_attendance_sessions_review_status ON attendance_sessions(review_status);
+CREATE INDEX IF NOT EXISTS ix_attendance_sessions_review_type ON attendance_sessions(review_type);
 
 CREATE TABLE IF NOT EXISTS attendance_events (
     id SERIAL PRIMARY KEY,
@@ -130,6 +187,59 @@ CREATE INDEX IF NOT EXISTS ix_attendance_evidence_employee_id ON attendance_evid
 CREATE INDEX IF NOT EXISTS ix_attendance_evidence_emp_code ON attendance_evidence(emp_code);
 CREATE INDEX IF NOT EXISTS ix_attendance_evidence_captured_at ON attendance_evidence(captured_at);
 CREATE INDEX IF NOT EXISTS ix_attendance_evidence_files_available ON attendance_evidence(files_available);
+
+CREATE TABLE IF NOT EXISTS attendance_attempts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,
+    employee_id INTEGER,
+    emp_code VARCHAR(20) DEFAULT '',
+    branch_id INTEGER,
+    status VARCHAR(20) DEFAULT 'blocked',
+    check_type VARCHAR(20) DEFAULT '',
+    server_time TIMESTAMP DEFAULT NOW(),
+    block_reason VARCHAR(80) DEFAULT '',
+    message TEXT DEFAULT '',
+    risk_reasons TEXT DEFAULT '[]',
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    accuracy_m DOUBLE PRECISION,
+    distance_m DOUBLE PRECISION,
+    face_confidence DOUBLE PRECISION DEFAULT 0.0,
+    face_emp_code VARCHAR(20) DEFAULT '',
+    capture_path VARCHAR(255) DEFAULT '',
+    image_hash VARCHAR(64) DEFAULT '',
+    device_id VARCHAR(128) DEFAULT '',
+    device_kind VARCHAR(30) DEFAULT '',
+    device_is_mobile BOOLEAN DEFAULT FALSE,
+    device_reason VARCHAR(80) DEFAULT '',
+    policy_snapshot TEXT DEFAULT '{}',
+    ip_hash VARCHAR(64) DEFAULT '',
+    user_agent_hash VARCHAR(64) DEFAULT '',
+    log_id INTEGER,
+    event_id INTEGER,
+    session_id INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_kind VARCHAR(30) DEFAULT '';
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_is_mobile BOOLEAN DEFAULT FALSE;
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_reason VARCHAR(80) DEFAULT '';
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS policy_snapshot TEXT DEFAULT '{}';
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_user_id ON attendance_attempts(user_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_employee_id ON attendance_attempts(employee_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_emp_code ON attendance_attempts(emp_code);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_branch_id ON attendance_attempts(branch_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_status ON attendance_attempts(status);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_server_time ON attendance_attempts(server_time);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_block_reason ON attendance_attempts(block_reason);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_id ON attendance_attempts(device_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_kind ON attendance_attempts(device_kind);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_is_mobile ON attendance_attempts(device_is_mobile);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_ip_hash ON attendance_attempts(ip_hash);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_user_agent_hash ON attendance_attempts(user_agent_hash);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_log_id ON attendance_attempts(log_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_event_id ON attendance_attempts(event_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_session_id ON attendance_attempts(session_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_created_at ON attendance_attempts(created_at);
 
 CREATE TABLE IF NOT EXISTS attendance_audit_runs (
     id SERIAL PRIMARY KEY,
@@ -255,24 +365,475 @@ CREATE TABLE IF NOT EXISTS ai_provider_settings (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_provider_settings_provider ON ai_provider_settings(provider);
 
 UPDATE employees SET full_name = name WHERE COALESCE(full_name, '') = '';
+UPDATE employees SET job_role = position WHERE COALESCE(job_role, '') = '' AND COALESCE(position, '') <> '';
+UPDATE employees SET store_role = 'staff' WHERE store_role IS NULL OR store_role = '';
+UPDATE employees SET job_role = 'table_service' WHERE job_role = 'server';
+UPDATE employees SET job_role = 'barista' WHERE job_role = 'bar';
+UPDATE employees SET job_role = 'barista' WHERE job_role IN ('kitchen', 'cleaner');
+UPDATE employees SET job_roles = '["table_service"]' WHERE job_roles = '[]' AND job_role = 'table_service';
+UPDATE employees SET job_roles = '["cashier"]' WHERE job_roles = '[]' AND job_role = 'cashier';
+UPDATE employees SET job_roles = '["barista"]' WHERE job_roles = '[]' AND job_role = 'barista';
+UPDATE employees SET job_roles = '["security"]' WHERE job_roles = '[]' AND job_role = 'security';
+UPDATE employees SET employment_type = 'full_time' WHERE employment_type IS NULL OR employment_type = '';
 UPDATE employees SET status = CASE WHEN is_active THEN 'active' ELSE 'inactive' END
 WHERE status IS NULL OR status = '';
 UPDATE shifts SET is_overnight = TRUE WHERE work_end <= work_start;
+UPDATE shifts
+SET late_threshold_minutes = 15
+WHERE code IN ('morning', 'lunch', 'evening', 'night')
+  AND COALESCE(late_threshold_minutes, 0) = 10;
+
+INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
+SELECT 'security', 'Bảo vệ', 'Trông xe, giữ an ninh cửa hàng', 10, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'security');
+INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
+SELECT 'cashier', 'Thu ngân', 'Nhận order, thanh toán, đối soát tiền', 20, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'cashier');
+INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
+SELECT 'barista', 'Pha chế', 'Chuẩn bị sữa chua trân châu, topping và đồ uống', 30, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'barista');
+INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
+SELECT 'table_service', 'Phục vụ bàn', 'Phục vụ khách tại bàn, dọn bàn, hỗ trợ sảnh', 40, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'table_service');
+UPDATE employee_roles SET is_active = FALSE WHERE code IN ('server', 'kitchen', 'bar', 'cleaner');
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca sang', 'morning', '06:00', '11:00', 10, 30, 180, 0, FALSE, TRUE, '', NOW(), NOW()
+SELECT 'Ca sang', 'morning', '06:00', '11:00', 15, 30, 180, 0, FALSE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'morning' AND branch_id IS NULL);
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca trua', 'lunch', '10:00', '15:00', 10, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
+SELECT 'Ca trua', 'lunch', '10:00', '15:00', 15, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'lunch' AND branch_id IS NULL);
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca toi', 'evening', '16:00', '22:00', 10, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
+SELECT 'Ca toi', 'evening', '16:00', '22:00', 15, 30, 180, 30, FALSE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'evening' AND branch_id IS NULL);
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
-SELECT 'Ca dem', 'night', '22:00', '06:00', 10, 30, 180, 30, TRUE, TRUE, '', NOW(), NOW()
+SELECT 'Ca dem', 'night', '22:00', '06:00', 15, 30, 180, 30, TRUE, TRUE, '', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM shifts WHERE code = 'night' AND branch_id IS NULL);
+
+-- Normalize relational integrity without forcing a full legacy-data cleanup during app startup.
+-- NOT VALID means existing rows are not scanned here, but new/updated rows must satisfy
+-- the constraints. After cleaning old data, run scripts/validate_restaurant_constraints.sql.
+CREATE OR REPLACE FUNCTION pg_temp.restaurant_fk_exists(
+    source_table REGCLASS,
+    source_column TEXT,
+    target_table REGCLASS,
+    target_column TEXT
+) RETURNS BOOLEAN
+LANGUAGE SQL
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM pg_constraint c
+        JOIN pg_attribute sa
+          ON sa.attrelid = c.conrelid
+         AND sa.attnum = ANY(c.conkey)
+        JOIN pg_attribute ta
+          ON ta.attrelid = c.confrelid
+         AND ta.attnum = ANY(c.confkey)
+        WHERE c.contype = 'f'
+          AND c.conrelid = source_table
+          AND c.confrelid = target_table
+          AND sa.attname = source_column
+          AND ta.attname = target_column
+    );
+$$;
+
+DO $$
+BEGIN
+    IF NOT pg_temp.restaurant_fk_exists('employees', 'user_id', 'users', 'id') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT fk_employees_user_id
+            FOREIGN KEY (user_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('employees', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT fk_employees_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('email_tokens', 'user_id', 'users', 'id') THEN
+        ALTER TABLE email_tokens
+            ADD CONSTRAINT fk_email_tokens_user_id
+            FOREIGN KEY (user_id) REFERENCES users(id)
+            ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('refresh_tokens', 'user_id', 'users', 'id') THEN
+        ALTER TABLE refresh_tokens
+            ADD CONSTRAINT fk_refresh_tokens_user_id
+            FOREIGN KEY (user_id) REFERENCES users(id)
+            ON DELETE CASCADE NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('shifts', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE shifts
+            ADD CONSTRAINT fk_shifts_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('shift_assignments', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE shift_assignments
+            ADD CONSTRAINT fk_shift_assignments_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('shift_assignments', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE shift_assignments
+            ADD CONSTRAINT fk_shift_assignments_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('shift_assignments', 'shift_id', 'shifts', 'id') THEN
+        ALTER TABLE shift_assignments
+            ADD CONSTRAINT fk_shift_assignments_shift_id
+            FOREIGN KEY (shift_id) REFERENCES shifts(id)
+            ON DELETE RESTRICT NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('shift_assignments', 'assigned_by_id', 'users', 'id') THEN
+        ALTER TABLE shift_assignments
+            ADD CONSTRAINT fk_shift_assignments_assigned_by_id
+            FOREIGN KEY (assigned_by_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('work_calendar', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE work_calendar
+            ADD CONSTRAINT fk_work_calendar_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('work_calendar', 'created_by_id', 'users', 'id') THEN
+        ALTER TABLE work_calendar
+            ADD CONSTRAINT fk_work_calendar_created_by_id
+            FOREIGN KEY (created_by_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('attendance_sessions', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT fk_attendance_sessions_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE RESTRICT NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_sessions', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT fk_attendance_sessions_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_sessions', 'shift_assignment_id', 'shift_assignments', 'id') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT fk_attendance_sessions_shift_assignment_id
+            FOREIGN KEY (shift_assignment_id) REFERENCES shift_assignments(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_sessions', 'shift_id', 'shifts', 'id') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT fk_attendance_sessions_shift_id
+            FOREIGN KEY (shift_id) REFERENCES shifts(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_sessions', 'created_by_id', 'users', 'id') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT fk_attendance_sessions_created_by_id
+            FOREIGN KEY (created_by_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_sessions', 'updated_by_id', 'users', 'id') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT fk_attendance_sessions_updated_by_id
+            FOREIGN KEY (updated_by_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('attendance_events', 'session_id', 'attendance_sessions', 'id') THEN
+        ALTER TABLE attendance_events
+            ADD CONSTRAINT fk_attendance_events_session_id
+            FOREIGN KEY (session_id) REFERENCES attendance_sessions(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_events', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE attendance_events
+            ADD CONSTRAINT fk_attendance_events_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE RESTRICT NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_events', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE attendance_events
+            ADD CONSTRAINT fk_attendance_events_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_events', 'created_by_id', 'users', 'id') THEN
+        ALTER TABLE attendance_events
+            ADD CONSTRAINT fk_attendance_events_created_by_id
+            FOREIGN KEY (created_by_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('attendance_evidence', 'log_id', 'attendance_logs', 'id') THEN
+        ALTER TABLE attendance_evidence
+            ADD CONSTRAINT fk_attendance_evidence_log_id
+            FOREIGN KEY (log_id) REFERENCES attendance_logs(id)
+            ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_evidence', 'event_id', 'attendance_events', 'id') THEN
+        ALTER TABLE attendance_evidence
+            ADD CONSTRAINT fk_attendance_evidence_event_id
+            FOREIGN KEY (event_id) REFERENCES attendance_events(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_evidence', 'session_id', 'attendance_sessions', 'id') THEN
+        ALTER TABLE attendance_evidence
+            ADD CONSTRAINT fk_attendance_evidence_session_id
+            FOREIGN KEY (session_id) REFERENCES attendance_sessions(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_evidence', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE attendance_evidence
+            ADD CONSTRAINT fk_attendance_evidence_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'user_id', 'users', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_user_id
+            FOREIGN KEY (user_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'log_id', 'attendance_logs', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_log_id
+            FOREIGN KEY (log_id) REFERENCES attendance_logs(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'event_id', 'attendance_events', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_event_id
+            FOREIGN KEY (event_id) REFERENCES attendance_events(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'session_id', 'attendance_sessions', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_session_id
+            FOREIGN KEY (session_id) REFERENCES attendance_sessions(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('attendance_audit_findings', 'audit_run_id', 'attendance_audit_runs', 'id') THEN
+        ALTER TABLE attendance_audit_findings
+            ADD CONSTRAINT fk_attendance_audit_findings_audit_run_id
+            FOREIGN KEY (audit_run_id) REFERENCES attendance_audit_runs(id)
+            ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_audit_findings', 'log_id', 'attendance_logs', 'id') THEN
+        ALTER TABLE attendance_audit_findings
+            ADD CONSTRAINT fk_attendance_audit_findings_log_id
+            FOREIGN KEY (log_id) REFERENCES attendance_logs(id)
+            ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_audit_findings', 'event_id', 'attendance_events', 'id') THEN
+        ALTER TABLE attendance_audit_findings
+            ADD CONSTRAINT fk_attendance_audit_findings_event_id
+            FOREIGN KEY (event_id) REFERENCES attendance_events(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_audit_findings', 'evidence_id', 'attendance_evidence', 'id') THEN
+        ALTER TABLE attendance_audit_findings
+            ADD CONSTRAINT fk_attendance_audit_findings_evidence_id
+            FOREIGN KEY (evidence_id) REFERENCES attendance_evidence(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_audit_findings', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE attendance_audit_findings
+            ADD CONSTRAINT fk_attendance_audit_findings_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('leave_requests', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE leave_requests
+            ADD CONSTRAINT fk_leave_requests_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('leave_requests', 'reviewed_by_id', 'users', 'id') THEN
+        ALTER TABLE leave_requests
+            ADD CONSTRAINT fk_leave_requests_reviewed_by_id
+            FOREIGN KEY (reviewed_by_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('leave_request_days', 'leave_request_id', 'leave_requests', 'id') THEN
+        ALTER TABLE leave_request_days
+            ADD CONSTRAINT fk_leave_request_days_leave_request_id
+            FOREIGN KEY (leave_request_id) REFERENCES leave_requests(id)
+            ON DELETE CASCADE NOT VALID;
+    END IF;
+
+    IF NOT pg_temp.restaurant_fk_exists('shift_plan_drafts', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE shift_plan_drafts
+            ADD CONSTRAINT fk_shift_plan_drafts_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('shift_plan_draft_assignments', 'draft_id', 'shift_plan_drafts', 'id') THEN
+        ALTER TABLE shift_plan_draft_assignments
+            ADD CONSTRAINT fk_shift_plan_draft_assignments_draft_id
+            FOREIGN KEY (draft_id) REFERENCES shift_plan_drafts(id)
+            ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('shift_plan_draft_assignments', 'shift_id', 'shifts', 'id') THEN
+        ALTER TABLE shift_plan_draft_assignments
+            ADD CONSTRAINT fk_shift_plan_draft_assignments_shift_id
+            FOREIGN KEY (shift_id) REFERENCES shifts(id)
+            ON DELETE RESTRICT NOT VALID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_latitude') THEN
+        ALTER TABLE branches
+            ADD CONSTRAINT ck_branches_latitude
+            CHECK (latitude IS NULL OR (latitude >= -90 AND latitude <= 90)) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_longitude') THEN
+        ALTER TABLE branches
+            ADD CONSTRAINT ck_branches_longitude
+            CHECK (longitude IS NULL OR (longitude >= -180 AND longitude <= 180)) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_geofence_radius_m') THEN
+        ALTER TABLE branches
+            ADD CONSTRAINT ck_branches_geofence_radius_m
+            CHECK (geofence_radius_m >= 10 AND geofence_radius_m <= 1000) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_status') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT ck_employees_status
+            CHECK (status IN ('active', 'inactive', 'terminated')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_store_role') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT ck_employees_store_role
+            CHECK (store_role IN ('store_manager', 'assistant_manager', 'staff')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_store_lead_branch') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT ck_employees_store_lead_branch
+            CHECK (store_role = 'staff' OR branch_id IS NOT NULL) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_employment_type') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT ck_employees_employment_type
+            CHECK (employment_type IN ('full_time', 'part_time', 'casual')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_shift_assignments_status') THEN
+        ALTER TABLE shift_assignments
+            ADD CONSTRAINT ck_shift_assignments_status
+            CHECK (status IN ('scheduled', 'swapped', 'cancelled')) NOT VALID;
+    END IF;
+    ALTER TABLE work_calendar DROP CONSTRAINT IF EXISTS ck_work_calendar_day_type;
+    ALTER TABLE work_calendar
+        ADD CONSTRAINT ck_work_calendar_day_type
+        CHECK (day_type IN ('full', 'off', 'holiday'));
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_status') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT ck_attendance_sessions_status
+            CHECK (status IN ('open', 'completed', 'missing_checkout', 'absent', 'cancelled')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_check_in_status') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT ck_attendance_sessions_check_in_status
+            CHECK (check_in_status IN ('', 'on_time', 'late', 'early', 'manual', 'auto')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_check_out_status') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT ck_attendance_sessions_check_out_status
+            CHECK (check_out_status IN ('', 'normal', 'early_leave', 'overtime', 'manual', 'auto')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_review_status') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT ck_attendance_sessions_review_status
+            CHECK (review_status IN ('none', 'pending_review', 'approved', 'rejected')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_sessions_review_type') THEN
+        ALTER TABLE attendance_sessions
+            ADD CONSTRAINT ck_attendance_sessions_review_type
+            CHECK (review_type IN ('', 'absent', 'missing_checkout', 'overtime')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_events_event_type') THEN
+        ALTER TABLE attendance_events
+            ADD CONSTRAINT ck_attendance_events_event_type
+            CHECK (event_type IN ('check_in', 'check_out', 'break_start', 'break_end', 'manual_edit', 'auto_checkout')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_logs_check_type') THEN
+        ALTER TABLE attendance_logs
+            ADD CONSTRAINT ck_attendance_logs_check_type
+            CHECK (check_type IN ('check_in', 'check_out')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_attempts_status') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT ck_attendance_attempts_status
+            CHECK (status IN ('success', 'blocked', 'error')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_attempts_check_type') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT ck_attendance_attempts_check_type
+            CHECK (check_type IN ('', 'check_in', 'check_out')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_audit_findings_risk_level') THEN
+        ALTER TABLE attendance_audit_findings
+            ADD CONSTRAINT ck_attendance_audit_findings_risk_level
+            CHECK (risk_level IN ('clear', 'low', 'medium', 'high')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_audit_findings_review_status') THEN
+        ALTER TABLE attendance_audit_findings
+            ADD CONSTRAINT ck_attendance_audit_findings_review_status
+            CHECK (review_status IN ('pending_review', 'reviewed', 'dismissed', 'confirmed')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_leave_requests_request_type') THEN
+        ALTER TABLE leave_requests
+            ADD CONSTRAINT ck_leave_requests_request_type
+            CHECK (request_type IN ('leave', 'remote')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_leave_requests_status') THEN
+        ALTER TABLE leave_requests
+            ADD CONSTRAINT ck_leave_requests_status
+            CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_leave_request_days_half_day') THEN
+        ALTER TABLE leave_request_days
+            ADD CONSTRAINT ck_leave_request_days_half_day
+            CHECK (half_day IS NULL OR half_day IN ('am', 'pm')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_shift_plan_drafts_status') THEN
+        ALTER TABLE shift_plan_drafts
+            ADD CONSTRAINT ck_shift_plan_drafts_status
+            CHECK (status IN ('draft', 'applied')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_shift_plan_draft_assignments_validation_status') THEN
+        ALTER TABLE shift_plan_draft_assignments
+            ADD CONSTRAINT ck_shift_plan_draft_assignments_validation_status
+            CHECK (validation_status IN ('valid', 'warning', 'invalid')) NOT VALID;
+    END IF;
+END $$;
 
 COMMIT;

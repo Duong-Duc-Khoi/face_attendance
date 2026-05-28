@@ -19,6 +19,8 @@ data/captures/
 data/exports/
 data/embeddings.pkl
 data/attendance.db
+data/pycache_check/
+data/dev_server*.log
 
 # IDE
 .vscode/
@@ -36,3 +38,8 @@ phancong.png
 skills-lock.json
 .agents/skills/frontend-design/SKILL.md
 .agents/skills/frontend-design/LICENSE.txt
+.agents
+# Generated schema review artifacts
+docs/*.svg
+scripts/check_restaurant_integrity.sql
+scripts/validate_restaurant_constraints.sql
