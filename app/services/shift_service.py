@@ -3,6 +3,7 @@ app/services/shift_service.py
 Business logic cho ca làm việc.
 """
 
+import json
 import re
 import unicodedata
 from datetime import date, datetime, time, timedelta
@@ -15,7 +16,7 @@ from app.core.config import settings
 from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
-from app.schemas.employee import normalize_job_role, normalize_text
+from app.schemas.employee import normalize_job_role, normalize_job_roles, normalize_text
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -62,9 +63,14 @@ def _employee_role_matches_shift(emp: Employee | None, shift: Shift) -> bool:
     required = normalize_text(normalize_job_role(shift.required_position or ""))
     if not required or not emp:
         return True
+    try:
+        multi_roles = json.loads(emp.job_roles or "[]")
+    except Exception:
+        multi_roles = []
     employee_roles = {
         normalize_text(normalize_job_role(emp.job_role or "")),
         normalize_text(normalize_job_role(emp.position or "")),
+        *[normalize_text(role) for role in normalize_job_roles(multi_roles)],
     }
     employee_roles.discard("")
     return required in employee_roles

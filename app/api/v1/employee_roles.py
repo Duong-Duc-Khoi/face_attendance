@@ -1,9 +1,10 @@
 """
-CRUD vai trò công việc nhà hàng.
+CRUD vai trò công việc cửa hàng.
 
 Không liên quan tới User.role dùng cho phân quyền hệ thống.
 """
 
+import json
 import re
 import unicodedata
 from typing import Optional
@@ -18,7 +19,7 @@ from app.models.employee import Employee
 from app.models.employee_role import EmployeeRole
 from app.models.shift import Shift
 from app.models.user import User
-from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
+from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role, normalize_job_roles
 
 router = APIRouter(prefix="/api/employee-roles", tags=["employee-roles"])
 
@@ -81,12 +82,40 @@ def _role_dict(role: EmployeeRole, employee_count: int = 0) -> dict:
 
 
 def _employee_count_by_role(db: Session) -> dict[str, int]:
-    rows = db.query(Employee.job_role).filter(Employee.job_role != "").all()
     counts: dict[str, int] = {}
-    for (role_code,) in rows:
-        code = role_code or ""
-        counts[code] = counts.get(code, 0) + 1
+    rows = db.query(Employee.job_role, Employee.job_roles).filter(Employee.is_active == True).all()
+    for role_code, role_json in rows:
+        roles = normalize_job_roles([role_code] if role_code else [])
+        try:
+            roles.extend(normalize_job_roles(json.loads(role_json or "[]")))
+        except Exception:
+            pass
+        for code in set(roles):
+            counts[code] = counts.get(code, 0) + 1
     return counts
+
+
+def _replace_employee_role_codes(db: Session, old_code: str, new_code: str) -> None:
+    employees = db.query(Employee).all()
+    for emp in employees:
+        changed = False
+        if emp.job_role == old_code:
+            emp.job_role = new_code
+            changed = True
+        try:
+            roles = normalize_job_roles(json.loads(emp.job_roles or "[]"))
+        except Exception:
+            roles = []
+        if old_code in roles:
+            roles = [new_code if role == old_code else role for role in roles]
+            deduped = []
+            for role in roles:
+                if role not in deduped:
+                    deduped.append(role)
+            emp.job_roles = json.dumps(deduped, ensure_ascii=False)
+            changed = True
+        if changed:
+            db.add(emp)
 
 
 @router.get("")
@@ -160,12 +189,12 @@ def update_employee_role(
         role.is_active = bool(data["is_active"])
 
     if old_code != role.code:
-        db.query(Employee).filter_by(job_role=old_code).update({"job_role": role.code})
+        _replace_employee_role_codes(db, old_code, role.code)
         db.query(Shift).filter_by(required_position=old_code).update({"required_position": role.code})
     db.commit()
     db.refresh(role)
     JOB_ROLE_LABELS[role.code] = role.name
-    return _role_dict(role, db.query(Employee).filter_by(job_role=role.code).count())
+    return _role_dict(role, _employee_count_by_role(db).get(role.code, 0))
 
 
 @router.delete("/{role_id}")

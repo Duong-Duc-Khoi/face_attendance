@@ -5,7 +5,7 @@ SQLAlchemy model cho nhân viên.
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from app.models.base import Base
 
 
@@ -20,7 +20,9 @@ class Employee(Base):
     full_name    = Column(String(100), default="")
     department   = Column(String(100), default="")
     position     = Column(String(100), default="")
+    store_role   = Column(String(30), default="staff", index=True)
     job_role     = Column(String(50), default="", index=True)
+    job_roles    = Column(Text, default="[]")
     employment_type = Column(String(30), default="full_time", index=True)
     hourly_rate  = Column(Numeric(12, 2), nullable=True)
     base_salary  = Column(Numeric(12, 2), nullable=True)

@@ -8,15 +8,26 @@ CREATE TABLE IF NOT EXISTS branches (
     name VARCHAR(150) NOT NULL UNIQUE,
     address VARCHAR(255) DEFAULT '',
     phone VARCHAR(30) DEFAULT '',
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    geofence_radius_m INTEGER DEFAULT 50,
+    mobile_attendance_enabled BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS geofence_radius_m INTEGER DEFAULT 50;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS mobile_attendance_enabled BOOLEAN DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS ix_branches_mobile_attendance_enabled ON branches(mobile_attendance_enabled);
 
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS user_id INTEGER;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS branch_id INTEGER;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS full_name VARCHAR(100) DEFAULT '';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS store_role VARCHAR(30) DEFAULT 'staff';
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS job_role VARCHAR(50) DEFAULT '';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS job_roles TEXT DEFAULT '[]';
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS employment_type VARCHAR(30) DEFAULT 'full_time';
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_rate NUMERIC(12, 2);
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS base_salary NUMERIC(12, 2);
@@ -24,6 +35,10 @@ ALTER TABLE employees ADD COLUMN IF NOT EXISTS hire_date DATE;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
 CREATE UNIQUE INDEX IF NOT EXISTS ux_employees_user_id ON employees(user_id) WHERE user_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_employees_branch_id ON employees(branch_id);
+CREATE INDEX IF NOT EXISTS ix_employees_store_role ON employees(store_role);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_employees_one_store_manager
+    ON employees(branch_id, store_role)
+    WHERE branch_id IS NOT NULL AND is_active = TRUE AND store_role IN ('store_manager', 'assistant_manager');
 CREATE INDEX IF NOT EXISTS ix_employees_job_role ON employees(job_role);
 CREATE INDEX IF NOT EXISTS ix_employees_employment_type ON employees(employment_type);
 CREATE INDEX IF NOT EXISTS ix_employees_status ON employees(status);
@@ -173,6 +188,59 @@ CREATE INDEX IF NOT EXISTS ix_attendance_evidence_emp_code ON attendance_evidenc
 CREATE INDEX IF NOT EXISTS ix_attendance_evidence_captured_at ON attendance_evidence(captured_at);
 CREATE INDEX IF NOT EXISTS ix_attendance_evidence_files_available ON attendance_evidence(files_available);
 
+CREATE TABLE IF NOT EXISTS attendance_attempts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,
+    employee_id INTEGER,
+    emp_code VARCHAR(20) DEFAULT '',
+    branch_id INTEGER,
+    status VARCHAR(20) DEFAULT 'blocked',
+    check_type VARCHAR(20) DEFAULT '',
+    server_time TIMESTAMP DEFAULT NOW(),
+    block_reason VARCHAR(80) DEFAULT '',
+    message TEXT DEFAULT '',
+    risk_reasons TEXT DEFAULT '[]',
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    accuracy_m DOUBLE PRECISION,
+    distance_m DOUBLE PRECISION,
+    face_confidence DOUBLE PRECISION DEFAULT 0.0,
+    face_emp_code VARCHAR(20) DEFAULT '',
+    capture_path VARCHAR(255) DEFAULT '',
+    image_hash VARCHAR(64) DEFAULT '',
+    device_id VARCHAR(128) DEFAULT '',
+    device_kind VARCHAR(30) DEFAULT '',
+    device_is_mobile BOOLEAN DEFAULT FALSE,
+    device_reason VARCHAR(80) DEFAULT '',
+    policy_snapshot TEXT DEFAULT '{}',
+    ip_hash VARCHAR(64) DEFAULT '',
+    user_agent_hash VARCHAR(64) DEFAULT '',
+    log_id INTEGER,
+    event_id INTEGER,
+    session_id INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_kind VARCHAR(30) DEFAULT '';
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_is_mobile BOOLEAN DEFAULT FALSE;
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_reason VARCHAR(80) DEFAULT '';
+ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS policy_snapshot TEXT DEFAULT '{}';
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_user_id ON attendance_attempts(user_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_employee_id ON attendance_attempts(employee_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_emp_code ON attendance_attempts(emp_code);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_branch_id ON attendance_attempts(branch_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_status ON attendance_attempts(status);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_server_time ON attendance_attempts(server_time);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_block_reason ON attendance_attempts(block_reason);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_id ON attendance_attempts(device_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_kind ON attendance_attempts(device_kind);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_is_mobile ON attendance_attempts(device_is_mobile);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_ip_hash ON attendance_attempts(ip_hash);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_user_agent_hash ON attendance_attempts(user_agent_hash);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_log_id ON attendance_attempts(log_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_event_id ON attendance_attempts(event_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_session_id ON attendance_attempts(session_id);
+CREATE INDEX IF NOT EXISTS ix_attendance_attempts_created_at ON attendance_attempts(created_at);
+
 CREATE TABLE IF NOT EXISTS attendance_audit_runs (
     id SERIAL PRIMARY KEY,
     run_type VARCHAR(30) DEFAULT 'daily',
@@ -298,6 +366,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_provider_settings_provider ON ai_provide
 
 UPDATE employees SET full_name = name WHERE COALESCE(full_name, '') = '';
 UPDATE employees SET job_role = position WHERE COALESCE(job_role, '') = '' AND COALESCE(position, '') <> '';
+UPDATE employees SET store_role = 'staff' WHERE store_role IS NULL OR store_role = '';
+UPDATE employees SET job_role = 'table_service' WHERE job_role = 'server';
+UPDATE employees SET job_role = 'barista' WHERE job_role = 'bar';
+UPDATE employees SET job_role = 'barista' WHERE job_role IN ('kitchen', 'cleaner');
+UPDATE employees SET job_roles = '["table_service"]' WHERE job_roles = '[]' AND job_role = 'table_service';
+UPDATE employees SET job_roles = '["cashier"]' WHERE job_roles = '[]' AND job_role = 'cashier';
+UPDATE employees SET job_roles = '["barista"]' WHERE job_roles = '[]' AND job_role = 'barista';
+UPDATE employees SET job_roles = '["security"]' WHERE job_roles = '[]' AND job_role = 'security';
 UPDATE employees SET employment_type = 'full_time' WHERE employment_type IS NULL OR employment_type = '';
 UPDATE employees SET status = CASE WHEN is_active THEN 'active' ELSE 'inactive' END
 WHERE status IS NULL OR status = '';
@@ -308,23 +384,18 @@ WHERE code IN ('morning', 'lunch', 'evening', 'night')
   AND COALESCE(late_threshold_minutes, 0) = 10;
 
 INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
-SELECT 'server', 'Phục vụ', 'Nhân viên phục vụ bàn', 10, TRUE, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'server');
+SELECT 'security', 'Bảo vệ', 'Trông xe, giữ an ninh cửa hàng', 10, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'security');
 INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
-SELECT 'cashier', 'Thu ngân', 'Nhân viên thu ngân', 20, TRUE, NOW(), NOW()
+SELECT 'cashier', 'Thu ngân', 'Nhận order, thanh toán, đối soát tiền', 20, TRUE, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'cashier');
 INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
-SELECT 'kitchen', 'Bếp', 'Bếp chính/phụ bếp', 30, TRUE, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'kitchen');
+SELECT 'barista', 'Pha chế', 'Chuẩn bị sữa chua trân châu, topping và đồ uống', 30, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'barista');
 INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
-SELECT 'bar', 'Bar', 'Pha chế/quầy bar', 40, TRUE, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'bar');
-INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
-SELECT 'cleaner', 'Tạp vụ', 'Vệ sinh, dọn dẹp', 50, TRUE, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'cleaner');
-INSERT INTO employee_roles (code, name, description, sort_order, is_active, created_at, updated_at)
-SELECT 'shift_lead', 'Quản lý ca', 'Điều phối vận hành trong ca', 60, TRUE, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'shift_lead');
+SELECT 'table_service', 'Phục vụ bàn', 'Phục vụ khách tại bàn, dọn bàn, hỗ trợ sảnh', 40, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE code = 'table_service');
+UPDATE employee_roles SET is_active = FALSE WHERE code IN ('server', 'kitchen', 'bar', 'cleaner');
 
 INSERT INTO shifts (name, code, work_start, work_end, late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes, is_overnight, is_active, note, created_at, updated_at)
 SELECT 'Ca sang', 'morning', '06:00', '11:00', 15, 30, 180, 0, FALSE, TRUE, '', NOW(), NOW()
@@ -530,6 +601,43 @@ BEGIN
             ON DELETE SET NULL NOT VALID;
     END IF;
 
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'user_id', 'users', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_user_id
+            FOREIGN KEY (user_id) REFERENCES users(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'employee_id', 'employees', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_employee_id
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'branch_id', 'branches', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_branch_id
+            FOREIGN KEY (branch_id) REFERENCES branches(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'log_id', 'attendance_logs', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_log_id
+            FOREIGN KEY (log_id) REFERENCES attendance_logs(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'event_id', 'attendance_events', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_event_id
+            FOREIGN KEY (event_id) REFERENCES attendance_events(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'session_id', 'attendance_sessions', 'id') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT fk_attendance_attempts_session_id
+            FOREIGN KEY (session_id) REFERENCES attendance_sessions(id)
+            ON DELETE SET NULL NOT VALID;
+    END IF;
+
     IF NOT pg_temp.restaurant_fk_exists('attendance_audit_findings', 'audit_run_id', 'attendance_audit_runs', 'id') THEN
         ALTER TABLE attendance_audit_findings
             ADD CONSTRAINT fk_attendance_audit_findings_audit_run_id
@@ -602,10 +710,35 @@ END $$;
 
 DO $$
 BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_latitude') THEN
+        ALTER TABLE branches
+            ADD CONSTRAINT ck_branches_latitude
+            CHECK (latitude IS NULL OR (latitude >= -90 AND latitude <= 90)) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_longitude') THEN
+        ALTER TABLE branches
+            ADD CONSTRAINT ck_branches_longitude
+            CHECK (longitude IS NULL OR (longitude >= -180 AND longitude <= 180)) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_geofence_radius_m') THEN
+        ALTER TABLE branches
+            ADD CONSTRAINT ck_branches_geofence_radius_m
+            CHECK (geofence_radius_m >= 10 AND geofence_radius_m <= 1000) NOT VALID;
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_status') THEN
         ALTER TABLE employees
             ADD CONSTRAINT ck_employees_status
             CHECK (status IN ('active', 'inactive', 'terminated')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_store_role') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT ck_employees_store_role
+            CHECK (store_role IN ('store_manager', 'assistant_manager', 'staff')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_store_lead_branch') THEN
+        ALTER TABLE employees
+            ADD CONSTRAINT ck_employees_store_lead_branch
+            CHECK (store_role = 'staff' OR branch_id IS NOT NULL) NOT VALID;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_employment_type') THEN
         ALTER TABLE employees
@@ -655,6 +788,16 @@ BEGIN
         ALTER TABLE attendance_logs
             ADD CONSTRAINT ck_attendance_logs_check_type
             CHECK (check_type IN ('check_in', 'check_out')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_attempts_status') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT ck_attendance_attempts_status
+            CHECK (status IN ('success', 'blocked', 'error')) NOT VALID;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_attempts_check_type') THEN
+        ALTER TABLE attendance_attempts
+            ADD CONSTRAINT ck_attendance_attempts_check_type
+            CHECK (check_type IN ('', 'check_in', 'check_out')) NOT VALID;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_audit_findings_risk_level') THEN
         ALTER TABLE attendance_audit_findings
