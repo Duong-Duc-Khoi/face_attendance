@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý cửa hàng - FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-3">
+<link rel="stylesheet" href="/static/css/components.css">
+<script src="/static/js/auth-guard.js"></script>
+<style>
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 18% 0%,rgba(0,212,170,.075),transparent 29%),radial-gradient(circle at 92% 14%,rgba(58,143,255,.065),transparent 31%)}
+.ops-page{position:relative;z-index:1;max-width:1380px;margin:0 auto;padding:24px}
+.ops-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:end;margin-bottom:18px}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);margin-bottom:8px}
+.ops-title{font-size:26px;font-weight:800;letter-spacing:0;line-height:1.15}
+.ops-sub{margin-top:7px;font-size:13px;color:var(--muted);max-width:760px;line-height:1.6}
+.head-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.icon-btn,.chip-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);min-height:36px;padding:0 12px;border-radius:8px;font-family:var(--font-sans);font-size:12px;font-weight:800;cursor:pointer;transition:border-color .18s,background .18s,color .18s;text-decoration:none}
+.icon-btn:hover,.chip-btn:hover{border-color:var(--teal);background:var(--panel)}
+.icon-btn.primary{background:var(--teal);border-color:var(--teal);color:#00110d}
+.icon-btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
+.icon-btn svg,.chip-btn svg{width:15px;height:15px;flex:0 0 auto}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.metric{min-height:82px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between}
+.metric-label{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.metric-value{font-family:var(--font-mono);font-size:26px;font-weight:800;color:var(--text)}
+.metric-value.good{color:var(--teal)}.metric-value.warn{color:var(--yellow)}.metric-value.info{color:var(--blue)}
+.branch-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;align-items:start}
+.panel-body{padding:14px}
+.branch-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 170px auto;gap:10px;padding:14px;border-bottom:1px solid var(--border);background:var(--panel)}
+.input,.select,.textarea{width:100%;min-height:36px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:var(--font-sans);font-size:12px;outline:none;transition:border-color .18s,background .18s}
+.textarea{min-height:70px;resize:vertical;line-height:1.45}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--teal);background:var(--surface)}
+.select option{background:var(--surface)}
+.field{display:grid;gap:6px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field-label{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.check-row{display:flex;align-items:center;gap:9px;min-height:36px;font-size:12px;color:var(--text)}
+.check-row input{accent-color:var(--teal)}
+.branch-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:14px}
+.branch-card{border:1px solid var(--border);background:linear-gradient(180deg,var(--surface),var(--panel));border-radius:8px;padding:13px;display:grid;gap:12px;transition:border-color .18s,transform .18s}
+.branch-card:hover{border-color:rgba(0,212,170,.45);transform:translateY(-1px)}
+.branch-card.selected{border-color:rgba(0,212,170,.72);box-shadow:0 0 0 1px rgba(0,212,170,.12) inset}
+.branch-card.off{opacity:.62}
+.branch-top{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+.branch-name{font-size:15px;font-weight:800;line-height:1.25;color:var(--text)}
+.branch-address{font-size:12px;color:var(--muted);line-height:1.45;margin-top:4px}
+.pill-row{display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(90,122,154,.36);border-radius:999px;padding:4px 8px;background:rgba(8,17,31,.32);font-size:10px;font-weight:800;color:var(--muted);white-space:nowrap}
+.pill.good{color:var(--teal);border-color:rgba(0,212,170,.34);background:rgba(0,212,170,.08)}
+.pill.warn{color:var(--yellow);border-color:rgba(246,201,14,.38);background:rgba(246,201,14,.08)}
+.pill.bad{color:var(--red);border-color:rgba(255,77,106,.36);background:rgba(255,77,106,.08)}
+.branch-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.meta-box{border:1px solid rgba(26,47,80,.66);background:rgba(8,17,31,.28);border-radius:7px;padding:9px}
+.meta-box b{display:block;font-size:10px;color:var(--muted);font-weight:800;margin-bottom:4px}
+.meta-box span{font-family:var(--font-mono);font-size:12px;color:var(--text)}
+.card-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.form-stack{display:grid;gap:12px}
+.form-panel{position:sticky;top:20px}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding-top:2px}
+.gps-note{border:1px dashed rgba(90,122,154,.45);background:rgba(8,17,31,.32);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.5}
+.employee-panel{margin-top:16px}
+.employee-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 190px auto;gap:10px;padding:14px;border-bottom:1px solid var(--border);background:var(--panel)}
+.assign-table-wrap{overflow:auto;max-height:520px}
+.assign-table{width:100%;min-width:760px;border-collapse:collapse;font-size:12px}
+.assign-table th{text-align:left;padding:10px 12px;font-size:10px;color:#7fa0c2;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(8,17,31,.28)}
+.assign-table td{padding:10px 12px;border-bottom:1px solid rgba(26,47,80,.45);vertical-align:middle;color:var(--text)}
+.assign-table tr:hover td{background:rgba(255,255,255,.025)}
+.person-name{font-size:13px;font-weight:800;color:var(--text)}
+.person-code{font-family:var(--font-mono);font-size:10px;color:#78a6d6;margin-top:2px}
+.muted{color:var(--muted)}
+.empty{padding:26px;color:var(--muted);text-align:center;font-size:13px}
+@media(max-width:1080px){.branch-layout{grid-template-columns:1fr}.form-panel{position:static}.metric-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.ops-page{padding:16px}.ops-head{grid-template-columns:1fr}.head-actions{justify-content:flex-start}.metric-grid,.field-row{grid-template-columns:1fr}.branch-toolbar,.employee-toolbar{grid-template-columns:1fr}.branch-list{grid-template-columns:1fr}.branch-meta{grid-template-columns:1fr}}
+</style>
+</head>
+<body class="admin-shell">
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <div>
+      <span class="brand-name">FaceAttend</span>
+      <span class="brand-section">Cửa hàng</span>
+    </div>
+  </div>
+  <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
+    <span class="nav-section-title">Vận hành</span>
+    <a href="/dashboard" class="nav-link">Tổng quan</a>
+    <a href="/attendance" class="nav-link">Chấm công</a>
+    <a href="/employees" class="nav-link">Nhân viên</a>
+    <a href="/branches" class="nav-link active">Cửa hàng</a>
+    <a href="/shifts" class="nav-link">Ca làm</a>
+    <a href="/roster" class="nav-link">Bảng phân ca</a>
+    <a href="/work-calendar" class="nav-link">Lịch vận hành</a>
+    <a href="/leave" class="nav-link">Nghỉ phép</a>
+    <a href="/report" class="nav-link">Báo cáo</a>
+    <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
+    <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
+    <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
+  </nav>
+  <div class="nav-account">
+    <span id="navUserName" class="user-chip"></span>
+    <button data-logout class="logout-btn">Đăng xuất</button>
+  </div>
+</header>
+
+<main class="ops-page">
+  <section class="ops-head">
+    <div>
+      <div class="eyebrow">Branch Operations</div>
+      <h1 class="ops-title">Quản lý cửa hàng</h1>
+      <p class="ops-sub">Cấu hình từng cửa hàng cho chấm công mobile: tọa độ GPS, bán kính geofence, trạng thái bật/tắt và danh sách nhân viên thuộc cửa hàng.</p>
+    </div>
+    <div class="head-actions">
+      <a class="chip-btn" href="/mobile/attendance" target="_blank" rel="noopener">Mở mobile</a>
+      <button class="icon-btn" onclick="loadAll()">Làm mới</button>
+      <button class="icon-btn primary" onclick="startCreateBranch()">Thêm cửa hàng</button>
+    </div>
+  </section>
+
+  <section class="metric-grid">
+    <div class="metric"><div class="metric-label">Tổng cửa hàng</div><div class="metric-value" id="statBranches">0</div></div>
+    <div class="metric"><div class="metric-label">Đã bật mobile</div><div class="metric-value good" id="statMobile">0</div></div>
+    <div class="metric"><div class="metric-label">Thiếu tọa độ</div><div class="metric-value warn" id="statMissingGps">0</div></div>
+    <div class="metric"><div class="metric-label">NV chưa gán</div><div class="metric-value info" id="statUnassigned">0</div></div>
+  </section>
+
+  <section class="branch-layout">
+    <div>
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Danh sách cửa hàng</div></div>
+        <div class="branch-toolbar">
+          <input class="input" id="branchSearch" placeholder="Tìm theo tên, địa chỉ, số điện thoại" oninput="renderBranches()">
+          <select class="select" id="branchStatusFilter" onchange="renderBranches()">
+            <option value="">Tất cả trạng thái</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="mobile">Đã bật mobile</option>
+            <option value="missing_gps">Thiếu tọa độ</option>
+            <option value="inactive">Đã tắt</option>
+          </select>
+          <button class="icon-btn" onclick="startCreateBranch()">Tạo mới</button>
+        </div>
+        <div class="branch-list" id="branchList"></div>
+      </div>
+
+      <div class="panel employee-panel">
+        <div class="panel-header"><div class="panel-title">Gán nhân viên vào cửa hàng</div></div>
+        <div class="employee-toolbar">
+          <input class="input" id="employeeSearch" placeholder="Tìm nhân viên, mã NV, vai trò" oninput="renderEmployeeAssignments()">
+          <select class="select" id="employeeBranchFilter" onchange="renderEmployeeAssignments()"></select>
+          <button class="icon-btn" onclick="loadEmployees()">Tải lại NV</button>
+        </div>
+        <div class="assign-table-wrap">
+          <table class="assign-table">
+            <thead>
+              <tr><th>Nhân viên</th><th>Vai trò</th><th>Cửa hàng hiện tại</th><th>Gán cửa hàng</th><th></th></tr>
+            </thead>
+            <tbody id="employeeAssignBody"><tr><td colspan="5" class="empty">Đang tải dữ liệu...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel form-panel">
+      <div class="panel-header"><div class="panel-title" id="formTitle">Thêm cửa hàng</div></div>
+      <div class="panel-body form-stack">
+        <input type="hidden" id="branchId">
+        <div class="field">
+          <label class="field-label">Tên cửa hàng *</label>
+          <input class="input" id="branchName" placeholder="VD: Cửa hàng Nguyễn Trãi">
+        </div>
+        <div class="field">
+          <label class="field-label">Địa chỉ</label>
+          <textarea class="textarea" id="branchAddress" placeholder="Địa chỉ cửa hàng"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Số điện thoại</label>
+            <input class="input" id="branchPhone" placeholder="0901234567">
+          </div>
+          <div class="field">
+            <label class="field-label">Bán kính GPS (m)</label>
+            <input class="input" id="branchRadius" type="number" min="10" max="1000" step="1" value="50">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Latitude</label>
+            <input class="input" id="branchLat" type="number" min="-90" max="90" step="0.000001" placeholder="10.762622">
+          </div>
+          <div class="field">
+            <label class="field-label">Longitude</label>
+            <input class="input" id="branchLng" type="number" min="-180" max="180" step="0.000001" placeholder="106.660172">
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="check-row"><input type="checkbox" id="branchMobileEnabled"> Bật chấm công mobile</label>
+          <label class="check-row"><input type="checkbox" id="branchActive" checked> Cửa hàng hoạt động</label>
+        </div>
+        <div class="gps-note" id="gpsNote">Khi đứng tại cửa hàng, bấm lấy GPS hiện tại để điền tọa độ. Mobile chỉ được chấm công khi cửa hàng đã có tọa độ và đã bật chấm công mobile.</div>
+        <div class="form-actions">
+          <button class="icon-btn" onclick="fillCurrentLocation()">Lấy GPS hiện tại</button>
+          <button class="icon-btn" onclick="resetBranchForm()">Xóa form</button>
+          <button class="icon-btn primary" onclick="saveBranch()">Lưu cửa hàng</button>
+        </div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<div id="toast"></div>
+<script src="/static/js/toast.js"></script>
+<script>
+let branches = [];
+let employees = [];
+let selectedBranchId = null;
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+const fmtCoord = v => (v === null || v === undefined || v === "") ? "Chưa có" : Number(v).toFixed(6);
+const show = (msg, type) => window.showToast ? window.showToast(msg, type || "success") : alert(msg);
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadAll();
+});
+
+async function loadAll(){
+  await Promise.all([loadBranches(), loadEmployees()]);
+  renderAll();
+}
+
+async function loadBranches(){
+  const res = await authFetch("/api/branches");
+  if (!res.ok) throw new Error("Không tải được cửa hàng");
+  branches = await res.json();
+}
+
+async function loadEmployees(){
+  const res = await authFetch("/api/employees?active_only=false");
+  if (!res.ok) throw new Error("Không tải được nhân viên");
+  employees = await res.json();
+  renderAll();
+}
+
+function renderAll(){
+  renderStats();
+  renderBranchFilters();
+  renderBranches();
+  renderEmployeeAssignments();
+}
+
+function branchById(id){
+  const n = Number(id);
+  return branches.find(b => Number(b.id) === n);
+}
+
+function branchName(id){
+  const branch = branchById(id);
+  return branch ? branch.name : "Chưa gán";
+}
+
+function hasGps(branch){
+  return branch.latitude !== null && branch.latitude !== undefined && branch.longitude !== null && branch.longitude !== undefined;
+}
+
+function employeeCount(branchId){
+  return employees.filter(e => Number(e.branch_id) === Number(branchId)).length;
+}
+
+function renderStats(){
+  const total = branches.length;
+  const mobile = branches.filter(b => b.mobile_attendance_enabled).length;
+  const missingGps = branches.filter(b => b.mobile_attendance_enabled && !hasGps(b)).length;
+  const unassigned = employees.filter(e => !e.branch_id && e.is_active !== false).length;
+  document.getElementById("statBranches").textContent = total;
+  document.getElementById("statMobile").textContent = mobile;
+  document.getElementById("statMissingGps").textContent = missingGps;
+  document.getElementById("statUnassigned").textContent = unassigned;
+}
+
+function renderBranchFilters(){
+  const options = ['<option value="">Tất cả cửa hàng</option>','<option value="none">Chưa gán</option>']
+    .concat(branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`));
+  const employeeFilter = document.getElementById("employeeBranchFilter");
+  const current = employeeFilter.value;
+  employeeFilter.innerHTML = options.join("");
+  employeeFilter.value = current;
+}
+
+function renderBranches(){
+  const list = document.getElementById("branchList");
+  const q = document.getElementById("branchSearch").value.trim().toLowerCase();
+  const status = document.getElementById("branchStatusFilter").value;
+  const rows = branches.filter(b => {
+    const haystack = `${b.name} ${b.address || ""} ${b.phone || ""}`.toLowerCase();
+    if (q && !haystack.includes(q)) return false;
+    if (status === "active" && !b.is_active) return false;
+    if (status === "inactive" && b.is_active) return false;
+    if (status === "mobile" && !b.mobile_attendance_enabled) return false;
+    if (status === "missing_gps" && (!b.mobile_attendance_enabled || hasGps(b))) return false;
+    return true;
+  });
+
+  if (!rows.length){
+    list.innerHTML = '<div class="empty">Chưa có cửa hàng phù hợp bộ lọc.</div>';
+    return;
+  }
+
+  list.innerHTML = rows.map(b => {
+    const gpsReady = hasGps(b);
+    const gpsClass = gpsReady ? "good" : "warn";
+    const mobileClass = b.mobile_attendance_enabled ? (gpsReady ? "good" : "warn") : "";
+    const maps = gpsReady ? `https://www.google.com/maps?q=${encodeURIComponent(b.latitude + "," + b.longitude)}` : "";
+    return `
+      <article class="branch-card ${Number(selectedBranchId) === Number(b.id) ? "selected" : ""} ${b.is_active ? "" : "off"}">
+        <div class="branch-top">
+          <div>
+            <div class="branch-name">${esc(b.name)}</div>
+            <div class="branch-address">${esc(b.address || "Chưa có địa chỉ")}</div>
+          </div>
+          <span class="pill ${b.is_active ? "good" : "bad"}">${b.is_active ? "Hoạt động" : "Đã tắt"}</span>
+        </div>
+        <div class="pill-row">
+          <span class="pill ${mobileClass}">${b.mobile_attendance_enabled ? "Mobile bật" : "Mobile tắt"}</span>
+          <span class="pill ${gpsClass}">${gpsReady ? "Có GPS" : "Thiếu GPS"}</span>
+          <span class="pill">${employeeCount(b.id)} nhân viên</span>
+          <span class="pill">${Number(b.geofence_radius_m || 50)}m</span>
+        </div>
+        <div class="branch-meta">
+          <div class="meta-box"><b>Latitude</b><span>${fmtCoord(b.latitude)}</span></div>
+          <div class="meta-box"><b>Longitude</b><span>${fmtCoord(b.longitude)}</span></div>
+        </div>
+        <div class="card-actions">
+          ${maps ? `<a class="chip-btn" href="${maps}" target="_blank" rel="noopener">Bản đồ</a>` : ""}
+          <button class="chip-btn" onclick="selectBranch(${b.id})">Gán NV</button>
+          <button class="icon-btn" onclick="editBranch(${b.id})">Sửa</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function startCreateBranch(){
+  resetBranchForm();
+  document.getElementById("branchName").focus();
+}
+
+function editBranch(id){
+  const b = branchById(id);
+  if (!b) return;
+  selectedBranchId = b.id;
+  document.getElementById("formTitle").textContent = "Sửa cửa hàng";
+  document.getElementById("branchId").value = b.id;
+  document.getElementById("branchName").value = b.name || "";
+  document.getElementById("branchAddress").value = b.address || "";
+  document.getElementById("branchPhone").value = b.phone || "";
+  document.getElementById("branchRadius").value = b.geofence_radius_m || 50;
+  document.getElementById("branchLat").value = b.latitude ?? "";
+  document.getElementById("branchLng").value = b.longitude ?? "";
+  document.getElementById("branchMobileEnabled").checked = !!b.mobile_attendance_enabled;
+  document.getElementById("branchActive").checked = !!b.is_active;
+  document.getElementById("employeeBranchFilter").value = String(b.id);
+  renderBranches();
+  renderEmployeeAssignments();
+}
+
+function selectBranch(id){
+  selectedBranchId = id;
+  document.getElementById("employeeBranchFilter").value = String(id);
+  renderBranches();
+  renderEmployeeAssignments();
+}
+
+function resetBranchForm(){
+  selectedBranchId = null;
+  document.getElementById("formTitle").textContent = "Thêm cửa hàng";
+  document.getElementById("branchId").value = "";
+  document.getElementById("branchName").value = "";
+  document.getElementById("branchAddress").value = "";
+  document.getElementById("branchPhone").value = "";
+  document.getElementById("branchRadius").value = 50;
+  document.getElementById("branchLat").value = "";
+  document.getElementById("branchLng").value = "";
+  document.getElementById("branchMobileEnabled").checked = false;
+  document.getElementById("branchActive").checked = true;
+  renderBranches();
+}
+
+function branchPayload(){
+  const lat = document.getElementById("branchLat").value;
+  const lng = document.getElementById("branchLng").value;
+  const radius = Number(document.getElementById("branchRadius").value || 50);
+  return {
+    name: document.getElementById("branchName").value.trim(),
+    address: document.getElementById("branchAddress").value.trim(),
+    phone: document.getElementById("branchPhone").value.trim(),
+    latitude: lat === "" ? null : Number(lat),
+    longitude: lng === "" ? null : Number(lng),
+    geofence_radius_m: radius,
+    mobile_attendance_enabled: document.getElementById("branchMobileEnabled").checked,
+    is_active: document.getElementById("branchActive").checked
+  };
+}
+
+async function saveBranch(){
+  const id = document.getElementById("branchId").value;
+  const payload = branchPayload();
+  if (!payload.name) return show("Tên cửa hàng là bắt buộc", "error");
+  if (payload.mobile_attendance_enabled && (payload.latitude === null || payload.longitude === null)){
+    return show("Muốn bật chấm công mobile thì cần nhập tọa độ cửa hàng", "error");
+  }
+  const res = await authFetch(id ? `/api/branches/${id}` : "/api/branches", {
+    method: id ? "PUT" : "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok){
+    const err = await res.json().catch(() => ({}));
+    return show(err.detail || "Không lưu được cửa hàng", "error");
+  }
+  const data = await res.json();
+  selectedBranchId = data.branch && data.branch.id;
+  show("Đã lưu cửa hàng", "success");
+  await loadBranches();
+  renderAll();
+  if (selectedBranchId) editBranch(selectedBranchId);
+}
+
+function fillCurrentLocation(){
+  if (!navigator.geolocation){
+    return show("Trình duyệt không hỗ trợ GPS", "error");
+  }
+  document.getElementById("gpsNote").textContent = "Đang lấy GPS hiện tại...";
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById("branchLat").value = pos.coords.latitude.toFixed(6);
+    document.getElementById("branchLng").value = pos.coords.longitude.toFixed(6);
+    document.getElementById("gpsNote").textContent = `Đã lấy GPS. Sai số trình duyệt báo khoảng ${Math.round(pos.coords.accuracy || 0)}m.`;
+    show("Đã điền tọa độ hiện tại", "success");
+  }, err => {
+    document.getElementById("gpsNote").textContent = "Không lấy được GPS. Kiểm tra quyền vị trí hoặc HTTPS/Chrome flag nếu đang test bằng điện thoại.";
+    show(err.message || "Không lấy được GPS", "error");
+  }, {enableHighAccuracy:true, timeout:16000, maximumAge:0});
+}
+
+function renderEmployeeAssignments(){
+  const body = document.getElementById("employeeAssignBody");
+  const q = document.getElementById("employeeSearch").value.trim().toLowerCase();
+  const filter = document.getElementById("employeeBranchFilter").value;
+  let rows = employees.filter(e => {
+    const haystack = `${e.name || ""} ${e.full_name || ""} ${e.emp_code || ""} ${e.job_role_label || ""}`.toLowerCase();
+    if (q && !haystack.includes(q)) return false;
+    if (filter === "none" && e.branch_id) return false;
+    if (filter && filter !== "none" && Number(e.branch_id) !== Number(filter)) return false;
+    return true;
+  });
+  rows.sort((a,b) => String(a.name || "").localeCompare(String(b.name || ""), "vi"));
+
+  if (!rows.length){
+    body.innerHTML = '<tr><td colspan="5" class="empty">Không có nhân viên phù hợp.</td></tr>';
+    return;
+  }
+
+  const branchOptions = ['<option value="">Chưa gán</option>'].concat(
+    branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`)
+  ).join("");
+
+  body.innerHTML = rows.map(e => `
+    <tr>
+      <td>
+        <div class="person-name">${esc(e.full_name || e.name)}</div>
+        <div class="person-code">${esc(e.emp_code || "")}${e.is_active === false ? " · Đã nghỉ" : ""}</div>
+      </td>
+      <td>${esc(e.job_role_label || e.job_role || "")}</td>
+      <td><span class="pill ${e.branch_id ? "good" : "warn"}">${esc(branchName(e.branch_id))}</span></td>
+      <td>
+        <select class="select" id="empBranch${e.id}">
+          ${branchOptions}
+        </select>
+      </td>
+      <td style="text-align:right"><button class="icon-btn" onclick="saveEmployeeBranch(${e.id})">Lưu</button></td>
+    </tr>
+  `).join("");
+  rows.forEach(e => {
+    const el = document.getElementById(`empBranch${e.id}`);
+    if (el) el.value = e.branch_id ? String(e.branch_id) : "";
+  });
+}
+
+async function saveEmployeeBranch(empId){
+  const select = document.getElementById(`empBranch${empId}`);
+  const branchId = select.value ? Number(select.value) : null;
+  const res = await authFetch(`/api/employees/${empId}`, {
+    method: "PUT",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({branch_id: branchId})
+  });
+  if (!res.ok){
+    const err = await res.json().catch(() => ({}));
+    return show(err.detail || "Không gán được cửa hàng", "error");
+  }
+  show("Đã cập nhật cửa hàng cho nhân viên", "success");
+  await loadEmployees();
+}
+</script>
+</body>
+</html>

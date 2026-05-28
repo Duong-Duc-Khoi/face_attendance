@@ -39,6 +39,7 @@ from app.services.camera import (
 from app.services.attendance import get_summary_today
 from app.services.notify import notify_daily_report_async
 from app.api.v1 import employees, reports
+from app.api.v1.branches import router as branches_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.users import router as users_router
 from app.api.v1.ws import ws_attendance
@@ -46,8 +47,10 @@ from app.api.v1.leave import router as leave_router
 from app.api.v1.calendar import router as calendar_router
 from app.api.v1.integrations import router as integrations_router
 from app.api.v1.employee_roles import router as employee_roles_router
+from app.api.v1.mobile_attendance import router as mobile_attendance_router
 from app.services.attendance import get_summary_today, auto_checkout_missing, mark_absent_sessions
 from app.services.attendance_audit import cleanup_old_evidence
+from app.services.mobile_attendance_policy import classify_device
 scheduler = AsyncIOScheduler()
 
 
@@ -108,16 +111,22 @@ app.mount("/data/faces", StaticFiles(directory="data/faces"), name="faces")
 
 templates = Jinja2Templates(directory="templates")
 
+
+def _is_mobile_user_agent(user_agent: str) -> bool:
+    return classify_device(user_agent).is_mobile
+
 # Routers
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(employees.router)
 app.include_router(employee_roles_router)
+app.include_router(branches_router)
 app.include_router(reports.router)
 app.include_router(leave_router)
 app.include_router(calendar_router)
 app.include_router(shifts_router)
 app.include_router(integrations_router)
+app.include_router(mobile_attendance_router)
 
 # ── Auth pages ───────────────────────────────────────────────────
 @app.get("/auth/login-page")
@@ -127,11 +136,17 @@ async def login_page(request: Request):
 # ── HTML pages ───────────────────────────────────────────────────
 @app.get("/")
 async def kiosk_page(request: Request):
+    if _is_mobile_user_agent(request.headers.get("user-agent", "")):
+        return RedirectResponse("/mobile/attendance", status_code=307)
     return templates.TemplateResponse("kiosk.html", {"request": request})
 
 @app.get("/me")
 async def me_page(request: Request):
     return templates.TemplateResponse("me.html", {"request": request})
+
+@app.get("/mobile/attendance")
+async def mobile_attendance_page(request: Request):
+    return templates.TemplateResponse("mobile_attendance.html", {"request": request})
 
 @app.get("/register")
 async def register_page_face(request: Request):
@@ -158,6 +173,10 @@ async def attendance_page(request: Request):
 @app.get("/employees")
 async def employees_page(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "employees"})
+
+@app.get("/branches")
+async def branches_page(request: Request):
+    return templates.TemplateResponse("branches.html", {"request": request})
 
 @app.get("/leave")
 async def leave_page(request: Request):

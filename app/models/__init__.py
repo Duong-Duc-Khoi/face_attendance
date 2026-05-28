@@ -10,6 +10,7 @@ from app.models.employee_role import EmployeeRole
 from app.models.attendance import (
     AttendanceAuditFinding,
     AttendanceAuditRun,
+    AttendanceAttempt,
     AttendanceEvidence,
     AttendanceEvent,
     AttendanceLog,
@@ -22,7 +23,7 @@ from app.models.shift import Shift, ShiftAssignment, ShiftPlanDraft, ShiftPlanDr
 from app.models.integration import AIProviderSetting
 __all__ = [
     "Base", "Branch", "Employee", "EmployeeRole",
-    "AttendanceSession", "AttendanceEvent", "AttendanceEvidence",
+    "AttendanceSession", "AttendanceEvent", "AttendanceEvidence", "AttendanceAttempt",
     "AttendanceAuditRun", "AttendanceAuditFinding", "AttendanceLog",
     "User", "EmailToken", "RefreshToken",
     "LeaveRequest", "LeaveRequestDay", "WorkCalendar",

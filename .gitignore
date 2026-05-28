@@ -19,6 +19,8 @@ data/captures/
 data/exports/
 data/embeddings.pkl
 data/attendance.db
+data/pycache_check/
+data/dev_server*.log
 
 # IDE
 .vscode/
