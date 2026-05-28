@@ -70,6 +70,15 @@ def _employee_role_matches_shift(emp: Employee | None, shift: Shift) -> bool:
     return required in employee_roles
 
 
+def _ensure_assignable_workday(work_date: date, db: Session) -> None:
+    from app.services.work_calendar import get_calendar_day
+
+    cal = get_calendar_day(work_date, db)
+    if cal.get("day_type") == "off":
+        label = cal.get("label") or "ngày nghỉ/đóng cửa"
+        raise ValueError(f"Không thể xếp ca vào {label}")
+
+
 # ── CRUD Ca làm việc ─────────────────────────────────────────────
 
 def list_shifts(db: Session, active_only: bool = False) -> list[dict]:
@@ -166,6 +175,7 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
     Nếu đã có cùng ca trong ngày → cập nhật (upsert).
     Nhà hàng có thể phân nhiều ca khác nhau cho cùng một nhân viên trong ngày.
     """
+    _ensure_assignable_workday(work_date, db)
     emp = db.query(Employee).filter_by(emp_code=emp_code).first()
     shift = db.query(Shift).filter_by(id=shift_id).first()
     if not shift:
@@ -291,6 +301,7 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
     new_work_date = data.get("work_date", a.work_date)
     if isinstance(new_work_date, str):
         new_work_date = date.fromisoformat(new_work_date)
+    _ensure_assignable_workday(new_work_date, db)
 
     shift = db.query(Shift).filter_by(id=new_shift_id).first()
     if not shift:

@@ -56,25 +56,42 @@
 .work-count{font-family:var(--font-mono);font-size:18px;font-weight:800;text-align:right;color:var(--teal)}
 .work-count.warn{color:var(--yellow)}.work-count.danger{color:var(--red)}.work-count.info{color:var(--blue)}
 .preview-foot{display:flex;justify-content:flex-end;padding:10px 14px;border-top:1px solid rgba(26,47,80,.45)}
+.lv-filter{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:11px;font-weight:700;outline:none}
+.lv-filter:focus{border-color:var(--teal)}
 .lv-table{width:100%;border-collapse:collapse;font-size:12px}
-.lv-table th{text-align:left;padding:8px 12px;font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border)}
-.lv-table td{padding:9px 12px;border-bottom:1px solid rgba(26,47,80,.4);color:var(--text)}
+.lv-table th{text-align:left;padding:9px 12px;font-size:9px;color:#7fa0c2;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(8,17,31,.24)}
+.lv-table td{padding:11px 12px;border-bottom:1px solid rgba(26,47,80,.42);color:var(--text);vertical-align:middle}
 .lv-table tr:last-child td{border-bottom:none}
 .lv-table tr:hover td{background:rgba(255,255,255,.02)}
-.lv-status{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
-.ls-pending{background:rgba(246,201,14,.1);border:1px solid rgba(246,201,14,.3);color:#f6c90e}
-.ls-approved{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal)}
-.ls-rejected{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--red)}
-.ls-cancelled{background:rgba(90,122,154,.1);border:1px solid rgba(90,122,154,.2);color:var(--muted)}
+.lv-person{display:grid;gap:3px}
+.lv-person-name{font-size:13px;font-weight:800;color:#f2f7ff;line-height:1.2}
+.lv-person-code{font-family:var(--font-mono);font-size:10px;color:#78a6d6}
+.lv-type{display:inline-flex;align-items:center;justify-content:center;min-width:86px;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;border:1px solid}
+.lv-type.leave{background:rgba(58,143,255,.12);border-color:rgba(58,143,255,.34);color:#7ab8ff}
+.lv-type.remote{background:rgba(167,139,250,.13);border-color:rgba(167,139,250,.34);color:#c4b5fd}
+.lv-dates{font-family:var(--font-mono);font-size:11px;color:#dce9ff;line-height:1.45;max-width:180px}
+.lv-total{text-align:center;font-family:var(--font-mono);font-size:13px;font-weight:900;color:#f6c90e}
+.lv-reason{font-size:12px;color:#b9cce2;line-height:1.45;max-width:180px}
+.lv-submitted{font-family:var(--font-mono);font-size:10px;color:#89a9c8;white-space:nowrap}
+.lv-status{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:10px;font-weight:900;white-space:nowrap}
+.ls-pending{background:rgba(246,201,14,.14);border:1px solid rgba(246,201,14,.42);color:#ffd84d}
+.ls-approved{background:rgba(0,212,170,.13);border:1px solid rgba(0,212,170,.36);color:#28f0c8}
+.ls-rejected{background:rgba(255,77,106,.13);border:1px solid rgba(255,77,106,.38);color:#ff7f95}
+.ls-cancelled{background:rgba(90,122,154,.12);border:1px solid rgba(90,122,154,.26);color:#8aa7c4}
+.lv-actions{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.lv-action{padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:800;border:1px solid;background:transparent}
+.lv-action.approve{background:rgba(0,212,170,.12);border-color:rgba(0,212,170,.36);color:#28f0c8}
+.lv-action.reject{background:rgba(255,77,106,.1);border-color:rgba(255,77,106,.34);color:#ff7f95}
+.lv-note{font-size:11px;color:#9eb7d0;line-height:1.35}
 .cal-grid-m{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:10px}
 .cal-dow-m{text-align:center;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:4px 0}
 .cal-day-m{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:11px;cursor:pointer;transition:all .15s;border:1px solid transparent;user-select:none;gap:1px}
 .cal-day-m:hover{border-color:var(--teal);background:rgba(0,212,170,.06)}
 .cal-day-m.today{border-color:var(--teal)!important}
-.cal-day-m.dt-full{color:var(--teal)}.cal-day-m.dt-half_am,.cal-day-m.dt-half_pm{color:var(--blue)}
-.cal-day-m.dt-off{color:rgba(90,122,154,.4)}.cal-day-m.dt-holiday{color:#f6c90e;background:rgba(246,201,14,.06)}
-.cal-day-m.dt-overtime{color:#a78bfa;background:rgba(167,139,250,.06)}
-.cal-day-m .day-lbl{font-size:7px;text-align:center;line-height:1.1;opacity:.8}
+.cal-day-m.dt-full{color:#35f3cf;background:rgba(0,212,170,.045)}
+.cal-day-m.dt-off{color:#7f99b4;background:rgba(90,122,154,.055)}
+.cal-day-m.dt-holiday{color:#ffd84d;background:rgba(246,201,14,.1);border-color:rgba(246,201,14,.24)}
+.cal-day-m .day-lbl{font-size:7px;text-align:center;line-height:1.1;opacity:1;color:inherit}
 .cal-day-m.empty-slot{opacity:0;pointer-events:none}
 .dtype-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .dtype-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--font-sans);background:none;color:var(--muted);transition:all .15s}
@@ -1436,22 +1453,23 @@ function renderLeaveTable(){
   const tbody=document.getElementById('leaveTableBody');
   if(!leaveRequests.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Không có đơn nào</td></tr>';return;}
   const smap={pending:'ls-pending|⏳ Chờ duyệt',approved:'ls-approved|✓ Đã duyệt',rejected:'ls-rejected|✕ Từ chối',cancelled:'ls-cancelled|— Đã hủy'};
-  const rtypeLabel={leave:'📅 Nghỉ phép',remote:'🏠 Remote'};
+  const rtypeLabel={leave:'Nghỉ phép',remote:'Remote'};
   tbody.innerHTML=leaveRequests.map(l=>{
     const [scls,stxt]=(smap[l.status]||'ls-cancelled|?').split('|');
     const dates=l.dates.map(d=>{let s=d.date;if(d.half==='am')s+='(S)';else if(d.half==='pm')s+='(C)';return s;}).join(', ');
     const isPending=l.status==='pending';
-    return `<tr><td><div style="font-weight:600;font-size:12px">${l.emp_name}<br><span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.emp_code}</span></div></td>
-      <td>${rtypeLabel[l.request_type]||l.request_type}</td>
-      <td style="font-family:var(--font-mono);font-size:10px">${dates}</td>
-      <td style="text-align:center;font-family:var(--font-mono)">${l.total_days}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:140px">${l.reason||'—'}</td>
-      <td style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.submitted_at?l.submitted_at.slice(0,16).replace('T',' '):'—'}</td>
+    const typeClass=l.request_type==='remote'?'remote':'leave';
+    return `<tr><td><div class="lv-person"><span class="lv-person-name">${rosterSafe(l.emp_name)}</span><span class="lv-person-code">${rosterSafe(l.emp_code)}</span></div></td>
+      <td><span class="lv-type ${typeClass}">${rosterSafe(rtypeLabel[l.request_type]||l.request_type)}</span></td>
+      <td><div class="lv-dates">${rosterSafe(dates)}</div></td>
+      <td class="lv-total">${rosterSafe(l.total_days)}</td>
+      <td><div class="lv-reason">${rosterSafe(l.reason||'—')}</div></td>
+      <td><span class="lv-submitted">${l.submitted_at?l.submitted_at.slice(0,16).replace('T',' '):'—'}</span></td>
       <td><span class="lv-status ${scls}">${stxt}</span></td>
-      <td style="text-align:right">${isPending?`<div style="display:flex;gap:5px;justify-content:flex-end">
-        <button onclick="approveLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">✓ Duyệt</button>
-        <button onclick="rejectLeave(${l.id})" style="padding:4px 10px;border-radius:5px;background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.3);color:var(--red);font-size:11px;cursor:pointer;font-weight:700">✕ Từ chối</button>
-      </div>`:(l.note?`<span style="font-size:10px;color:var(--muted)">${l.note}</span>`:'—')}</td></tr>`;
+      <td style="text-align:right">${isPending?`<div class="lv-actions">
+        <button class="lv-action approve" onclick="approveLeave(${l.id})">✓ Duyệt</button>
+        <button class="lv-action reject" onclick="rejectLeave(${l.id})">✕ Từ chối</button>
+      </div>`:(l.note?`<span class="lv-note">${rosterSafe(l.note)}</span>`:'—')}</td></tr>`;
   }).join('');
 }
 let _leaveActionId=null;
@@ -1869,7 +1887,7 @@ function renderCalMgmtGrid(calDays){
   const firstDay=new Date(calMgmtYear,calMgmtMonth-1,1).getDay();
   const daysInMonth=new Date(calMgmtYear,calMgmtMonth,0).getDate();
   const todayStr=new Date().toISOString().slice(0,10);
-  const dtCol={full:'var(--teal)',half_am:'var(--blue)',half_pm:'var(--blue)',off:'rgba(90,122,154,.4)',holiday:'#f6c90e',overtime:'#a78bfa'};
+  const dtCol={full:'#35f3cf',off:'#7f99b4',holiday:'#ffd84d'};
   let html=`<div class="cal-grid-m"><div class="cal-dow-m">CN</div><div class="cal-dow-m">T2</div><div class="cal-dow-m">T3</div><div class="cal-dow-m">T4</div><div class="cal-dow-m">T5</div><div class="cal-dow-m">T6</div><div class="cal-dow-m">T7</div>`;
   for(let i=0;i<firstDay;i++)html+='<div class="cal-day-m empty-slot"></div>';
   for(let day=1;day<=daysInMonth;day++){
@@ -1878,7 +1896,7 @@ function renderCalMgmtGrid(calDays){
     const col=dtCol[cal.day_type]||'var(--muted)';
     const isToday=ds===todayStr,isEditing=ds===editingDate;
     const tip=cal.label?`title="${cal.label}"`:'';
-    html+=`<div class="cal-day-m dt-${cal.day_type}${isToday?' today':''}${isEditing?' today':''}" style="border-color:${isEditing?'var(--teal)':'transparent'};background:${isEditing?'rgba(0,212,170,.1)':''}" onclick="selectDay('${ds}','${cal.day_type}','${cal.work_start||''}','${cal.work_end||''}','${(cal.label||'').replace(/'/g,'')}')\" ${tip}><span style="color:${col}">${day}</span>${cal.label?`<span class="day-lbl" style="color:${col}">${cal.label.slice(0,8)}</span>`:''}${cal.is_override?'<span style="position:absolute;top:1px;right:2px;width:4px;height:4px;border-radius:50%;background:var(--teal)"></span>':''}</div>`;
+    html+=`<div class="cal-day-m dt-${cal.day_type}${isToday?' today':''}${isEditing?' today':''}" style="border-color:${isEditing?'var(--teal)':''};background:${isEditing?'rgba(0,212,170,.1)':''}" onclick="selectDay('${ds}','${cal.day_type}','${cal.work_start||''}','${cal.work_end||''}','${(cal.label||'').replace(/'/g,'')}')\" ${tip}><span style="color:${col};font-weight:800">${day}</span>${cal.label?`<span class="day-lbl">${cal.label.slice(0,8)}</span>`:''}${cal.is_override?'<span style="position:absolute;top:1px;right:2px;width:4px;height:4px;border-radius:50%;background:var(--teal)"></span>':''}</div>`;
   }
   html+='</div>';body.innerHTML=html;
 }

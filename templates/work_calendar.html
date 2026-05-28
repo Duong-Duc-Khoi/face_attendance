@@ -19,6 +19,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 .icon-btn,.chip-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);min-height:36px;padding:0 12px;border-radius:8px;font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer;transition:all .18s}
 .icon-btn:hover,.chip-btn:hover{border-color:var(--teal);background:var(--panel)}
 .icon-btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.chip-btn.primary{background:rgba(0,212,170,.14);border-color:rgba(0,212,170,.58);color:var(--teal)}
 .icon-btn.danger{color:var(--red);border-color:rgba(255,77,106,.35)}
 .head-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
@@ -27,24 +28,43 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 .metric-value{font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--text)}
 .calendar-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
 .panel-body{padding:14px}
+.calendar-surface{background:#07101c;border:1px solid rgba(90,122,154,.22);border-radius:8px;padding:12px}
 .cal-toolbar{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px;border-bottom:1px solid var(--border);background:var(--panel)}
 .month-nav{display:flex;align-items:center;gap:8px}
 .month-label{font-size:15px;font-weight:700;text-align:center}
-.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;align-items:stretch}
-.cal-dow{text-align:center;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;padding:5px 0}
-.cal-day{position:relative;min-height:98px;border:1px solid rgba(90,122,154,.32);border-radius:8px;background:var(--surface);padding:9px;display:grid;grid-template-rows:auto auto 1fr;gap:7px;cursor:pointer;transition:all .15s;text-align:left}
-.cal-day:hover{border-color:var(--teal);background:var(--panel)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:stretch}
+.cal-dow{text-align:left;font-size:10px;font-weight:900;color:#7899ba;letter-spacing:.08em;text-transform:uppercase;padding:5px 3px}
+.cal-dow.weekend{color:#a8bad0}
+.cal-day{position:relative;min-height:104px;border:1px solid rgba(90,122,154,.28);border-radius:4px;background:#0b1524;padding:9px 9px 8px 12px;display:grid;grid-template-rows:auto 1fr auto;gap:5px;cursor:pointer;transition:border-color .15s,background .15s,transform .15s;text-align:left;overflow:hidden}
+.cal-day::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#73d7c5}
+.cal-day:hover{border-color:rgba(232,240,254,.32);background:#0e1a2b;transform:translateY(-1px)}
 .cal-day.empty{visibility:hidden;pointer-events:none}
-.cal-day.selected{border-color:var(--teal);box-shadow:0 0 0 1px rgba(0,212,170,.16) inset}
-.cal-num{font-family:var(--font-mono);font-size:15px;font-weight:800;color:var(--text)}
-.cal-info{min-height:26px;display:grid;align-content:end;gap:3px;overflow:hidden}
-.cal-label{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);line-height:1.2}
-.cal-meta{font-family:var(--font-mono);font-size:10px;color:#f6c90e;line-height:1.2}
-.cal-chip{width:100%;max-width:100%;border-radius:6px;padding:4px 6px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dt-full .cal-chip{background:rgba(0,212,170,.12);color:var(--teal);border:1px solid rgba(0,212,170,.3)}
-.dt-off .cal-chip{background:rgba(90,122,154,.14);color:var(--muted);border:1px solid rgba(90,122,154,.34)}
-.dt-holiday .cal-chip{background:rgba(246,201,14,.14);color:#f6c90e;border:1px solid rgba(246,201,14,.34)}
-.override-dot{position:absolute;top:8px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--teal)}
+.cal-day.selected{border-color:rgba(115,215,197,.72);box-shadow:0 0 0 1px rgba(115,215,197,.2) inset;background:#0e1d2b}
+.cal-num{font-family:var(--font-mono);font-size:24px;font-weight:900;color:#c7d6e8;line-height:1;text-shadow:none;-webkit-text-stroke:0}
+.cal-info{min-height:30px;display:grid;align-content:end;gap:2px;overflow:hidden}
+.cal-label{font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#eaf2ff;line-height:1.2}
+.cal-meta{font-family:var(--font-mono);font-size:10px;color:#ffd84d;line-height:1.2}
+.cal-chip{align-self:start;width:max-content;max-width:100%;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#35f3cf}
+.cal-check{position:absolute;top:7px;right:7px;z-index:2;width:16px;height:16px;accent-color:var(--teal);cursor:pointer;display:none}
+.bulk-mode .cal-check{display:block}
+.cal-day.multi-selected{border-color:rgba(115,215,197,.82);box-shadow:0 0 0 1px rgba(115,215,197,.22) inset}
+.dt-full{background:linear-gradient(135deg,rgba(115,215,197,.035),#0b1524 54%)}
+.dt-full .cal-chip{color:#8fe3d5}
+.dt-off{background:linear-gradient(135deg,rgba(255,127,149,.055),#0b1524 54%);border-color:rgba(255,127,149,.24)}
+.dt-off::before{background:#d87b8c}
+.dt-off .cal-num{color:#d9a4ae}
+.dt-off .cal-chip{color:#e29aa7}
+.dt-holiday{background:linear-gradient(135deg,rgba(246,201,14,.08),#0b1524 58%);border-color:rgba(246,201,14,.3)}
+.dt-holiday::before{background:#f6c90e}
+.dt-holiday .cal-num{color:#e9cc6f}
+.dt-holiday .cal-chip{color:#ffd84d}
+.cal-day.weekend{border-color:rgba(125,154,184,.34);background:linear-gradient(135deg,rgba(125,154,184,.045),#0b1524 56%)}
+.cal-day.weekend .cal-num{text-shadow:0 1px 0 #02060c,1px 0 0 #02060c,0 -1px 0 #02060c,-1px 0 0 #02060c;color:#d5e1f0}
+.cal-day.weekend.dt-full{background:linear-gradient(135deg,rgba(125,154,184,.045),rgba(115,215,197,.026) 34%,#0b1524 58%)}
+.cal-day.weekend.dt-off{background:linear-gradient(135deg,rgba(125,154,184,.045),rgba(255,127,149,.052) 34%,#0b1524 58%)}
+.cal-day.weekend.dt-off .cal-num{color:#d9a4ae}
+.cal-day.weekend.dt-holiday{background:linear-gradient(135deg,rgba(125,154,184,.045),rgba(246,201,14,.076) 34%,#0b1524 58%)}
+.cal-day.weekend.dt-holiday .cal-num{color:#e9cc6f}
 .form-stack{display:grid;gap:12px}
 .field{display:grid;gap:6px}
 .field-label{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
@@ -56,8 +76,11 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 .workday-row{display:flex;flex-wrap:wrap;gap:6px}
 .workday-row .dtype-btn{min-width:48px;text-align:center}
 .note-box{font-size:12px;color:var(--muted);line-height:1.55;border:1px dashed var(--border);border-radius:8px;padding:10px;background:var(--surface)}
+.bulk-box{display:none}
+.bulk-box.active{display:block}
+.bulk-count{font-family:var(--font-mono);color:#8fe3d5;font-weight:800}
 @media(max-width:1060px){.calendar-layout{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:640px){.ops-page{padding:16px}.ops-head{grid-template-columns:1fr}.head-actions{justify-content:flex-start}.metric-grid{grid-template-columns:1fr}.cal-toolbar{grid-template-columns:1fr}.cal-grid{grid-template-columns:1fr}.cal-dow{display:none}.cal-day.empty{display:none}.field-row,.dtype-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.ops-page{padding:16px}.ops-head{grid-template-columns:1fr}.head-actions{justify-content:flex-start}.metric-grid{grid-template-columns:1fr}.cal-toolbar{grid-template-columns:1fr}.cal-grid{grid-template-columns:1fr}.cal-dow{display:none}.cal-day{min-height:86px}.cal-day.empty{display:none}.field-row,.dtype-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body class="admin-shell">
@@ -92,7 +115,6 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
     </div>
     <div class="head-actions">
       <button class="icon-btn" onclick="loadAll()">Làm mới</button>
-      <button class="icon-btn primary" onclick="saveDayOverride()">Lưu ngày</button>
     </div>
   </section>
 
@@ -111,18 +133,24 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
           <button class="icon-btn" onclick="calNav(1)">›</button>
         </div>
         <div class="month-label" id="calLabel"></div>
-        <button class="chip-btn" onclick="goThisMonth()">Tháng này</button>
+        <div class="head-actions">
+          <button class="chip-btn" id="bulkModeBtn" onclick="toggleBulkMode()">Chọn nhiều ngày</button>
+          <button class="chip-btn" onclick="goThisMonth()">Tháng này</button>
+        </div>
       </div>
       <div class="panel-body">
-        <div id="calBody"></div>
+        <div id="calBody" class="calendar-surface"></div>
       </div>
     </div>
 
     <aside class="form-stack">
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">Ngày đang chọn</div></div>
+        <div class="panel-header"><div class="panel-title" id="editPanelTitle">Ngày đang chọn</div></div>
         <div class="panel-body form-stack">
           <div class="note-box" id="editDayTitle">Chọn một ngày trên lịch để chỉnh cấu hình.</div>
+          <div class="note-box bulk-box" id="bulkEditBox">
+            Đang chọn <span class="bulk-count" id="bulkSelectedCount">0</span> ngày. Bấm lưu để áp dụng cùng cấu hình cho toàn bộ ngày đã tích.
+          </div>
           <div class="dtype-grid" id="dayTypePicker">
             <button class="dtype-btn active" data-dt="full" onclick="selectDayType(this,'full')">Ngày làm</button>
             <button class="dtype-btn" data-dt="off" onclick="selectDayType(this,'off')">Ngày nghỉ / đóng cửa</button>
@@ -134,7 +162,8 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
             <div class="field"><label class="field-label">Ghi chú lương</label><input class="input" id="editSalaryNote" placeholder="VD: x2 lương ngày Tết"></div>
           </div>
           <div class="head-actions">
-            <button class="icon-btn primary" onclick="saveDayOverride()">Lưu ngày</button>
+            <button class="icon-btn primary" id="primarySaveBtn" onclick="saveOverride()">Lưu ngày</button>
+            <button class="icon-btn" id="bulkClearBtn" onclick="clearBulkSelection()" style="display:none">Bỏ chọn</button>
             <button class="icon-btn danger" onclick="deleteDayOverride()">Xóa override</button>
           </div>
         </div>
@@ -165,7 +194,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 <div id="toast"></div>
 <script src="/static/js/toast.js"></script>
 <script>
-let calYear=new Date().getFullYear(),calMonth=new Date().getMonth()+1,calDays=[],editingDate="",editingDayType="full";
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth()+1,calDays=[],editingDate="",editingDayType="full",selectedDates=new Set(),bulkMode=false;
 const monthNames=["","Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
 const dayLabels={full:"Ngày làm",off:"Nghỉ/đóng cửa",holiday:"Ngày lễ"};
 const payDefaults={full:1,off:0,holiday:2};
@@ -192,17 +221,18 @@ async function loadCalendar(){
   }
 }
 function renderCalendar(){
-  const firstDow=new Date(calYear,calMonth-1,1).getDay();
+  const firstDow=(new Date(calYear,calMonth-1,1).getDay()+6)%7;
   const daysInMonth=new Date(calYear,calMonth,0).getDate();
-  let html=`<div class="cal-grid"><div class="cal-dow">CN</div><div class="cal-dow">T2</div><div class="cal-dow">T3</div><div class="cal-dow">T4</div><div class="cal-dow">T5</div><div class="cal-dow">T6</div><div class="cal-dow">T7</div>`;
+  let html=`<div class="cal-grid ${bulkMode?"bulk-mode":""}"><div class="cal-dow">T2</div><div class="cal-dow">T3</div><div class="cal-dow">T4</div><div class="cal-dow">T5</div><div class="cal-dow">T6</div><div class="cal-dow weekend">T7</div><div class="cal-dow weekend">CN</div>`;
   for(let i=0;i<firstDow;i++)html+=`<div class="cal-day empty"></div>`;
   for(let day=1;day<=daysInMonth;day++){
     const ds=`${calYear}-${pad(calMonth)}-${pad(day)}`;
     const cal=calDays.find(c=>c.date===ds)||{date:ds,day_type:"full",pay_multiplier:1};
     const dtype=normalizeDayType(cal.day_type);
     const label=cal.label||"";
-    html+=`<button class="cal-day dt-${esc(dtype)} ${ds===editingDate?"selected":""}" onclick="selectDay('${ds}')">
-      ${cal.is_override?`<span class="override-dot"></span>`:""}
+    const isWeekend=new Date(calYear,calMonth-1,day).getDay()%6===0;
+    html+=`<button class="cal-day dt-${esc(dtype)} ${isWeekend?"weekend":""} ${selectedDates.has(ds)?"multi-selected":""} ${!bulkMode && ds===editingDate?"selected":""}" onclick="selectDay('${ds}')">
+      <input class="cal-check" type="checkbox" ${selectedDates.has(ds)?"checked":""} onclick="toggleBulkDate(event,'${ds}')">
       <span class="cal-num">${day}</span>
       <span class="cal-chip">${esc(dayLabels[dtype])}</span>
       <span class="cal-info">
@@ -223,6 +253,7 @@ function renderStats(){
   document.getElementById("statMaxPay").textContent=`${maxPay.toFixed(2)}x`;
 }
 function selectDay(ds){
+  if(bulkMode)return toggleBulkDateValue(ds);
   const cal=calDays.find(c=>c.date===ds)||{date:ds,day_type:"full",label:"",pay_multiplier:1,salary_note:""};
   editingDate=ds;editingDayType=normalizeDayType(cal.day_type);
   const d=new Date(`${ds}T00:00:00`);
@@ -231,6 +262,41 @@ function selectDay(ds){
   document.getElementById("editPayMultiplier").value=Number(cal.pay_multiplier ?? payDefaults[editingDayType] ?? 1);
   document.getElementById("editSalaryNote").value=cal.salary_note||"";
   document.querySelectorAll("#dayTypePicker .dtype-btn").forEach(b=>b.classList.toggle("active",b.dataset.dt===editingDayType));
+  updateBulkUi();
+  renderCalendar();
+}
+function toggleBulkDate(event,ds){
+  event.stopPropagation();
+  toggleBulkDateValue(ds,event.target.checked);
+}
+function toggleBulkDateValue(ds,checked){
+  const shouldSelect=typeof checked==="boolean"?checked:!selectedDates.has(ds);
+  if(shouldSelect)selectedDates.add(ds);
+  else selectedDates.delete(ds);
+  updateBulkUi();
+  renderCalendar();
+}
+function updateBulkUi(){
+  const count=selectedDates.size;
+  document.getElementById("bulkSelectedCount").textContent=count;
+  document.getElementById("bulkEditBox").classList.toggle("active",bulkMode);
+  document.getElementById("editDayTitle").style.display=bulkMode?"none":"block";
+  document.getElementById("editPanelTitle").textContent=bulkMode?"Sửa nhiều ngày":"Ngày đang chọn";
+  document.getElementById("primarySaveBtn").textContent=bulkMode?(count>0?`Lưu ${count} ngày`:"Chọn ngày để lưu"):"Lưu ngày";
+  document.getElementById("bulkClearBtn").style.display=bulkMode?"inline-flex":"none";
+  document.getElementById("bulkModeBtn").textContent=bulkMode?"Đang chọn nhiều":"Chọn nhiều ngày";
+  document.getElementById("bulkModeBtn").classList.toggle("primary",bulkMode);
+}
+function clearBulkSelection(){
+  selectedDates.clear();
+  bulkMode=false;
+  updateBulkUi();
+  renderCalendar();
+}
+function toggleBulkMode(){
+  bulkMode=!bulkMode;
+  if(!bulkMode)selectedDates.clear();
+  updateBulkUi();
   renderCalendar();
 }
 function selectDayType(btn,dtype){
@@ -252,6 +318,30 @@ async function saveDayOverride(){
     const r=await authFetch("/api/calendar/day",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     if(!r.ok)throw new Error((await r.json()).detail||"Không lưu được ngày");
     showToast("Đã lưu lịch vận hành", "success");
+    await loadCalendar();
+  }catch(e){showToast(e.message, "error");}
+}
+async function saveOverride(){
+  if(bulkMode && selectedDates.size===0)return showToast("Chọn ít nhất một ngày trên lịch", "error");
+  if(selectedDates.size>0)return saveBulkOverride();
+  return saveDayOverride();
+}
+async function saveBulkOverride(){
+  const dates=[...selectedDates].sort();
+  if(!dates.length)return showToast("Tích chọn ngày trước", "error");
+  const payload={days:dates.map(ds=>({
+    date:ds,
+    day_type:editingDayType,
+    label:document.getElementById("editDayLabel").value.trim(),
+    pay_multiplier:parseFloat(document.getElementById("editPayMultiplier").value || "1"),
+    salary_note:document.getElementById("editSalaryNote").value.trim()
+  }))};
+  try{
+    const r=await authFetch("/api/calendar/batch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    if(!r.ok)throw new Error((await r.json()).detail||"Không lưu được nhiều ngày");
+    showToast(`Đã lưu ${dates.length} ngày`, "success");
+    selectedDates.clear();
+    updateBulkUi();
     await loadCalendar();
   }catch(e){showToast(e.message, "error");}
 }

@@ -4,10 +4,10 @@
       <div class="panel-header">
         <div class="panel-header-left"><span class="dot"></span> Đơn chờ duyệt</div>
         <div style="display:flex;gap:8px;align-items:center">
-          <select id="lvFilterType" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
+          <select id="lvFilterType" class="lv-filter" onchange="loadLeaveRequests()">
             <option value="">Tất cả loại</option><option value="leave">Nghỉ phép</option><option value="remote">Remote</option>
           </select>
-          <select id="lvFilterStatus" onchange="loadLeaveRequests()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
+          <select id="lvFilterStatus" class="lv-filter" onchange="loadLeaveRequests()">
             <option value="pending">Chờ duyệt</option><option value="">Tất cả</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option>
           </select>
         </div>
