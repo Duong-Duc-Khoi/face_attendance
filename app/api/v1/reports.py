@@ -17,6 +17,7 @@ from typing import Optional
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.services.branch_scope import ensure_branch_access, scoped_branch_filter
 from app.models.attendance import (
     AttendanceAuditFinding,
     AttendanceEvent,
@@ -66,6 +67,41 @@ def _optional_user(
 def _require_manager_or_admin(current_user):
     if current_user.role not in ("admin", "manager"):
         raise HTTPException(status_code=403, detail="Chỉ quản lý (manager/admin) mới được xem bằng chứng chấm công")
+
+
+def _employee_branch_for_log(db: Session, log: AttendanceLog) -> int | None:
+    emp = None
+    if log.employee_id:
+        emp = db.query(Employee).filter_by(id=log.employee_id).first()
+    if not emp and log.emp_code:
+        emp = db.query(Employee).filter_by(emp_code=log.emp_code).first()
+    return emp.branch_id if emp else None
+
+
+def _ensure_log_scope(db: Session, current_user, log: AttendanceLog) -> None:
+    ensure_branch_access(db, current_user, _employee_branch_for_log(db, log))
+
+
+def _ensure_session_scope(db: Session, current_user, session: AttendanceSession) -> None:
+    ensure_branch_access(db, current_user, session.branch_id)
+
+
+def _filter_logs_for_scope(db: Session, current_user, logs: list[AttendanceLog]) -> list[AttendanceLog]:
+    if not current_user or current_user.role == "admin":
+        return logs
+    allowed = scoped_branch_filter(db, current_user)
+    scoped = []
+    for log in logs:
+        if _employee_branch_for_log(db, log) in allowed:
+            scoped.append(log)
+    return scoped
+
+
+def _filter_log_dicts_for_scope(db: Session, current_user, logs: list[dict]) -> list[dict]:
+    if not current_user or current_user.role == "admin":
+        return logs
+    allowed = scoped_branch_filter(db, current_user)
+    return [row for row in logs if row.get("branch_id") in allowed]
 
 
 def _safe_capture_file(raw_path: str, missing_detail: str) -> Path:
@@ -150,6 +186,7 @@ def _evidence_image_file_for_log(log_id: int, db: Session) -> Path:
 
 @router.get("/attendance")
 def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
+                   db: Session = Depends(get_db),
                    current_user=Depends(_optional_user)):
     if date:
         logs = []
@@ -163,6 +200,7 @@ def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
             d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
             logs.extend(get_logs_by_date(d, emp_code))
     logs.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
+    logs = _filter_log_dicts_for_scope(db, current_user, logs)
     return {"logs": logs, "total": len(logs)}
 
 
@@ -179,6 +217,7 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).all()
+    logs = _filter_logs_for_scope(db, current_user, logs)
     emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
     assignments = (
@@ -190,6 +229,9 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
           )
           .all()
     )
+    allowed = scoped_branch_filter(db, current_user) if current_user.role != "admin" else None
+    if allowed is not None:
+        assignments = [a for a in assignments if a.branch_id in allowed]
     assignment_ids = [a.id for a in assignments]
     sessions = []
     if assignment_ids:
@@ -263,6 +305,7 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).order_by(AttendanceLog.timestamp).all()
+    logs = _filter_logs_for_scope(db, current_user, logs)
     emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
     wb = Workbook()
@@ -453,6 +496,9 @@ def get_attendance_review_items(
 ):
     _require_manager_or_admin(current_user)
     q = db.query(AttendanceSession)
+    allowed = scoped_branch_filter(db, current_user) if current_user.role != "admin" else None
+    if allowed is not None:
+        q = q.filter(AttendanceSession.branch_id.in_(allowed))
     if status:
         q = q.filter(AttendanceSession.review_status == status)
     if type:
@@ -476,6 +522,13 @@ def get_attendance_review_count(
           .filter(AttendanceSession.review_status == "pending_review")
           .all()
     )
+    if current_user.role != "admin":
+        allowed = scoped_branch_filter(db, current_user)
+        rows = (
+            db.query(AttendanceSession.review_type, AttendanceSession.id)
+              .filter(AttendanceSession.review_status == "pending_review", AttendanceSession.branch_id.in_(allowed))
+              .all()
+        )
     counts = {"total": len(rows), "absent": 0, "missing_checkout": 0, "overtime": 0}
     for review_type, _id in rows:
         if review_type in counts:
@@ -496,6 +549,7 @@ def review_attendance_session(
     session = db.query(AttendanceSession).filter_by(id=session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
+    _ensure_session_scope(db, current_user, session)
     session.review_status = body.review_status
     session.review_note = body.note or ""
     session.reviewed_by = current_user.full_name or current_user.email
@@ -519,6 +573,7 @@ def get_attendance_capture(
     log = db.query(AttendanceLog).filter_by(id=log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log)
     try:
         capture_file = _evidence_image_file_for_log(log_id, db)
     except HTTPException:
@@ -539,6 +594,10 @@ def create_attendance_audit_run(
     current_user=Depends(get_current_user),
 ):
     _require_manager_or_admin(current_user)
+    if current_user.role != "admin" and body.emp_code:
+        emp = db.query(Employee).filter_by(emp_code=body.emp_code).first()
+        if emp:
+            ensure_branch_access(db, current_user, emp.branch_id)
     try:
         if body.date:
             from_date = to_date = datetime.strptime(body.date, "%Y-%m-%d").date()
@@ -587,6 +646,10 @@ def get_attendance_audit_findings(
     current_user=Depends(get_current_user),
 ):
     _require_manager_or_admin(current_user)
+    if current_user.role != "admin" and emp_code:
+        emp = db.query(Employee).filter_by(emp_code=emp_code).first()
+        if emp:
+            ensure_branch_access(db, current_user, emp.branch_id)
     providers = list_ai_provider_settings(db)
     vision_ready = any(p.get("configured") and p.get("is_enabled") for p in providers)
     return {
@@ -633,6 +696,7 @@ def review_attendance_log_manually(
     log = db.query(AttendanceLog).filter_by(id=log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log)
     evidence = (
         db.query(AttendanceEvidence)
           .filter_by(log_id=log.id)
@@ -671,9 +735,14 @@ def review_attendance_log_manually(
 @router.get("/attendance/{log_id}")
 def get_attendance_log(
     log_id: int,
+    db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """Lấy thông tin 1 bản ghi điểm danh theo ID."""
+    log_row = db.query(AttendanceLog).filter_by(id=log_id).first()
+    if not log_row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log_row)
     log = get_log_by_id(log_id)
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
@@ -686,6 +755,7 @@ def get_attendance_log(
 def edit_attendance_log(
     log_id: int,
     body: AttendanceUpdateRequest,
+    db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """
@@ -699,6 +769,10 @@ def edit_attendance_log(
             status_code=403,
             detail="Chỉ quản lý (manager/admin) mới được chỉnh sửa điểm danh",
         )
+    log_row = db.query(AttendanceLog).filter_by(id=log_id).first()
+    if not log_row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
+    _ensure_log_scope(db, current_user, log_row)
 
     if body.check_type and body.check_type not in ("check_in", "check_out"):
         raise HTTPException(status_code=422, detail="check_type phải là 'check_in' hoặc 'check_out'")
@@ -753,6 +827,7 @@ def remove_attendance_log(
 @router.post("/attendance/manual")
 def add_manual_attendance(
     body: AttendanceCreateRequest,
+    db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """
@@ -767,6 +842,9 @@ def add_manual_attendance(
 
     if body.check_type not in ("check_in", "check_out"):
         raise HTTPException(status_code=422, detail="check_type phải là 'check_in' hoặc 'check_out'")
+    emp = db.query(Employee).filter_by(emp_code=body.emp_code).first()
+    if emp:
+        ensure_branch_access(db, current_user, emp.branch_id)
 
     try:
         new_log = create_manual_attendance_log(
