@@ -8,19 +8,18 @@ CREATE TABLE IF NOT EXISTS branches (
     name VARCHAR(150) NOT NULL UNIQUE,
     address VARCHAR(255) DEFAULT '',
     phone VARCHAR(30) DEFAULT '',
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
-    geofence_radius_m INTEGER DEFAULT 50,
-    mobile_attendance_enabled BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
-ALTER TABLE branches ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
-ALTER TABLE branches ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
-ALTER TABLE branches ADD COLUMN IF NOT EXISTS geofence_radius_m INTEGER DEFAULT 50;
-ALTER TABLE branches ADD COLUMN IF NOT EXISTS mobile_attendance_enabled BOOLEAN DEFAULT FALSE;
-CREATE INDEX IF NOT EXISTS ix_branches_mobile_attendance_enabled ON branches(mobile_attendance_enabled);
+DROP INDEX IF EXISTS ix_branches_mobile_attendance_enabled;
+ALTER TABLE branches DROP CONSTRAINT IF EXISTS ck_branches_latitude;
+ALTER TABLE branches DROP CONSTRAINT IF EXISTS ck_branches_longitude;
+ALTER TABLE branches DROP CONSTRAINT IF EXISTS ck_branches_geofence_radius_m;
+ALTER TABLE branches DROP COLUMN IF EXISTS latitude;
+ALTER TABLE branches DROP COLUMN IF EXISTS longitude;
+ALTER TABLE branches DROP COLUMN IF EXISTS geofence_radius_m;
+ALTER TABLE branches DROP COLUMN IF EXISTS mobile_attendance_enabled;
 
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS user_id INTEGER;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS branch_id INTEGER;
@@ -188,58 +187,7 @@ CREATE INDEX IF NOT EXISTS ix_attendance_evidence_emp_code ON attendance_evidenc
 CREATE INDEX IF NOT EXISTS ix_attendance_evidence_captured_at ON attendance_evidence(captured_at);
 CREATE INDEX IF NOT EXISTS ix_attendance_evidence_files_available ON attendance_evidence(files_available);
 
-CREATE TABLE IF NOT EXISTS attendance_attempts (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER,
-    employee_id INTEGER,
-    emp_code VARCHAR(20) DEFAULT '',
-    branch_id INTEGER,
-    status VARCHAR(20) DEFAULT 'blocked',
-    check_type VARCHAR(20) DEFAULT '',
-    server_time TIMESTAMP DEFAULT NOW(),
-    block_reason VARCHAR(80) DEFAULT '',
-    message TEXT DEFAULT '',
-    risk_reasons TEXT DEFAULT '[]',
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
-    accuracy_m DOUBLE PRECISION,
-    distance_m DOUBLE PRECISION,
-    face_confidence DOUBLE PRECISION DEFAULT 0.0,
-    face_emp_code VARCHAR(20) DEFAULT '',
-    capture_path VARCHAR(255) DEFAULT '',
-    image_hash VARCHAR(64) DEFAULT '',
-    device_id VARCHAR(128) DEFAULT '',
-    device_kind VARCHAR(30) DEFAULT '',
-    device_is_mobile BOOLEAN DEFAULT FALSE,
-    device_reason VARCHAR(80) DEFAULT '',
-    policy_snapshot TEXT DEFAULT '{}',
-    ip_hash VARCHAR(64) DEFAULT '',
-    user_agent_hash VARCHAR(64) DEFAULT '',
-    log_id INTEGER,
-    event_id INTEGER,
-    session_id INTEGER,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_kind VARCHAR(30) DEFAULT '';
-ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_is_mobile BOOLEAN DEFAULT FALSE;
-ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS device_reason VARCHAR(80) DEFAULT '';
-ALTER TABLE attendance_attempts ADD COLUMN IF NOT EXISTS policy_snapshot TEXT DEFAULT '{}';
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_user_id ON attendance_attempts(user_id);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_employee_id ON attendance_attempts(employee_id);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_emp_code ON attendance_attempts(emp_code);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_branch_id ON attendance_attempts(branch_id);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_status ON attendance_attempts(status);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_server_time ON attendance_attempts(server_time);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_block_reason ON attendance_attempts(block_reason);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_id ON attendance_attempts(device_id);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_kind ON attendance_attempts(device_kind);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_device_is_mobile ON attendance_attempts(device_is_mobile);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_ip_hash ON attendance_attempts(ip_hash);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_user_agent_hash ON attendance_attempts(user_agent_hash);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_log_id ON attendance_attempts(log_id);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_event_id ON attendance_attempts(event_id);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_session_id ON attendance_attempts(session_id);
-CREATE INDEX IF NOT EXISTS ix_attendance_attempts_created_at ON attendance_attempts(created_at);
+DROP TABLE IF EXISTS attendance_attempts;
 
 CREATE TABLE IF NOT EXISTS attendance_audit_runs (
     id SERIAL PRIMARY KEY,
@@ -601,43 +549,6 @@ BEGIN
             ON DELETE SET NULL NOT VALID;
     END IF;
 
-    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'user_id', 'users', 'id') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT fk_attendance_attempts_user_id
-            FOREIGN KEY (user_id) REFERENCES users(id)
-            ON DELETE SET NULL NOT VALID;
-    END IF;
-    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'employee_id', 'employees', 'id') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT fk_attendance_attempts_employee_id
-            FOREIGN KEY (employee_id) REFERENCES employees(id)
-            ON DELETE SET NULL NOT VALID;
-    END IF;
-    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'branch_id', 'branches', 'id') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT fk_attendance_attempts_branch_id
-            FOREIGN KEY (branch_id) REFERENCES branches(id)
-            ON DELETE SET NULL NOT VALID;
-    END IF;
-    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'log_id', 'attendance_logs', 'id') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT fk_attendance_attempts_log_id
-            FOREIGN KEY (log_id) REFERENCES attendance_logs(id)
-            ON DELETE SET NULL NOT VALID;
-    END IF;
-    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'event_id', 'attendance_events', 'id') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT fk_attendance_attempts_event_id
-            FOREIGN KEY (event_id) REFERENCES attendance_events(id)
-            ON DELETE SET NULL NOT VALID;
-    END IF;
-    IF NOT pg_temp.restaurant_fk_exists('attendance_attempts', 'session_id', 'attendance_sessions', 'id') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT fk_attendance_attempts_session_id
-            FOREIGN KEY (session_id) REFERENCES attendance_sessions(id)
-            ON DELETE SET NULL NOT VALID;
-    END IF;
-
     IF NOT pg_temp.restaurant_fk_exists('attendance_audit_findings', 'audit_run_id', 'attendance_audit_runs', 'id') THEN
         ALTER TABLE attendance_audit_findings
             ADD CONSTRAINT fk_attendance_audit_findings_audit_run_id
@@ -710,21 +621,6 @@ END $$;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_latitude') THEN
-        ALTER TABLE branches
-            ADD CONSTRAINT ck_branches_latitude
-            CHECK (latitude IS NULL OR (latitude >= -90 AND latitude <= 90)) NOT VALID;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_longitude') THEN
-        ALTER TABLE branches
-            ADD CONSTRAINT ck_branches_longitude
-            CHECK (longitude IS NULL OR (longitude >= -180 AND longitude <= 180)) NOT VALID;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_branches_geofence_radius_m') THEN
-        ALTER TABLE branches
-            ADD CONSTRAINT ck_branches_geofence_radius_m
-            CHECK (geofence_radius_m >= 10 AND geofence_radius_m <= 1000) NOT VALID;
-    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_employees_status') THEN
         ALTER TABLE employees
             ADD CONSTRAINT ck_employees_status
@@ -788,16 +684,6 @@ BEGIN
         ALTER TABLE attendance_logs
             ADD CONSTRAINT ck_attendance_logs_check_type
             CHECK (check_type IN ('check_in', 'check_out')) NOT VALID;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_attempts_status') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT ck_attendance_attempts_status
-            CHECK (status IN ('success', 'blocked', 'error')) NOT VALID;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_attempts_check_type') THEN
-        ALTER TABLE attendance_attempts
-            ADD CONSTRAINT ck_attendance_attempts_check_type
-            CHECK (check_type IN ('', 'check_in', 'check_out')) NOT VALID;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_attendance_audit_findings_risk_level') THEN
         ALTER TABLE attendance_audit_findings
