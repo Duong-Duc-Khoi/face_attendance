@@ -105,47 +105,6 @@ class AttendanceEvidence(Base):
     created_at       = Column(DateTime, default=datetime.now)
 
 
-class AttendanceAttempt(Base):
-    __tablename__ = "attendance_attempts"
-
-    id          = Column(Integer, primary_key=True, index=True)
-    user_id     = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
-    emp_code    = Column(String(20), default="", index=True)
-    branch_id   = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
-
-    # success | blocked | error
-    status       = Column(String(20), default="blocked", index=True)
-    check_type   = Column(String(20), default="")
-    server_time  = Column(DateTime, default=datetime.now, index=True)
-    block_reason = Column(String(80), default="", index=True)
-    message      = Column(Text, default="")
-    risk_reasons = Column(Text, default="[]")
-
-    latitude   = Column(Float, nullable=True)
-    longitude  = Column(Float, nullable=True)
-    accuracy_m = Column(Float, nullable=True)
-    distance_m = Column(Float, nullable=True)
-
-    face_confidence = Column(Float, default=0.0)
-    face_emp_code   = Column(String(20), default="")
-    capture_path    = Column(String(255), default="")
-    image_hash      = Column(String(64), default="")
-
-    device_id       = Column(String(128), default="", index=True)
-    device_kind     = Column(String(30), default="", index=True)
-    device_is_mobile = Column(Boolean, default=False, index=True)
-    device_reason   = Column(String(80), default="")
-    policy_snapshot = Column(Text, default="{}")
-    ip_hash         = Column(String(64), default="", index=True)
-    user_agent_hash = Column(String(64), default="", index=True)
-
-    log_id     = Column(Integer, ForeignKey("attendance_logs.id", ondelete="SET NULL"), nullable=True, index=True)
-    event_id   = Column(Integer, ForeignKey("attendance_events.id", ondelete="SET NULL"), nullable=True, index=True)
-    session_id = Column(Integer, ForeignKey("attendance_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
-    created_at = Column(DateTime, default=datetime.now, index=True)
-
-
 class AttendanceAuditRun(Base):
     __tablename__ = "attendance_audit_runs"
 

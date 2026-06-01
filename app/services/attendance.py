@@ -73,9 +73,6 @@ def process_attendance(
     emp_code: str,
     confidence: float,
     capture_path: str = "",
-    source: str = "face",
-    device_id: str = "",
-    require_shift: bool = False,
 ) -> dict | None:
     """
     Xử lý 1 sự kiện chấm công từ kết quả nhận diện.
@@ -135,29 +132,8 @@ def process_attendance(
                 "avatar_url": emp.avatar_url or "",
             }
 
-        source_value = source or "face"
         assignment, shift = find_shift_assignment_for_time(emp_code, now, db)
         if not assignment or not shift:
-            if require_shift:
-                return {
-                    "ok": False,
-                    "reason": "no_active_shift_assignment",
-                    "emp_code": emp_code,
-                    "name": emp.name,
-                    "department": emp.department,
-                    "position": emp.position,
-                    "job_role": _employee_job_role(emp),
-                    "role_label": _employee_role_label(emp, emp.department),
-                    "branch_id": emp.branch_id,
-                    "email": emp.email or "",
-                    "time": now.strftime("%H:%M:%S"),
-                    "date": now.strftime("%d/%m/%Y"),
-                    "timestamp": now.isoformat(),
-                    "confidence": round(confidence, 4),
-                    "message": "Bạn chưa có ca hợp lệ tại thời điểm này",
-                    "voice_message": "Bạn chưa có ca hợp lệ tại thời điểm này.",
-                    "avatar_url": emp.avatar_url or "",
-                }
             check_type = _next_unscheduled_check_type(emp_code, now, db)
             status = "Ngoài phân ca - chưa có ca phân công, chờ quản lý kiểm tra/gắn ca"
             log = AttendanceLog(
@@ -182,8 +158,8 @@ def process_attendance(
                 event_time   = now,
                 confidence   = round(confidence, 4),
                 capture_path = capture_path,
-                source       = source_value,
-                device_id    = device_id or "",
+                source       = "face",
+                device_id    = "",
                 note         = status,
             )
             db.add(event)
@@ -323,8 +299,8 @@ def process_attendance(
             event_time   = now,
             confidence   = round(confidence, 4),
             capture_path = capture_path,
-            source       = source_value,
-            device_id    = device_id or "",
+            source       = "face",
+            device_id    = "",
             note         = status,
         )
         db.add(event)

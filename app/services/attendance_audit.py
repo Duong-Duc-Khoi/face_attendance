@@ -427,7 +427,7 @@ def run_attendance_audit(
     prioritized_logs: list[tuple[float, AttendanceLog]] = []
     for log in logs:
         event = _matching_event(db, log)
-        if not event or event.source not in ("face", "mobile_hybrid"):
+        if not event or event.source != "face":
             continue
         evidence = _ensure_image_evidence(db, log)
         duplicate_hash = bool(evidence and evidence.image_hash and hash_counts.get(evidence.image_hash, 0) > 1)
