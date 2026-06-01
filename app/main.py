@@ -1,116 +1,53 @@
+"""FastAPI application entry point.
+
+`main.py` chi lap ghep ung dung:
+  1. Tao FastAPI app va middleware
+  2. Mount static assets
+  3. Dang ky API routers va HTML page routers
+
+Business logic, scheduler, camera route va page route nam trong cac module
+rieng de so do kien truc ro rang hon cho do an.
 """
-app/main.py
-FastAPI application entry point.
 
-Chỉ làm 3 việc:
-  1. Khởi tạo app + middleware
-  2. Mount static, đăng ký routers
-  3. Định nghĩa lifespan (startup/shutdown)
-
-Business logic KHÔNG nằm ở đây.
-"""
-
-import time
-import cv2
-import numpy as np
-import asyncio
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
-from app.api.v1.shifts import router as shifts_router
-from app.core.config import settings
-from app.core.database import init_db
-from app.services.face_engine import face_engine
-from app.services.camera import (
-    camera_status,
-    get_camera,
-    heartbeat_camera,
-    release_camera,
-    start_camera,
-    stop_camera,
-)
-from app.services.attendance import get_summary_today
-from app.services.notify import notify_daily_report_async
+
 from app.api.v1 import employees, reports
-from app.api.v1.branches import router as branches_router
 from app.api.v1.auth import router as auth_router
-from app.api.v1.users import router as users_router
-from app.api.v1.ws import ws_attendance
-from app.api.v1.leave import router as leave_router
+from app.api.v1.branches import router as branches_router
 from app.api.v1.calendar import router as calendar_router
-from app.api.v1.integrations import router as integrations_router
+from app.api.v1.camera import router as camera_router
 from app.api.v1.employee_roles import router as employee_roles_router
-from app.services.attendance import get_summary_today, auto_checkout_missing, mark_absent_sessions
-from app.services.attendance_audit import cleanup_old_evidence
-scheduler = AsyncIOScheduler()
+from app.api.v1.integrations import router as integrations_router
+from app.api.v1.leave import router as leave_router
+from app.api.v1.shifts import router as shifts_router
+from app.api.v1.system import router as system_router
+from app.api.v1.users import router as users_router
+from app.api.v1.ws import router as realtime_router
+from app.core.lifespan import lifespan
+from app.web.pages import router as pages_router
 
 
-# ── Lifespan ────────────────────────────────────────────────────
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("\n  FaceAttend — Khởi động hệ thống")
-    init_db()
-    print(f"  ✓ Database sẵn sàng")
-    print(f"  ✓ Face engine: {face_engine.registered_count} nhân viên đã đăng ký")
-    print(f"  ✓ Camera sẽ mở khi có người truy cập")
-
-    async def _daily_report():
-        summary = get_summary_today()
-        await notify_daily_report_async(summary)
-
-    async def _auto_checkout():
-        count = auto_checkout_missing()
-        absent_count = mark_absent_sessions()
-        print(f"  ✓ Auto checkout: {count} nhân viên chưa check out; vắng chờ duyệt: {absent_count}")
-
-    async def _cleanup_evidence():
-        result = cleanup_old_evidence()
-        print(f"  ✓ Evidence retention: xoá {result['deleted_files']} file quá {result['retention_days']} ngày")
-
-    scheduler.add_job(_daily_report, CronTrigger(hour=18, minute=0),
-                      id="daily_report", replace_existing=True)
-    scheduler.add_job(_auto_checkout, IntervalTrigger(minutes=15),
-                      id="auto_checkout", replace_existing=True)
-    scheduler.add_job(_cleanup_evidence, CronTrigger(hour=2, minute=30),
-                      id="evidence_retention", replace_existing=True)
-    scheduler.start()
-    print(f"  ✓ Scheduler bật — báo cáo 18:00, auto checkout mỗi 15 phút, retention evidence 02:30")
-    yield
-    scheduler.shutdown(wait=False)
-    release_camera()
-    print("  FaceAttend — Đã tắt")
-
-    
-
-# ── App ──────────────────────────────────────────────────────────
 app = FastAPI(
-    title       = "FaceAttend API",
-    description = "Hệ thống chấm công nhận diện khuôn mặt",
-    version     = "1.0.0",
-    lifespan    = lifespan,
+    title="FaceAttend API",
+    description="He thong cham cong nhan dien khuon mat",
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins  = ["*"],
-    allow_methods  = ["*"],
-    allow_headers  = ["*"],
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/data/faces", StaticFiles(directory="data/faces"), name="faces")
 
-templates = Jinja2Templates(directory="templates")
 
-
-# Routers
+# API layer
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(employees.router)
@@ -121,172 +58,10 @@ app.include_router(leave_router)
 app.include_router(calendar_router)
 app.include_router(shifts_router)
 app.include_router(integrations_router)
-
-# ── Auth pages ───────────────────────────────────────────────────
-@app.get("/auth/login-page")
-async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
-
-# ── HTML pages ───────────────────────────────────────────────────
-@app.get("/")
-async def kiosk_page(request: Request):
-    return templates.TemplateResponse("kiosk.html", {"request": request})
-
-@app.get("/me")
-async def me_page(request: Request):
-    return templates.TemplateResponse("me.html", {"request": request})
-
-@app.get("/register")
-async def register_page_face(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
-
-@app.get("/dashboard")
-async def dashboard_page(request: Request):
-    legacy_tab = request.query_params.get("tab")
-    legacy_routes = {
-        "attendance": "/attendance",
-        "employees": "/employees",
-        "leave": "/leave",
-        "calendar": "/work-calendar",
-    }
-    if legacy_tab in legacy_routes:
-        return RedirectResponse(legacy_routes[legacy_tab], status_code=307)
-    summary = get_summary_today()
-    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": summary, "active_page": "overview"})
-
-@app.get("/attendance")
-async def attendance_page(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "attendance"})
-
-@app.get("/employees")
-async def employees_page(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "employees"})
-
-@app.get("/branches")
-async def branches_page(request: Request):
-    return templates.TemplateResponse("branches.html", {"request": request})
-
-@app.get("/leave")
-async def leave_page(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "leave"})
-
-@app.get("/roster")
-async def roster_page(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "summary": {}, "active_page": "roster"})
-
-@app.get("/work-calendar")
-async def work_calendar_page(request: Request):
-    return templates.TemplateResponse("work_calendar.html", {"request": request})
-
-@app.get("/calendar")
-async def calendar_page():
-    return RedirectResponse("/work-calendar", status_code=307)
-
-@app.get("/report")
-async def report_page(request: Request):
-    return templates.TemplateResponse("reports.html", {"request": request})
-
-@app.get("/users")
-async def users_page(request: Request):
-    return templates.TemplateResponse("users.html", {"request": request})
-
-@app.get("/shifts")
-async def shifts_page(request: Request):
-    return templates.TemplateResponse("shifts.html", {"request": request})
-
-@app.get("/integrations")
-async def integrations_page(request: Request):
-    return templates.TemplateResponse("integrations.html", {"request": request})
-
-# ── Camera stream ────────────────────────────────────────────────
-def _placeholder_mjpeg():
-    """Stream frame tĩnh khi camera tắt."""
-    img = np.zeros((480, 640, 3), dtype=np.uint8)
-    img[:] = (20, 30, 45)
-    cv2.putText(img, "CAMERA DA TAT", (175, 210),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (60, 60, 80), 2)
-    cv2.putText(img, "Nhan [Bat Camera] de khoi dong", (110, 260),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (60, 60, 80), 1)
-    _, jpeg = cv2.imencode(".jpg", img)
-    packet  = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
-    while True:
-        yield packet
-        time.sleep(1.0)
+app.include_router(camera_router)
+app.include_router(system_router)
+app.include_router(realtime_router)
 
 
-@app.get("/video_feed")
-def video_feed():
-    cam = get_camera()
-    if cam is None:
-        return StreamingResponse(_placeholder_mjpeg(),
-                                 media_type="multipart/x-mixed-replace; boundary=frame")
-    return StreamingResponse(cam.generate_mjpeg(),
-                             media_type="multipart/x-mixed-replace; boundary=frame")
-
-
-# ── WebSocket ────────────────────────────────────────────────────
-@app.websocket("/ws/attendance")
-async def ws_attendance_route(websocket: WebSocket):
-    await ws_attendance(websocket)
-
-
-# ── Camera control ───────────────────────────────────────────────
-async def _camera_client_id(request: Request) -> str:
-    if request.query_params.get("client_id"):
-        return request.query_params.get("client_id", "")
-    try:
-        payload = await request.json()
-        if isinstance(payload, dict):
-            return str(payload.get("client_id") or "")
-        if isinstance(payload, str):
-            return payload
-    except Exception:
-        try:
-            return (await request.body()).decode("utf-8").strip()
-        except Exception:
-            return ""
-    return ""
-
-
-@app.post("/api/camera/start")
-async def api_camera_start(request: Request):
-    return start_camera(owner_id=await _camera_client_id(request))
-
-@app.post("/api/camera/stop")
-async def api_camera_stop(request: Request):
-    return stop_camera(owner_id=await _camera_client_id(request))
-
-@app.post("/api/camera/heartbeat")
-async def api_camera_heartbeat(request: Request):
-    return heartbeat_camera(owner_id=await _camera_client_id(request))
-
-@app.get("/api/camera/status")
-def api_camera_status(client_id: str = ""):
-    return camera_status(client_id=client_id)
-
-
-# ── Misc ─────────────────────────────────────────────────────────
-
-@app.get("/api/health")
-def health_check():
-    cam = get_camera()
-    return {
-        "status":      "ok",
-        "camera":      cam.cap.isOpened() if cam and cam.cap else False,
-        "face_engine": face_engine._initialized,
-        "employees":   face_engine.registered_count,
-    }
-
-@app.get("/api/config")
-def get_config():
-    return {
-        "threshold":        face_engine.threshold,
-        "cooldown_minutes": settings.COOLDOWN_MINUTES,
-        "work_start":       settings.WORK_START,
-    }
-
-@app.put("/api/config")
-async def update_config(payload: dict):
-    if "threshold" in payload:
-        face_engine.threshold = float(payload["threshold"])
-    return {"success": True, "message": "Đã cập nhật cấu hình"}
+# Frontend/page layer
+app.include_router(pages_router)

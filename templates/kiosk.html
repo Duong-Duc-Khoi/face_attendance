@@ -669,8 +669,9 @@
 
     <!-- Camera -->
     <div class="camera-wrap" id="camWrap">
-      <!-- Live feed: MJPEG stream từ FastAPI backend -->
-      <img class="camera-feed" id="camFeed" src="" style="display:none; image-rendering: auto;" alt="Camera stream">
+      <!-- Browser camera: kiosk can run separately from backend -->
+      <video class="camera-feed" id="camFeed" autoplay muted playsinline style="display:none; image-rendering: auto;"></video>
+      <canvas id="frameCanvas" style="display:none"></canvas>
 
       <!-- Placeholder khi camera tắt -->
       <div class="cam-offline" id="camPlaceholder">
@@ -679,7 +680,7 @@
           <line x1="2" y1="2" x2="22" y2="22" stroke-width="1.5"/>
         </svg>
         <p>CAMERA ĐANG TẮT</p>
-        <p style="font-size:11px;margin-top:-8px;opacity:.5">Nhấn nút BẬT để khởi động</p>
+        <p style="font-size:11px;margin-top:-8px;opacity:.5">Nhấn nút BẬT để mở camera kiosk</p>
       </div>
 
       <div class="cam-corner tl"></div>
@@ -1102,7 +1103,7 @@ function showResult(data) {
   // Avatar
   const av = document.getElementById('resAvatar');
   if (data.avatar_url) {
-    av.innerHTML = `<img src="${data.avatar_url}" alt="avatar">`;
+    av.innerHTML = `<img src="${backendAssetUrl(data.avatar_url)}" alt="avatar">`;
   } else {
     av.innerHTML = isUnknown ? '?' : (data.name ? data.name[0].toUpperCase() : '?');
   }
@@ -1154,43 +1155,22 @@ function addLogItem(data) {
   while (list.children.length > 20) list.removeChild(list.lastChild);
 }
 
-// ── WebSocket ──
-function connectWS() {
-  const wsUrl = `ws://${location.host}/ws/attendance`;
-  let ws;
-  try {
-    ws = new WebSocket(wsUrl);
-  } catch(e) {
-    document.getElementById('wsStatus').textContent = 'WS: DEMO MODE';
-    startDemoMode();
-    return;
+// ── Backend endpoint helpers ──
+const backendParam = window.KIOSK_BACKEND_URL || new URLSearchParams(location.search).get('backend') || '';
+const backendBase = backendParam.replace(/\/+$/, '');
+function apiUrl(path) {
+  return backendBase ? `${backendBase}${path}` : path;
+}
+function backendAssetUrl(path) {
+  if (!path) return '';
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  return apiUrl(path.startsWith('/') ? path : `/${path}`);
+}
+function wsUrl(path) {
+  if (backendBase) {
+    return backendBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + path;
   }
-
-  ws.onopen = () => {
-    document.getElementById('wsStatus').textContent = 'WS: ĐÃ KẾT NỐI ✓';
-    document.getElementById('wsStatus').style.color = 'var(--teal)';
-  };
-  ws.onmessage = (e) => {
-    let data;
-    try { data = JSON.parse(e.data); } catch(err) { console.error('WS JSON error:', err); return; }
-
-    if (data.type === 'camera_off' || data.type === 'faces') return;
-
-    // attendance event: type='attendance' (server mới) hoặc có check_type (server cũ)
-    if (data.type === 'attendance' || data.type === 'attendance_error' || data.check_type) {
-      console.log('[WS] attendance nhận được:', data);
-      showResult(data);
-    }
-  };
-  ws.onclose = () => {
-    document.getElementById('wsStatus').textContent = 'WS: MẤT KẾT NỐI — THỬ LẠI...';
-    document.getElementById('wsStatus').style.color = 'var(--red)';
-    setTimeout(connectWS, 3000);
-  };
-  ws.onerror = () => {
-    document.getElementById('wsStatus').textContent = 'WS: DEMO MODE';
-    startDemoMode();
-  };
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${path}`;
 }
 
 // // ── Demo mode (khi chưa kết nối backend) ──
@@ -1221,26 +1201,21 @@ const cameraClientId = (() => {
     return 'kiosk-' + Date.now() + '-' + Math.random().toString(16).slice(2);
   }
 })();
-let cameraHeartbeatTimer = null;
+let kioskWs = null;
+let browserStream = null;
+let frameTimer = null;
 
-const cameraPayload = () => JSON.stringify({ client_id: cameraClientId });
-
-function showCameraFeed() {
+function setCameraVisible(visible) {
   const feed = document.getElementById('camFeed');
   const placeholder = document.getElementById('camPlaceholder');
-  feed.src = '/video_feed?t=' + Date.now();
-  feed.style.display = 'block';
-  if (placeholder) placeholder.style.display = 'none';
+  feed.style.display = visible ? 'block' : 'none';
+  if (placeholder) placeholder.style.display = visible ? 'none' : 'flex';
 }
 
 function hideCameraFeed() {
-  const feed = document.getElementById('camFeed');
-  const placeholder = document.getElementById('camPlaceholder');
   const notice = document.getElementById('cameraNotice');
   const label = document.getElementById('camNoticeLabel');
-  feed.src = '';
-  feed.style.display = 'none';
-  if (placeholder) placeholder.style.display = 'flex';
+  setCameraVisible(false);
   if (notice) notice.classList.remove('visible');
   if (label) {
     label.className = 'cam-label';
@@ -1248,71 +1223,90 @@ function hideCameraFeed() {
   }
 }
 
-function startCameraHeartbeat() {
-  stopCameraHeartbeat();
-  cameraHeartbeatTimer = setInterval(async () => {
-    if (!cameraOn || document.visibilityState === 'hidden') return;
+function connectKioskWS() {
+  if (kioskWs && kioskWs.readyState <= 1) return Promise.resolve(kioskWs);
+  return new Promise((resolve, reject) => {
+    let ws;
     try {
-      const res = await fetch('/api/camera/heartbeat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: cameraPayload(),
-      });
-      const data = await res.json();
-      if (!data.success || !data.owned_by_current) {
-        cameraOn = false;
-        stopCameraHeartbeat();
-        hideCameraFeed();
-        updateCamUI();
-      }
-    } catch(e) {
-      console.warn('Camera heartbeat lỗi:', e);
+      ws = new WebSocket(wsUrl('/ws/kiosk'));
+    } catch (err) {
+      reject(err);
+      return;
     }
-  }, 4000);
+    kioskWs = ws;
+    ws.onopen = () => {
+      document.getElementById('wsStatus').textContent = 'WS: KIOSK ĐÃ KẾT NỐI ✓';
+      document.getElementById('wsStatus').style.color = 'var(--teal)';
+      resolve(ws);
+    };
+    ws.onmessage = (e) => {
+      let data;
+      try { data = JSON.parse(e.data); } catch(err) { console.error('WS JSON error:', err); return; }
+      if (data.type === 'kiosk_ready' || data.type === 'faces' || data.type === 'frame_error') return;
+      if (data.type === 'attendance' || data.type === 'attendance_error' || data.check_type) {
+        console.log('[KIOSK WS] attendance nhận được:', data);
+        showResult(data);
+      }
+    };
+    ws.onclose = () => {
+      if (cameraOn) {
+        document.getElementById('wsStatus').textContent = 'WS: MẤT KẾT NỐI — THỬ LẠI...';
+        document.getElementById('wsStatus').style.color = 'var(--red)';
+        setTimeout(() => connectKioskWS().catch(() => {}), 2500);
+      }
+    };
+    ws.onerror = () => reject(new Error('Không kết nối được WebSocket kiosk'));
+  });
 }
 
-function stopCameraHeartbeat() {
-  if (cameraHeartbeatTimer) {
-    clearInterval(cameraHeartbeatTimer);
-    cameraHeartbeatTimer = null;
+function captureFramePayload() {
+  const video = document.getElementById('camFeed');
+  if (!video.videoWidth || !video.videoHeight) return null;
+  const canvas = document.getElementById('frameCanvas');
+  const maxW = 720;
+  const scale = Math.min(1, maxW / video.videoWidth);
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return {
+    type: 'frame',
+    client_id: cameraClientId,
+    image: canvas.toDataURL('image/jpeg', 0.78),
+  };
+}
+
+function startFrameLoop() {
+  stopFrameLoop();
+  frameTimer = setInterval(() => {
+    if (!cameraOn || !kioskWs || kioskWs.readyState !== WebSocket.OPEN || document.visibilityState === 'hidden') return;
+    const payload = captureFramePayload();
+    if (!payload) return;
+    kioskWs.send(JSON.stringify(payload));
+  }, 700);
+}
+
+function stopFrameLoop() {
+  if (frameTimer) {
+    clearInterval(frameTimer);
+    frameTimer = null;
   }
 }
 
-function stopCameraLease(useBeacon = false) {
+function stopCameraLease() {
   if (!cameraOn) return;
   cameraOn = false;
-  stopCameraHeartbeat();
+  stopFrameLoop();
+  if (browserStream) {
+    browserStream.getTracks().forEach(track => track.stop());
+    browserStream = null;
+  }
+  if (kioskWs) {
+    kioskWs.close();
+    kioskWs = null;
+  }
   hideCameraFeed();
   updateCamUI();
-
-  if (useBeacon && navigator.sendBeacon) {
-    const blob = new Blob([cameraPayload()], { type: 'application/json' });
-    navigator.sendBeacon('/api/camera/stop', blob);
-    return;
-  }
-
-  fetch('/api/camera/stop', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: cameraPayload(),
-    keepalive: true,
-  }).catch(e => console.warn('Không tắt được camera:', e));
-}
-
-async function syncCameraStatus() {
-  try {
-    const res  = await fetch('/api/camera/status?client_id=' + encodeURIComponent(cameraClientId));
-    const data = await res.json();
-    cameraOn = !!(data.enabled && data.owned_by_current);
-    if (cameraOn) {
-      showCameraFeed();
-      startCameraHeartbeat();
-    } else {
-      stopCameraHeartbeat();
-      hideCameraFeed();
-    }
-    updateCamUI();
-  } catch {}
 }
 
 async function toggleCamera() {
@@ -1322,37 +1316,53 @@ async function toggleCamera() {
   const btn = document.getElementById('btnCamToggle');
   btn.disabled = true;
   try {
-    const res  = await fetch(cameraOn ? '/api/camera/stop' : '/api/camera/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: cameraPayload(),
-    });
-    const data = await res.json();
-    if (data.success) {
-      cameraOn = !!(data.enabled && data.owned_by_current);
-      updateCamUI();
-      if (cameraOn) {
-        showCameraFeed();
-        startCameraHeartbeat();
-      } else {
-        stopCameraHeartbeat();
-        hideCameraFeed();
-      }
-    } else if (data.message) {
-      console.warn(data.message);
-      await syncCameraStatus();
+    if (cameraOn) {
+      stopCameraLease();
+      return;
     }
-  } catch(e) { console.warn(e); }
-  finally { btn.disabled = false; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Trình duyệt không hỗ trợ camera');
+    }
+    const ws = await connectKioskWS();
+    browserStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: 'user',
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+    const video = document.getElementById('camFeed');
+    video.srcObject = browserStream;
+    await video.play();
+    cameraOn = true;
+    setCameraVisible(true);
+    updateCamUI();
+    startFrameLoop();
+    if (ws.readyState === WebSocket.OPEN) {
+      document.getElementById('wsStatus').textContent = 'WS: KIOSK ĐANG GỬI FRAME';
+      document.getElementById('wsStatus').style.color = 'var(--teal)';
+    }
+  } catch(e) {
+    console.warn(e);
+    document.getElementById('wsStatus').textContent = 'CAMERA/WS: LỖI KẾT NỐI';
+    document.getElementById('wsStatus').style.color = 'var(--red)';
+    stopCameraLease();
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') stopCameraLease(true);
-  else syncCameraStatus();
+  if (document.visibilityState === 'hidden') {
+    stopFrameLoop();
+  } else if (cameraOn) {
+    startFrameLoop();
+  }
 });
 
-window.addEventListener('pagehide', () => stopCameraLease(true));
-window.addEventListener('beforeunload', () => stopCameraLease(true));
+window.addEventListener('pagehide', () => stopCameraLease());
+window.addEventListener('beforeunload', () => stopCameraLease());
 
 function updateCamUI() {
   const btn   = document.getElementById('btnCamToggle');
@@ -1370,7 +1380,7 @@ function updateCamUI() {
 async function loadTodayHistory() {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const res   = await fetch(`/api/attendance?date=${today}`);
+    const res   = await fetch(apiUrl(`/api/attendance?date=${today}`));
     const json  = await res.json();
 
     // API trả về {logs: [...], total: N}
@@ -1396,7 +1406,8 @@ async function loadTodayHistory() {
   }
 }
 
-syncCameraStatus();
-connectWS();
+hideCameraFeed();
+updateCamUI();
+document.getElementById('wsStatus').textContent = 'WS: CHƯA KẾT NỐI - BẬT CAMERA';
 setTimeout(loadTodayHistory, 500);</script>
 </html>

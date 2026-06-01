@@ -312,6 +312,36 @@ class CameraStream:
             self.cap.release()
 
 
+def save_capture_snapshot(
+    frame: np.ndarray,
+    emp_code: str,
+    metadata: dict | None = None,
+) -> dict:
+    """Save an attendance evidence image from a frame supplied by a kiosk client."""
+    if frame is None:
+        return {}
+    metadata = metadata or {}
+    captured_at = CameraStream._metadata_datetime(metadata)
+    day_dir = settings.CAPTURES_DIR / captured_at.strftime("%Y-%m-%d")
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    log_id = CameraStream._safe_name(metadata.get("log_id") or metadata.get("id") or "noid")
+    safe_emp = CameraStream._safe_name(emp_code)
+    safe_type = CameraStream._safe_name(metadata.get("check_type") or "attendance")
+    ts = captured_at.strftime("%Y%m%d_%H%M%S")
+    path = day_dir / f"{log_id}_{safe_emp}_{safe_type}_{ts}.jpg"
+    evidence = CameraStream._draw_capture_overlay(frame.copy(), metadata | {"emp_code": emp_code}, captured_at)
+    ok = cv2.imwrite(str(path), evidence, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    if not ok:
+        return {}
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return {
+        "path": str(path),
+        "image_hash": digest,
+        "captured_at": captured_at.isoformat(),
+    }
+
+
 # ── Singleton & ON/OFF control ──────────────────────────────────
 _camera_instance: CameraStream | None = None
 _camera_enabled: bool = False

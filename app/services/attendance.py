@@ -247,7 +247,7 @@ def process_attendance(
                 shift_id            = assignment.shift_id,
                 work_date           = assignment.work_date,
                 status              = "open",
-                source              = source_value,
+                source              = "face",
                 break_minutes       = shift.break_minutes if shift else 0,
             )
             db.add(session)
