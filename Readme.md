@@ -98,7 +98,11 @@ Chỉnh sửa `.env`:
 
 ```env
 # Database
-DATABASE_URL=postgresql+psycopg2://face_user:your_password@localhost:5432/face_attendance
+DB_USER=face_user
+DB_PASSWORD=your_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=face_attendance
 
 # JWT
 JWT_SECRET=your-32-character-secret-key-here
@@ -106,17 +110,13 @@ JWT_SECRET=your-32-character-secret-key-here
 # Camera
 CAMERA_ID=0
 FACE_THRESHOLD=0.50
+MIN_FACE_SIZE=40
 COOLDOWN_MINUTES=5
-WORK_START=08:30
 
 # Email (Gmail, cần bật App Password)
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
 EMAIL_HOST=smtp.gmail.com
-
-# Telegram (tuỳ chọn)
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
 ```
 
 ### Bước 5 — Chạy ứng dụng
@@ -269,4 +269,5 @@ Swagger UI đầy đủ tại **http://localhost:8000/docs**
 - **GPU:** Nếu có CUDA, hệ thống tự dùng GPU; nếu không, fallback sang CPU (chậm hơn ~3x)
 - **Ánh sáng:** Đặt camera ở vị trí đủ sáng, ngang tầm mặt để đạt độ chính xác tối đa
 - **Ngưỡng nhận diện:** `FACE_THRESHOLD=0.50` — tăng lên nếu nhận nhầm người, giảm xuống nếu không nhận ra
+- **Kích thước mặt tối thiểu:** `MIN_FACE_SIZE=40` — bỏ qua khuôn mặt quá nhỏ trong khung hình
 - **Gmail OTP:** Cần bật [App Password](https://myaccount.google.com/apppasswords) trong tài khoản Google (không dùng mật khẩu thường)

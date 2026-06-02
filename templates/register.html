@@ -59,17 +59,26 @@ html,body{min-height:100vh}
 .cnt-num.vis{opacity:1}
 
 .arrows{position:absolute;inset:0;pointer-events:none}
-.arr{position:absolute;font-size:32px;opacity:0;transition:opacity .25s;
-  text-shadow:0 0 14px currentColor;filter:drop-shadow(0 0 8px currentColor);color:var(--teal)}
+.arr{
+  position:absolute;
+  width:74px;height:74px;border-radius:50%;
+  display:grid;place-items:center;
+  font-size:54px;font-weight:800;line-height:1;
+  opacity:0;transition:opacity .25s,transform .2s;
+  color:#00110d;background:rgba(0,212,170,.9);
+  border:2px solid rgba(255,255,255,.85);
+  box-shadow:0 0 0 6px rgba(0,212,170,.18),0 0 26px rgba(0,212,170,.75);
+  text-shadow:none;filter:drop-shadow(0 0 10px rgba(0,212,170,.7));
+}
 .arr.show{opacity:1}
-.aL{left:14px;top:50%;transform:translateY(-50%);animation:bL .75s ease-in-out infinite}
-.aR{right:14px;top:50%;transform:translateY(-50%);animation:bR .75s ease-in-out infinite}
-.aU{top:14px;left:50%;transform:translateX(-50%);animation:bU .75s ease-in-out infinite}
-.aD{bottom:52px;left:50%;transform:translateX(-50%);animation:bD .75s ease-in-out infinite}
-@keyframes bL{0%,100%{left:14px}50%{left:5px}}
-@keyframes bR{0%,100%{right:14px}50%{right:5px}}
-@keyframes bU{0%,100%{top:14px}50%{top:6px}}
-@keyframes bD{0%,100%{bottom:52px}50%{bottom:44px}}
+.aL{left:22px;top:50%;transform:translateY(-50%);animation:bL .75s ease-in-out infinite}
+.aR{right:22px;top:50%;transform:translateY(-50%);animation:bR .75s ease-in-out infinite}
+.aU{top:18px;left:50%;transform:translateX(-50%);animation:bU .75s ease-in-out infinite}
+.aD{bottom:64px;left:50%;transform:translateX(-50%);animation:bD .75s ease-in-out infinite}
+@keyframes bL{0%,100%{left:22px}50%{left:10px}}
+@keyframes bR{0%,100%{right:22px}50%{right:10px}}
+@keyframes bU{0%,100%{top:18px}50%{top:8px}}
+@keyframes bD{0%,100%{bottom:64px}50%{bottom:52px}}
 
 .hud-top{position:absolute;top:11px;left:11px;right:11px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
 .hud-b{font-family:var(--font-mono);font-size:9px;background:rgba(0,0,0,.65);
@@ -135,6 +144,7 @@ html,body{min-height:100vh}
 .btn-t:disabled{background:var(--teal-dim);color:#003;cursor:not-allowed}
 .btn-o{background:transparent;color:var(--muted);border:1px solid var(--border)}
 .btn-o:hover{color:var(--text);border-color:var(--blue)}
+.voice-btn.active{color:#00110d;background:var(--yellow);border-color:var(--yellow)}
 .btn-full{width:100%;padding:12px}
 .tipbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 14px;margin-bottom:14px}
 .tipbox-t{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
@@ -229,6 +239,7 @@ html,body{min-height:100vh}
 
         <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
           <button class="btn btn-t" id="btnStart" onclick="startCamera()" style="font-size:12px;padding:8px 16px">▶ Bật Camera</button>
+          <button class="btn btn-o voice-btn" id="btnVoice" onclick="toggleVoiceGuide()" style="font-size:12px;padding:8px 14px" type="button">Giọng đọc: Tắt</button>
           <span id="detectBadge" style="font-size:10px;font-family:var(--font-mono);color:var(--muted);display:none">● Đang nhận diện...</span>
         </div>
         <div class="progbar"><div class="progfill" id="progFill"></div></div>
@@ -287,7 +298,7 @@ html,body{min-height:100vh}
         </div>
         <div class="fr">
           <div class="fg"><label class="fl">Email *</label>
-            <input class="fi" id="empEmail" type="email" placeholder="email@company.com"></div>
+            <input class="fi" id="empEmail" type="email" placeholder="example@gmail.com"></div>
           <div class="fg"><label class="fl">Điện thoại</label>
             <input class="fi" id="empPhone" type="tel" maxlength="20" placeholder="0901234567"></div>
         </div>
@@ -316,7 +327,7 @@ html,body{min-height:100vh}
           <ul>
             <li>Bật camera tại quầy quản lý → đặt mặt nhân viên vào khung trắng</li>
             <li>Làm theo mũi tên: thẳng → trái → phải → lên → xuống</li>
-            <li>Giữ đúng góc ~1.2 giây → <strong style="color:var(--teal)">tự động chụp</strong></li>
+            <li>Khi khuôn mặt đúng góc và nét → <strong style="color:var(--teal)">tự động chụp</strong></li>
             <li>Dữ liệu khuôn mặt dùng cho kiosk chấm công vào/ra ca</li>
             <li>Thanh màu bên dưới camera = độ chuẩn từng góc</li>
           </ul>
@@ -476,6 +487,9 @@ let stream=null, faceMesh=null, mpCam=null;
 let captured={}, lockId=null, lockStart=null, lockTmr=null;
 let isLocked = false; // hysteresis state
 const LOCK_MS=1600, CIRC=2*Math.PI*35;
+let voiceEnabled = localStorage.getItem('register_voice_guide') === 'on';
+let lastVoiceKey = '';
+let lastVoiceAt = 0;
 
 // Smoothed metrics — được cập nhật mỗi frame
 let sm = { yaw:0, pitch:0, pitchRaw:0, chinNoseRatio:2.2, eyeWOut:0.2 };
@@ -490,6 +504,43 @@ const zctx       = zoneCanvas.getContext('2d');
 const cntSvg     = document.getElementById('cntSvg');
 const cntArc     = document.getElementById('cntArc');
 const cntNum     = document.getElementById('cntNum');
+
+function updateVoiceButton(){
+  const btn = document.getElementById('btnVoice');
+  if (!btn) return;
+  if (!('speechSynthesis' in window)){
+    btn.disabled = true;
+    btn.textContent = 'Không hỗ trợ giọng đọc';
+    return;
+  }
+  btn.classList.toggle('active', voiceEnabled);
+  btn.textContent = voiceEnabled ? 'Giọng đọc: Bật' : 'Giọng đọc: Tắt';
+  btn.setAttribute('aria-pressed', voiceEnabled ? 'true' : 'false');
+}
+
+function toggleVoiceGuide(){
+  voiceEnabled = !voiceEnabled;
+  localStorage.setItem('register_voice_guide', voiceEnabled ? 'on' : 'off');
+  updateVoiceButton();
+  if (voiceEnabled) speakGuide('ô kê', 'voice-on', {force:true});
+  else if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+function speakGuide(text, key = text, options = {}){
+  if (!voiceEnabled || !('speechSynthesis' in window)) return;
+  const now = Date.now();
+  if (!options.force && now - lastVoiceAt < 2500) return;
+  if (!options.force && key === lastVoiceKey && now - lastVoiceAt < 4500) return;
+  lastVoiceKey = key;
+  lastVoiceAt = now;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'vi-VN';
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
+}
+updateVoiceButton();
 
 // ── Build cards ──
 function buildCards(){
@@ -633,6 +684,7 @@ function onResults(res){
   let sub=target.sub;
   if(!sm.inZoneSoft && target.id!=='down') sub=sm.zoneMsg;
   document.getElementById('instrSub').textContent=sub;
+  speakGuide(target.instr, `pose-${target.id}`);
 
   const guide=document.getElementById('faceGuide');
   const matched = isLocked ? !target.exit(sm) : target.enter(sm);
@@ -657,6 +709,7 @@ function noFace(){
   document.getElementById('hudA').textContent='— không thấy mặt —';
   document.getElementById('instrMain').textContent='Không thấy khuôn mặt';
   document.getElementById('instrSub').textContent='Đặt mặt vào trong khung — ánh sáng đủ sáng';
+  speakGuide('Không thấy khuôn mặt. Đặt mặt vào trong khung và đảm bảo đủ sáng.', 'no-face');
   setArrows([]);
 }
 
@@ -876,6 +929,7 @@ function nextPose(){ return POSES.find(p=>!captured[p.id])||null; }
 function allDone(){
   document.getElementById('instrMain').textContent='✓ Đã chụp đủ 5 góc!';
   document.getElementById('instrSub').textContent='Điền thông tin và nhấn Đăng ký';
+  speakGuide('Vui lòng điền thông tin và nhấn đăng ký.', 'all-done', {force:true});
   setArrows([]);document.getElementById('faceGuide').className='face-guide s-lock';
   document.getElementById('btnSubmit').disabled=false;
   setStep(3);cancelLock();
@@ -972,6 +1026,9 @@ async function submitRegister(){
 }
 // ── Reset ──
 function resetAll(){
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  lastVoiceKey = '';
+  lastVoiceAt = 0;
   cancelLock();isLocked=false;
   sm={yaw:0,pitch:0,pitchRaw:0,chinNoseRatio:2.2,eyeWOut:0.2};
   CAL.done=false;CAL.chinNoseRatio=2.2;CAL.pitchRaw=0;

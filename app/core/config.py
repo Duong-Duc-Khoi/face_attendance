@@ -54,7 +54,7 @@ class Settings:
 
     # ── Face Engine ────────────────────────────────────
     FACE_THRESHOLD:  float = float(os.getenv("FACE_THRESHOLD",  "0.50"))
-    MIN_FACE_SIZE:   int   = 40     # px — bỏ qua khuôn mặt quá nhỏ
+    MIN_FACE_SIZE:   int   = int(os.getenv("MIN_FACE_SIZE", "40"))  # px — bỏ qua khuôn mặt quá nhỏ
 
     # ── Presentation attack guard ──────────────────────
     PRESENTATION_GUARD_ENABLED: bool = os.getenv("PRESENTATION_GUARD_ENABLED", "true").lower() == "true"
@@ -69,28 +69,16 @@ class Settings:
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))
     CHECKIN_GRACE_MINUTES: int = int(os.getenv("CHECKIN_GRACE_MINUTES", "15"))
     OVERTIME_APPROVAL_THRESHOLD_MINUTES: int = int(os.getenv("OVERTIME_APPROVAL_THRESHOLD_MINUTES", "30"))
-    WORK_START:             str  = os.getenv("WORK_START", "08:30")
-    WORK_END:               str  = os.getenv("WORK_END",   "17:30")
-    LATE_THRESHOLD:         int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
-    LATE_THRESHOLD_MINUTES: int  = int(os.getenv("LATE_THRESHOLD_MINUTES", "15"))
     WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5,6,7")
-    HALF_DAY_CUTOFF:        str  = os.getenv("HALF_DAY_CUTOFF", "12:00")
     NOTIFY_LEAVE_CANCEL:    bool = os.getenv("NOTIFY_LEAVE_CANCEL", "true").lower() == "true"
 
     # ── Paths ──────────────────────────────────────────
-    DATA_DIR:          Path = Path("data")
     EMBEDDINGS_PATH:   Path = Path("data/embeddings.pkl")
     FACES_DIR:         Path = Path("data/faces")
     CAPTURES_DIR:      Path = Path("data/captures")
     EXPORTS_DIR:       Path = Path("data/exports")
 
-    # ── Telegram ───────────────────────────────────────
-    TELEGRAM_TOKEN:   str = os.getenv("TELEGRAM_TOKEN",   "")
-    TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
-
     # ── Server ─────────────────────────────────────────
-    HOST:  str = os.getenv("HOST",  "0.0.0.0")
-    PORT:  int = int(os.getenv("PORT", "8000"))
     CORS_ORIGINS: str = os.getenv(
         "CORS_ORIGINS",
         "http://127.0.0.1:5500,http://127.0.0.1:5600,http://localhost:5500,http://localhost:5600",

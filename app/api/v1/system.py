@@ -25,7 +25,6 @@ def get_config():
     return {
         "threshold": face_engine.threshold,
         "cooldown_minutes": settings.COOLDOWN_MINUTES,
-        "work_start": settings.WORK_START,
     }
 
 
