@@ -31,3 +31,16 @@ class WorkCalendar(Base):
     __table_args__ = (
         UniqueConstraint("branch_id", "date", name="uq_calendar_branch_date"),
     )
+
+
+class WorkCalendarConfig(Base):
+    __tablename__ = "work_calendar_configs"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    branch_id  = Column(Integer, ForeignKey("branches.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    work_days  = Column(String(30), nullable=False, default="1,2,3,4,5,6,7")
+
+    created_by = Column(String(150), default="")
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)

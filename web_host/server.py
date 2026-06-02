@@ -133,6 +133,11 @@ async def users_page(request: Request):
     return templates.TemplateResponse("users.html", _template_context(request))
 
 
+@app.get("/settings")
+async def settings_page(request: Request):
+    return templates.TemplateResponse("settings.html", _template_context(request))
+
+
 @app.get("/shifts")
 async def shifts_page(request: Request):
     return templates.TemplateResponse("shifts.html", _template_context(request))

@@ -9,7 +9,7 @@
 
 (function () {
   const LOGIN_PAGE = '/auth/login-page';
-  const MANAGER_ONLY = ['/dashboard', '/branches', '/shifts', '/report', '/users', '/integrations'];
+  const MANAGER_ONLY = ['/dashboard', '/branches', '/shifts', '/report', '/users', '/settings', '/integrations'];
 
   function getToken() {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
@@ -222,6 +222,7 @@
   async function installBranchScopeControl() {
     const current = getUser();
     if (!current || !document.body.classList.contains('admin-shell')) return;
+    if (document.body.hasAttribute('data-no-branch-scope')) return;
     if (current.role !== 'admin' && current.role !== 'manager') return;
     const header = document.querySelector('body.admin-shell header');
     const account = header ? header.querySelector('.nav-account') : null;
@@ -312,6 +313,10 @@
     const navUsers = document.getElementById('navUsers');
     if (navUsers && user && user.role !== 'admin') {
       navUsers.style.display = 'none';
+    }
+    const navSettings = document.getElementById('navSettings');
+    if (navSettings && user && user.role !== 'admin') {
+      navSettings.style.display = 'none';
     }
     const navIntegrations = document.getElementById('navIntegrations');
     if (navIntegrations && user && user.role !== 'admin') {

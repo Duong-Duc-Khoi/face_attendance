@@ -104,6 +104,11 @@ async def users_page(request: Request):
     return _redirect_to_web("/users")
 
 
+@router.get("/settings")
+async def settings_page(request: Request):
+    return _redirect_to_web("/settings")
+
+
 @router.get("/shifts")
 async def shifts_page(request: Request):
     return _redirect_to_web("/shifts")

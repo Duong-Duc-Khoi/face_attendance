@@ -17,7 +17,7 @@ from app.models.attendance import (
 )
 from app.models.user import User, EmailToken, RefreshToken
 from app.models.leave import LeaveRequest, LeaveRequestDay
-from app.models.calendar import WorkCalendar
+from app.models.calendar import WorkCalendar, WorkCalendarConfig
 from app.models.shift import Shift, ShiftAssignment, ShiftPlanDraft, ShiftPlanDraftAssignment
 from app.models.integration import AIProviderSetting
 __all__ = [
@@ -25,7 +25,7 @@ __all__ = [
     "AttendanceSession", "AttendanceEvent", "AttendanceEvidence",
     "AttendanceAuditRun", "AttendanceAuditFinding", "AttendanceLog",
     "User", "EmailToken", "RefreshToken",
-    "LeaveRequest", "LeaveRequestDay", "WorkCalendar",
+    "LeaveRequest", "LeaveRequestDay", "WorkCalendar", "WorkCalendarConfig",
     "Shift", "ShiftAssignment", "ShiftPlanDraft", "ShiftPlanDraftAssignment",
     "AIProviderSetting",
 ]

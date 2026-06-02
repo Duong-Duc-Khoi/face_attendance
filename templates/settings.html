@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cấu hình hệ thống - FaceAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-3">
+<link rel="stylesheet" href="/static/css/components.css">
+<script src="/static/js/auth-guard.js"></script>
+<style>
+.settings-page{max-width:1180px;margin:0 auto;padding:24px}
+.settings-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:7px}
+.title{font-size:26px;font-weight:800;letter-spacing:0;margin:0}
+.sub{font-size:13px;color:var(--muted);line-height:1.6;margin:8px 0 0;max-width:700px}
+.head-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.admin-only{display:none;border:1px solid rgba(255,77,106,.35);background:rgba(255,77,106,.08);border-radius:8px;padding:16px;color:var(--red);font-size:13px}
+.status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.status-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:76px}
+.status-main{display:grid;gap:4px}
+.status-main b{font-size:13px}
+.status-main span{font-size:11px;color:var(--muted)}
+.status-value{font-family:var(--font-mono);font-size:20px;font-weight:800;color:var(--text)}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px rgba(255,77,106,.12);flex:0 0 auto}
+.status-dot.on{background:var(--teal);box-shadow:0 0 0 4px rgba(0,212,170,.12)}
+.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.setting-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.setting-card.wide{grid-column:1/-1}
+.setting-card-head{padding:15px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.setting-card-head h2{font-size:14px;font-weight:800;margin:0}
+.setting-card-head p{font-size:11px;color:var(--muted);line-height:1.5;margin:5px 0 0}
+.setting-body{padding:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:7px;min-width:0}
+.field.full{grid-column:1/-1}
+.field-label{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.field-hint{font-size:11px;color:var(--muted);line-height:1.45}
+.input,.select{width:100%;min-height:38px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-sans);font-size:12px;padding:8px 10px;outline:none}
+.input:focus,.select:focus{border-color:var(--teal)}
+.select option{background:var(--surface)}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(26,47,80,.75);background:var(--panel);border-radius:8px;padding:10px 12px;min-height:48px}
+.switch-row input{width:18px;height:18px;accent-color:var(--teal);flex:0 0 auto}
+.switch-copy{display:grid;gap:3px}
+.switch-copy b{font-size:12px}
+.switch-copy span{font-size:11px;color:var(--muted)}
+.save-strip{position:sticky;bottom:12px;margin-top:16px;background:rgba(10,20,35,.92);border:1px solid var(--border);backdrop-filter:blur(10px);border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:5}
+.save-strip span{font-size:12px;color:var(--muted)}
+.save-actions{display:flex;gap:8px}
+.loading-row{color:var(--muted);font-size:12px}
+@media(max-width:920px){.settings-page{padding:16px}.settings-head{display:block}.head-actions{justify-content:flex-start;margin-top:14px}.status-grid,.settings-grid{grid-template-columns:1fr}.setting-body{grid-template-columns:1fr}}
+</style>
+</head>
+<body class="admin-shell" data-no-branch-scope>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/><path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <div>
+      <span class="brand-name">FaceAttend</span>
+      <span class="brand-section">Cấu hình</span>
+    </div>
+  </div>
+  <nav class="nav-links" id="mainNav" aria-label="Điều hướng quản lý">
+    <span class="nav-section-title">Vận hành</span>
+    <a href="/dashboard" class="nav-link">Tổng quan</a>
+    <a href="/attendance" class="nav-link">Chấm công</a>
+    <a href="/employees" class="nav-link">Nhân viên</a>
+    <a href="/branches" class="nav-link">Cửa hàng</a>
+    <a href="/shifts" class="nav-link">Ca làm</a>
+    <a href="/roster" class="nav-link">Bảng phân ca</a>
+    <a href="/work-calendar" class="nav-link">Lịch vận hành</a>
+    <a href="/leave" class="nav-link">Nghỉ phép</a>
+    <a href="/report" class="nav-link">Báo cáo</a>
+    <span class="nav-section-title" id="navSystemTitle">Hệ thống</span>
+    <a href="/users" class="nav-link" id="navUsers">Tài khoản</a>
+    <a href="/settings" class="nav-link active" id="navSettings">Cấu hình</a>
+    <a href="/integrations" class="nav-link" id="navIntegrations">Tích hợp</a>
+  </nav>
+  <div class="nav-account">
+    <span id="navUserName" class="user-chip"></span>
+    <button data-logout class="logout-btn">Đăng xuất</button>
+  </div>
+</header>
+
+<main class="settings-page">
+  <section class="settings-head">
+    <div>
+      <div class="eyebrow">Thiết lập vận hành</div>
+      <h1 class="title">Cấu hình hệ thống</h1>
+      <p class="sub">Các thiết lập vận hành áp dụng toàn chuỗi. Những cấu hình kỹ thuật nhạy cảm được quản trị riêng và không hiển thị tại màn này.</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn btn-outline" type="button" onclick="reloadAll()">Tải lại</button>
+      <button class="btn btn-teal" type="button" onclick="saveConfig()">Lưu</button>
+    </div>
+  </section>
+
+  <div class="admin-only" id="adminOnly">Trang này chỉ dành cho admin.</div>
+
+  <section id="settingsContent">
+    <div class="status-grid" id="healthGrid">
+      <div class="status-item"><div class="loading-row">Đang tải trạng thái...</div></div>
+    </div>
+
+    <div class="settings-grid">
+      <section class="setting-card">
+        <div class="setting-card-head">
+          <h2>Nhận diện khuôn mặt</h2>
+          <p>Ngưỡng nhận diện và kích thước khuôn mặt tối thiểu.</p>
+        </div>
+        <div class="setting-body">
+          <label class="field">
+            <span class="field-label">Độ khớp tối thiểu</span>
+            <input class="input" id="FACE_THRESHOLD" type="number" min="0" max="1" step="0.01">
+            <span class="field-hint">Tăng nếu hay nhận nhầm người, giảm nếu khó nhận ra nhân viên.</span>
+          </label>
+          <label class="field">
+            <span class="field-label">Kích thước mặt tối thiểu</span>
+            <input class="input" id="MIN_FACE_SIZE" type="number" min="20" max="800" step="1">
+            <span class="field-hint">Bỏ qua khuôn mặt quá nhỏ trong khung hình.</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="setting-card">
+        <div class="setting-card-head">
+          <h2>Chấm công</h2>
+          <p>Các mốc thời gian kiểm soát ghi nhận chấm công.</p>
+        </div>
+        <div class="setting-body">
+          <label class="field">
+            <span class="field-label">Thời gian chờ giữa hai lần chấm công</span>
+            <input class="input" id="COOLDOWN_MINUTES" type="number" min="0" max="1440" step="1">
+            <span class="field-hint">Tránh ghi nhận trùng liên tục.</span>
+          </label>
+          <label class="field">
+            <span class="field-label">Số phút cho phép vào muộn</span>
+            <input class="input" id="CHECKIN_GRACE_MINUTES" type="number" min="0" max="240" step="1">
+            <span class="field-hint">Dùng khi ca làm chưa có ngưỡng riêng.</span>
+          </label>
+          <label class="field full">
+            <span class="field-label">Ngưỡng cần duyệt tăng ca</span>
+            <input class="input" id="OVERTIME_APPROVAL_THRESHOLD_MINUTES" type="number" min="0" max="720" step="1">
+            <span class="field-hint">Số phút vượt ca trước khi cần quản lý xem lại.</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="setting-card wide">
+        <div class="setting-card-head">
+          <h2>Chống giả mạo</h2>
+          <p>Phát hiện trường hợp dùng ảnh chụp, màn hình hoặc thiết bị khác để chấm công.</p>
+        </div>
+        <div class="setting-body">
+          <label class="field full">
+            <span class="field-label">Kiểm tra chống giả mạo</span>
+            <span class="switch-row">
+              <span class="switch-copy">
+                <b>Bật kiểm tra chống giả mạo</b>
+                <span>Khi tắt, hệ thống chỉ dùng nhận diện khuôn mặt thông thường.</span>
+              </span>
+              <input id="PRESENTATION_GUARD_ENABLED" type="checkbox">
+            </span>
+          </label>
+          <label class="field">
+            <span class="field-label">Cách xử lý khi có rủi ro</span>
+            <select class="select" id="PRESENTATION_GUARD_ACTION">
+              <option value="review">Đưa vào danh sách cần xem lại</option>
+              <option value="block">Chặn chấm công</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Mức rủi ro cần xử lý</span>
+            <input class="input" id="PRESENTATION_GUARD_RISK_THRESHOLD" type="number" min="0" max="1" step="0.01">
+          </label>
+          <label class="field">
+            <span class="field-label">Số khung hình xác minh</span>
+            <input class="input" id="PRESENTATION_GUARD_MIN_FRAMES" type="number" min="1" max="20" step="1">
+          </label>
+          <label class="field">
+            <span class="field-label">Thời gian quan sát</span>
+            <input class="input" id="PRESENTATION_GUARD_WINDOW_SECONDS" type="number" min="1" max="30" step="0.1">
+          </label>
+        </div>
+      </section>
+
+      <section class="setting-card">
+        <div class="setting-card-head">
+          <h2>Bằng chứng & kiểm tra AI</h2>
+          <p>Lưu ảnh chấm công và giới hạn mỗi lượt kiểm tra AI.</p>
+        </div>
+        <div class="setting-body">
+          <label class="field">
+            <span class="field-label">Số ngày giữ ảnh bằng chứng</span>
+            <input class="input" id="EVIDENCE_RETENTION_DAYS" type="number" min="1" max="3650" step="1">
+          </label>
+          <label class="field">
+            <span class="field-label">Số ảnh tối đa mỗi lượt kiểm tra AI</span>
+            <input class="input" id="AI_AUDIT_MAX_IMAGES_PER_RUN" type="number" min="1" max="1000" step="1">
+          </label>
+        </div>
+      </section>
+
+      <section class="setting-card">
+        <div class="setting-card-head">
+          <h2>Thông báo</h2>
+          <p>Các thông báo nghiệp vụ gửi cho nhân viên và quản lý.</p>
+        </div>
+        <div class="setting-body">
+          <label class="field full">
+            <span class="field-label">Thông báo khi hủy đơn nghỉ</span>
+            <span class="switch-row">
+              <span class="switch-copy">
+                <b>Gửi thông báo khi hủy đơn nghỉ</b>
+                <span>Gửi email khi đơn nghỉ đã duyệt bị hủy.</span>
+              </span>
+              <input id="NOTIFY_LEAVE_CANCEL" type="checkbox">
+            </span>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <div class="save-strip">
+      <span id="saveState">Sẵn sàng lưu cấu hình vận hành.</span>
+      <div class="save-actions">
+        <button class="btn btn-outline" type="button" onclick="reloadAll()">Tải lại</button>
+        <button class="btn btn-teal" type="button" onclick="saveConfig()">Lưu cấu hình</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+<script src="/static/js/toast.js"></script>
+<script>
+const CONFIG_KEYS = [
+  "FACE_THRESHOLD",
+  "MIN_FACE_SIZE",
+  "PRESENTATION_GUARD_ENABLED",
+  "PRESENTATION_GUARD_ACTION",
+  "PRESENTATION_GUARD_RISK_THRESHOLD",
+  "PRESENTATION_GUARD_MIN_FRAMES",
+  "PRESENTATION_GUARD_WINDOW_SECONDS",
+  "EVIDENCE_RETENTION_DAYS",
+  "AI_AUDIT_MAX_IMAGES_PER_RUN",
+  "COOLDOWN_MINUTES",
+  "CHECKIN_GRACE_MINUTES",
+  "OVERTIME_APPROVAL_THRESHOLD_MINUTES",
+  "NOTIFY_LEAVE_CANCEL"
+];
+
+const BOOLEAN_KEYS = new Set(["PRESENTATION_GUARD_ENABLED", "NOTIFY_LEAVE_CANCEL"]);
+const NUMBER_KEYS = new Set([
+  "FACE_THRESHOLD",
+  "MIN_FACE_SIZE",
+  "PRESENTATION_GUARD_RISK_THRESHOLD",
+  "PRESENTATION_GUARD_MIN_FRAMES",
+  "PRESENTATION_GUARD_WINDOW_SECONDS",
+  "EVIDENCE_RETENTION_DAYS",
+  "AI_AUDIT_MAX_IMAGES_PER_RUN",
+  "COOLDOWN_MINUTES",
+  "CHECKIN_GRACE_MINUTES",
+  "OVERTIME_APPROVAL_THRESHOLD_MINUTES"
+]);
+
+document.addEventListener("DOMContentLoaded", () => {
+  const user = getUser();
+  if (!user || user.role !== "admin") {
+    document.getElementById("adminOnly").style.display = "block";
+    document.getElementById("settingsContent").style.display = "none";
+    return;
+  }
+  reloadAll();
+});
+
+async function reloadAll() {
+  await Promise.all([loadHealth(), loadConfig()]);
+}
+
+async function loadHealth() {
+  const grid = document.getElementById("healthGrid");
+  try {
+    const res = await authFetch("/api/health");
+    const data = await res.json();
+    grid.innerHTML = `
+      ${statusItem("Bộ nhận diện", data.face_engine ? "Sẵn sàng" : "Đang khởi tạo", data.face_engine)}
+      <div class="status-item">
+        <div class="status-main"><b>Hồ sơ khuôn mặt</b><span>Nhân viên đã đăng ký nhận diện</span></div>
+        <div class="status-value">${Number(data.employees || 0)}</div>
+      </div>
+      <div class="status-item">
+        <div class="status-main"><b>Phạm vi áp dụng</b><span>Cấu hình dùng cho toàn chuỗi</span></div>
+        <div class="status-value">Chuỗi</div>
+      </div>`;
+  } catch (e) {
+    grid.innerHTML = '<div class="status-item"><div class="status-main"><b>Không tải được trạng thái</b><span>Kiểm tra kết nối máy chủ.</span></div></div>';
+  }
+}
+
+function statusItem(title, label, active) {
+  return `
+    <div class="status-item">
+      <div class="status-main"><b>${esc(title)}</b><span>${esc(label)}</span></div>
+      <span class="status-dot ${active ? "on" : ""}" aria-hidden="true"></span>
+    </div>`;
+}
+
+async function loadConfig() {
+  setSaveState("Đang tải cấu hình...");
+  const res = await authFetch("/api/config");
+  const data = await res.json();
+  const flat = flattenConfig(data);
+  CONFIG_KEYS.forEach(key => {
+    if (!(key in flat)) return;
+    const el = document.getElementById(key);
+    if (!el) return;
+    if (BOOLEAN_KEYS.has(key)) el.checked = !!flat[key];
+    else el.value = flat[key];
+  });
+  setSaveState("Sẵn sàng lưu cấu hình vận hành.");
+}
+
+function flattenConfig(data) {
+  const flat = {};
+  Object.values(data || {}).forEach(group => {
+    if (!group || typeof group !== "object") return;
+    Object.assign(flat, group);
+  });
+  return flat;
+}
+
+function collectPayload() {
+  const payload = {};
+  CONFIG_KEYS.forEach(key => {
+    const el = document.getElementById(key);
+    if (!el) return;
+    if (BOOLEAN_KEYS.has(key)) payload[key] = el.checked;
+    else if (NUMBER_KEYS.has(key)) payload[key] = Number(el.value);
+    else payload[key] = el.value;
+  });
+  return payload;
+}
+
+async function saveConfig() {
+  const payload = collectPayload();
+  setSaveState("Đang lưu cấu hình...");
+  try {
+    const res = await authFetch("/api/config", {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Không lưu được cấu hình");
+    showToast("Đã lưu cấu hình", "success");
+    await loadConfig();
+  } catch (e) {
+    setSaveState("Có lỗi khi lưu cấu hình.");
+    showToast("Lỗi: " + e.message, "error");
+  }
+}
+
+function setSaveState(text) {
+  document.getElementById("saveState").textContent = text;
+}
+
+function esc(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[ch]));
+}
+</script>
+</body>
+</html>

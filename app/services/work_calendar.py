@@ -10,17 +10,36 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.attendance import AttendanceLog, AttendanceSession
-from app.models.calendar import WorkCalendar
+from app.models.calendar import WorkCalendar, WorkCalendarConfig
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
 from app.services.shift_service import shift_window
 
 
-def _default_work_days() -> set[int]:
-    """Trả về set ISO weekday từ config. 1=Thứ 2 ... 7=CN"""
-    raw = getattr(settings, "WORK_DAYS", "1,2,3,4,5,6,7")
-    return {int(x.strip()) for x in raw.split(",")}
+def _parse_work_days(raw: str | None) -> set[int]:
+    """Trả về set ISO weekday từ chuỗi config. 1=Thứ 2 ... 7=CN"""
+    result = set()
+    for item in str(raw or "").split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            day = int(item)
+        except ValueError:
+            continue
+        if 1 <= day <= 7:
+            result.add(day)
+    return result or {1, 2, 3, 4, 5, 6, 7}
+
+
+def _default_work_days(db: Session, branch_id: int | None = None) -> set[int]:
+    """Ưu tiên lịch mở cửa mặc định theo chi nhánh, fallback về cấu hình toàn chuỗi."""
+    if branch_id is not None:
+        cfg = db.query(WorkCalendarConfig).filter_by(branch_id=branch_id).first()
+        if cfg and cfg.work_days:
+            return _parse_work_days(cfg.work_days)
+    return _parse_work_days(getattr(settings, "WORK_DAYS", "1,2,3,4,5,6,7"))
 
 
 # ── Lấy thông tin 1 ngày ─────────────────────────────────────────
@@ -49,7 +68,7 @@ def get_calendar_day(d: date, db: Session, branch_id: int | None = None) -> dict
 
     # Mặc định
     iso_weekday = d.isoweekday()   # 1=Mon ... 7=Sun
-    work_days   = _default_work_days()
+    work_days   = _default_work_days(db, branch_id)
     day_type    = "full" if iso_weekday in work_days else "off"
 
     return {

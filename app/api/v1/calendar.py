@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.calendar import WorkCalendar
+from app.models.calendar import WorkCalendar, WorkCalendarConfig
 from app.models.user import User
 from app.services.branch_scope import default_branch_id_for_write, selected_branch_ids
 from app.services.work_calendar import get_calendar_month
@@ -40,6 +40,46 @@ def _optional_branch_id(value) -> int | None:
     return int(value)
 
 
+def _work_days_value(value) -> str:
+    if isinstance(value, list):
+        raw_parts = value
+    else:
+        raw_parts = str(value or "").split(",")
+    days: list[int] = []
+    for part in raw_parts:
+        try:
+            day = int(str(part).strip())
+        except ValueError:
+            raise HTTPException(400, "Ngày mở cửa mặc định không hợp lệ")
+        if day < 1 or day > 7:
+            raise HTTPException(400, "Ngày mở cửa mặc định chỉ nhận các ngày trong tuần")
+        if day in days:
+            raise HTTPException(400, "Ngày mở cửa mặc định không được trùng ngày")
+        days.append(day)
+    if not days:
+        raise HTTPException(400, "Cần chọn ít nhất một ngày mở cửa")
+    return ",".join(str(day) for day in sorted(days))
+
+
+def _fallback_work_days() -> str:
+    return settings.WORK_DAYS or "1,2,3,4,5,6,7"
+
+
+def _config_branch_id(
+    db: Session,
+    current_user: User,
+    branch_id: int | None,
+    *,
+    require_single: bool = False,
+) -> int | None:
+    ids = selected_branch_ids(db, current_user, branch_id)
+    if ids and len(ids) == 1:
+        return ids[0]
+    if require_single:
+        raise HTTPException(400, "Chọn một cửa hàng để lưu lịch mở cửa")
+    return None
+
+
 # ── GET /api/calendar?year=&month= ──────────────────────────────
 
 @router.get("")
@@ -60,18 +100,36 @@ def get_calendar(
         "branch_id": effective_branch_id,
         "days": days,
         "defaults": {
-            "work_days":  settings.WORK_DAYS,
+            "work_days": _config_work_days(db, effective_branch_id),
         }
     }
 
 
 # ── GET /api/calendar/config ─────────────────────────────────────
 
+def _config_work_days(db: Session, branch_id: int | None) -> str:
+    if branch_id is not None:
+        cfg = db.query(WorkCalendarConfig).filter_by(branch_id=branch_id).first()
+        if cfg and cfg.work_days:
+            return cfg.work_days
+    return _fallback_work_days()
+
+
 @router.get("/config")
-def get_config(current_user: User = Depends(get_current_user)):
+def get_config(
+    branch_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    effective_branch_id = _config_branch_id(db, current_user, branch_id)
+    cfg = None
+    if effective_branch_id is not None:
+        cfg = db.query(WorkCalendarConfig).filter_by(branch_id=effective_branch_id).first()
     return {
-        "work_days":              settings.WORK_DAYS,
-        "notify_leave_cancel":    settings.NOTIFY_LEAVE_CANCEL,
+        "branch_id": effective_branch_id,
+        "work_days": (cfg.work_days if cfg else _fallback_work_days()),
+        "source": "branch" if cfg else "system",
+        "editable": effective_branch_id is not None,
     }
 
 
@@ -81,68 +139,38 @@ def get_config(current_user: User = Depends(get_current_user)):
 def update_config(payload: dict,
                   db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(403, "Chỉ Admin mới được sửa cấu hình")
+    if current_user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Chỉ quản lý mới được sửa lịch mở cửa")
 
-    import os
-    env_path = None
-    for candidate in ["../.env", ".env", "../../.env"]:
-        if os.path.exists(candidate):
-            env_path = candidate
-            break
-
-    if not env_path:
-        raise HTTPException(500, "Không tìm thấy file .env để lưu cấu hình")
-
-    mapping = {
-        "work_days":              "WORK_DAYS",
-        "notify_leave_cancel":    "NOTIFY_LEAVE_CANCEL",
+    branch_id = _config_branch_id(
+        db,
+        current_user,
+        _optional_branch_id(payload.get("branch_id")),
+        require_single=True,
+    )
+    work_days = _work_days_value(payload.get("work_days"))
+    cfg = db.query(WorkCalendarConfig).filter_by(branch_id=branch_id).first()
+    if cfg:
+        cfg.work_days = work_days
+        cfg.created_by = current_user.email
+        cfg.created_by_id = current_user.id
+    else:
+        cfg = WorkCalendarConfig(
+            branch_id=branch_id,
+            work_days=work_days,
+            created_by=current_user.email,
+            created_by_id=current_user.id,
+        )
+        db.add(cfg)
+    db.commit()
+    return {
+        "success": True,
+        "message": "Đã lưu lịch mở cửa",
+        "branch_id": branch_id,
+        "work_days": work_days,
+        "source": "branch",
+        "editable": True,
     }
-
-    with open(env_path, "r") as f:
-        lines = f.readlines()
-
-    updated_keys = set()
-    new_lines = []
-    for line in lines:
-        replaced = False
-        for field, env_key in mapping.items():
-            if field in payload and line.startswith(env_key + "="):
-                val = payload[field]
-                new_lines.append(f"{env_key}={val}\n")
-                replaced = True
-                updated_keys.add(env_key)
-                break
-        if not replaced:
-            new_lines.append(line)
-
-    # Thêm key chưa có trong .env
-    for field, env_key in mapping.items():
-        if field in payload and env_key not in updated_keys:
-            new_lines.append(f"{env_key}={payload[field]}\n")
-
-    with open(env_path, "w") as f:
-        f.writelines(new_lines)
-
-    # Reload settings runtime
-    for field, env_key in mapping.items():
-        if field in payload:
-            val = payload[field]
-            if hasattr(settings, field):
-                try:
-                    attr_type = type(getattr(settings, field))
-                    setattr(settings, field, attr_type(val))
-                except Exception:
-                    setattr(settings, field, val)
-            env_name = field.upper()
-            if hasattr(settings, env_name):
-                try:
-                    attr_type = type(getattr(settings, env_name))
-                    setattr(settings, env_name, attr_type(val))
-                except Exception:
-                    setattr(settings, env_name, val)
-
-    return {"success": True, "message": "Đã lưu cấu hình"}
 
 
 # ── POST /api/calendar/day — Tạo/sửa 1 ngày đặc biệt ───────────
