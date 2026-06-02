@@ -21,6 +21,7 @@ Mo:
 
 ```text
 http://127.0.0.1:5500/
+http://127.0.0.1:5500/register
 ```
 
 Mac dinh kiosk se gui API/WebSocket ve:
@@ -41,7 +42,16 @@ Mo tren may kiosk:
 
 ```text
 http://127.0.0.1:5500/
+http://127.0.0.1:5500/register
 ```
 
+Trong do:
+
+- `/` la man hinh cham cong kiosk.
+- `/register` la trang dang ky khuon mat bang camera tren may kiosk.
+
 Luu y: camera browser chi duoc phep tren `localhost` hoac HTTPS. Vi vay may kiosk
-nen host UI local o `127.0.0.1:5500`, sau do gui frame ve backend qua `BACKEND_URL`.
+nen host UI local o `127.0.0.1:5500`, sau do gui frame/API ve backend qua `BACKEND_URL`.
+
+Neu doi cong/domain kiosk, cap nhat `CORS_ORIGINS` cua backend de cho phep origin
+do goi API.

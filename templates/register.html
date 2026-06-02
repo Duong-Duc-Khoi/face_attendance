@@ -347,6 +347,12 @@ html,body{min-height:100vh}
 <div id="toast"></div>
 
 <script>
+const backendParam = window.KIOSK_BACKEND_URL || new URLSearchParams(location.search).get('backend') || '';
+const backendBase = backendParam.replace(/\/+$/, '');
+function apiUrl(path) {
+  return backendBase ? `${backendBase}${path}` : path;
+}
+
 // ══════════════════════════════════════════════════════
 // POSE DEFINITIONS
 //
@@ -891,7 +897,7 @@ async function submitRegister(){
   const btn=document.getElementById('btnSubmit');
   btn.innerHTML='<div class="spinner"></div> Đang xử lý...';btn.disabled=true;
   try{
-    const res=await fetch('/api/employees/self-register',{
+    const res=await fetch(apiUrl('/api/employees/self-register'),{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         emp_code:empCode,name:empName,

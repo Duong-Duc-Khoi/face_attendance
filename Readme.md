@@ -121,16 +121,43 @@ TELEGRAM_CHAT_ID=
 
 ### Bước 5 — Chạy ứng dụng
 
+Backend API/Auth/WebSocket:
+
 ```bash
 python run.py
 ```
 
-Ứng dụng tự động:
+Web quản lý/nhân viên:
+
+```bash
+python run_web.py
+```
+
+Kiosk chấm công và đăng ký khuôn mặt:
+
+```bash
+node kiosk/server.js
+```
+
+Backend tự động:
 - Tạo các bảng database nếu chưa có
 - Tạo thư mục `data/faces`, `data/captures`, `data/exports`
 - Load model InsightFace lần đầu (tải ~300MB nếu chưa có)
 
-Truy cập: **http://localhost:8000**
+Truy cập:
+
+- Backend/API docs: **http://127.0.0.1:8000/docs**
+- Web quản lý: **http://127.0.0.1:5600/dashboard**
+- Đăng nhập: **http://127.0.0.1:5600/auth/login-page**
+- Kiosk chấm công: **http://127.0.0.1:5500/**
+- Đăng ký khuôn mặt: **http://127.0.0.1:5500/register**
+
+Trong mô hình tách cổng:
+
+- `:8000` chỉ là backend API/Auth/WebSocket.
+- `:5600` render web quản lý/nhân viên và proxy HTTP `/api/*`, `/auth/*`, `/data/*` về backend.
+- `:5500` host kiosk và đăng ký khuôn mặt để browser camera chạy trên `localhost`.
+- WebSocket kiosk kết nối trực tiếp về backend qua `BACKEND_URL`, không đi qua web host.
 
 ---
 
@@ -140,7 +167,7 @@ Truy cập: **http://localhost:8000**
 face_attendance/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py            # FastAPI app, page routes, camera endpoints
+│   ├── main.py            # FastAPI backend API/Auth/WebSocket
 │   ├── ws.py              # WebSocket handler, ConnectionManager
 │   ├── face_engine.py     # InsightFace singleton, register & recognize
 │   ├── camera.py          # CameraStream (3-thread: capture/MJPEG/recognition)
@@ -181,7 +208,10 @@ face_attendance/
 ├── .env                    # Cấu hình (không commit)
 ├── .env.example            # Mẫu cấu hình
 ├── requirements.txt
-├── run.py                  # Entry point (uvicorn)
+├── run.py                  # Entry point backend API (:8000)
+├── run_web.py              # Entry point web quản lý (:5600)
+├── kiosk/                  # Node static host kiosk + đăng ký khuôn mặt (:5500)
+├── web_host/               # FastAPI host riêng cho giao diện quản lý
 └── Readme.md
 ```
 

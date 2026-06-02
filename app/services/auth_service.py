@@ -96,7 +96,7 @@ def create_refresh_token_db(user_id: int, db: Session) -> str:
 
 
 def _app_url(path: str) -> str:
-    base = (settings.BASE_URL or "http://localhost:8000").strip().rstrip("/")
+    base = (settings.BASE_URL or "http://127.0.0.1:5600").strip().rstrip("/")
     match = re.match(r"^(https?://[^/\s]+)", base)
     if match:
         base = match.group(1)

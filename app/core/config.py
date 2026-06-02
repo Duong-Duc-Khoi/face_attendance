@@ -47,7 +47,7 @@ class Settings:
     EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
     EMAIL_TO:       str = os.getenv("EMAIL_TO",       "")
     APP_NAME:       str = "FaceAttend"
-    BASE_URL:       str = os.getenv("BASE_URL", "http://localhost:8000")
+    BASE_URL:       str = os.getenv("BASE_URL", "http://127.0.0.1:5600")
 
     # ── Camera ─────────────────────────────────────────
     CAMERA_ID: int = int(os.getenv("CAMERA_ID", "0"))
@@ -91,6 +91,15 @@ class Settings:
     # ── Server ─────────────────────────────────────────
     HOST:  str = os.getenv("HOST",  "0.0.0.0")
     PORT:  int = int(os.getenv("PORT", "8000"))
+    CORS_ORIGINS: str = os.getenv(
+        "CORS_ORIGINS",
+        "http://127.0.0.1:5500,http://127.0.0.1:5600,http://localhost:5500,http://localhost:5600",
+    )
+
+    @property
+    def cors_origins(self) -> list[str]:
+        origins = [item.strip() for item in self.CORS_ORIGINS.split(",") if item.strip()]
+        return origins or ["http://127.0.0.1:5500", "http://127.0.0.1:5600"]
 
 
 settings = Settings()

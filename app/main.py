@@ -25,6 +25,7 @@ from app.api.v1.shifts import router as shifts_router
 from app.api.v1.system import router as system_router
 from app.api.v1.users import router as users_router
 from app.api.v1.ws import router as realtime_router
+from app.core.config import settings
 from app.core.lifespan import lifespan
 from app.web.pages import router as pages_router
 
@@ -38,7 +39,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

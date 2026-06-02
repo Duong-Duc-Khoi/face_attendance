@@ -56,7 +56,7 @@ async def me_page(request: Request):
 
 @app.get("/register")
 async def register_page_face(request: Request):
-    return templates.TemplateResponse("register.html", _template_context(request))
+    return RedirectResponse(f"{KIOSK_URL}/register", status_code=307)
 
 
 @app.get("/dashboard")

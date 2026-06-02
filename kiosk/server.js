@@ -4,6 +4,7 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const kioskTemplate = path.join(root, "templates", "kiosk.html");
+const registerTemplate = path.join(root, "templates", "register.html");
 const staticRoot = path.join(root, "static");
 
 const host = process.env.KIOSK_HOST || "127.0.0.1";
@@ -42,10 +43,10 @@ function sendFile(res, filePath) {
   });
 }
 
-function kioskPage(req, res) {
-  fs.readFile(kioskTemplate, "utf8", (err, html) => {
+function renderTemplatePage(req, res, templatePath) {
+  fs.readFile(templatePath, "utf8", (err, html) => {
     if (err) {
-      send(res, 500, "Cannot read kiosk template");
+      send(res, 500, "Cannot read template");
       return;
     }
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
@@ -60,12 +61,25 @@ function kioskPage(req, res) {
   });
 }
 
+function kioskPage(req, res) {
+  renderTemplatePage(req, res, kioskTemplate);
+}
+
+function registerPage(req, res) {
+  renderTemplatePage(req, res, registerTemplate);
+}
+
 const server = http.createServer((req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = decodeURIComponent(requestUrl.pathname);
 
   if (pathname === "/" || pathname === "/kiosk.html") {
     kioskPage(req, res);
+    return;
+  }
+
+  if (pathname === "/register" || pathname === "/register.html") {
+    registerPage(req, res);
     return;
   }
 
@@ -85,5 +99,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, host, () => {
   console.log(`Kiosk UI: http://${host}:${port}/`);
+  console.log(`Register: http://${host}:${port}/register`);
   console.log(`Backend : ${backend}`);
 });

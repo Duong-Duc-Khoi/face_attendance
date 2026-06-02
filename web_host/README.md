@@ -32,6 +32,12 @@ http://127.0.0.1:5600/auth/login-page
 http://127.0.0.1:5600/dashboard
 ```
 
+Trang dang ky khuon mat khong nam o web host. Link `/register` se chuyen sang:
+
+```text
+http://127.0.0.1:5500/register
+```
+
 Mac dinh web host se proxy API/Auth/Data ve:
 
 ```text
@@ -49,3 +55,9 @@ python run_web.py
 Trong ban tach thu nay, web host van render Jinja template hien co va proxy
 `/api/*`, `/auth/*`, `/data/*` ve backend. Cach nay giup tach port FE/BE ma
 chua can rewrite dashboard thanh static SPA.
+
+Web host khong proxy WebSocket. Kiosk se ket noi WebSocket truc tiep ve backend
+thong qua `BACKEND_URL`.
+
+Neu chay voi origin khac, cap nhat `CORS_ORIGINS` trong backend de cho phep
+web/kiosk host goi API.

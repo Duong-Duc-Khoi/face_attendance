@@ -308,8 +308,22 @@ async function exportExcel(){
   btn.innerHTML='<div class="spinner"></div> Đang xuất...';btn.disabled=true;
   try{
     const url='/api/reports/export?from_date='+from+'&to_date='+to;
-    const a=document.createElement('a');a.href=url;a.download='BaoCaoChamCong.xlsx';
+    const res=await authFetch(url);
+    if(!res.ok){
+      let msg='Không xuất được báo cáo';
+      try{
+        const data=await res.json();
+        msg=data.detail||msg;
+      }catch{
+        msg=await res.text()||msg;
+      }
+      throw new Error(msg);
+    }
+    const blob=await res.blob();
+    const downloadUrl=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=downloadUrl;a.download='BaoCaoChamCong.xlsx';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(downloadUrl),1000);
     showToast('Đã tải xuống file Excel','success');
   }catch(e){showToast('Lỗi xuất Excel: '+e.message,'error');}
   finally{
