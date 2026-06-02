@@ -92,6 +92,7 @@ async def _handle_face_result(
     now_seen: float,
     broadcast: bool,
     capture_func,
+    branch_id: int | None = None,
 ) -> None:
     if not result.get("recognized"):
         return
@@ -133,7 +134,7 @@ async def _handle_face_result(
 
     loop = asyncio.get_running_loop()
     try:
-        log = await loop.run_in_executor(_ai_executor, process_attendance, emp_code, confidence)
+        log = await loop.run_in_executor(_ai_executor, process_attendance, emp_code, confidence, "", branch_id)
     except Exception as exc:
         print(f"  ✗ process_attendance lỗi [{emp_code}]: {exc}")
         return
@@ -238,6 +239,15 @@ async def ws_attendance(websocket: WebSocket):
 async def ws_kiosk(websocket: WebSocket):
     """Split-host mode: kiosk browser sends webcam frames to backend."""
     await websocket.accept()
+    branch_id = None
+    raw_branch_id = websocket.query_params.get("branch_id")
+    if raw_branch_id:
+        try:
+            branch_id = int(raw_branch_id)
+        except ValueError:
+            await websocket.send_json({"type": "frame_error", "message": "branch_id không hợp lệ"})
+            await websocket.close()
+            return
     loop = asyncio.get_running_loop()
     processed_until_absent: set[str] = set()
     last_seen_by_emp: dict[str, float] = {}
@@ -290,6 +300,7 @@ async def ws_kiosk(websocket: WebSocket):
                     now_seen=now_seen,
                     broadcast=False,
                     capture_func=lambda emp, frm, meta: save_capture_snapshot(frm, emp, meta),
+                    branch_id=branch_id,
                 )
     except WebSocketDisconnect:
         pass

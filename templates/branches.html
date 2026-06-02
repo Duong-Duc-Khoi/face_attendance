@@ -184,11 +184,16 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 let branches = [];
 let employees = [];
 let selectedBranchId = null;
+const currentUser = window.getUser ? window.getUser() : null;
+const isAdmin = !!(currentUser && currentUser.role === "admin");
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const show = (msg, type) => window.showToast ? window.showToast(msg, type || "success") : alert(msg);
 
 document.addEventListener("DOMContentLoaded", () => {
+  if (!isAdmin){
+    document.querySelectorAll('[onclick="startCreateBranch()"], .form-panel').forEach(el => el.style.display = "none");
+  }
   loadAll().catch(() => show("Không tải được dữ liệu cửa hàng", "error"));
 });
 
@@ -238,7 +243,7 @@ function renderStats(){
 }
 
 function renderBranchFilters(){
-  const options = ['<option value="">Tất cả cửa hàng</option>','<option value="none">Chưa gán</option>']
+  const options = ['<option value="">Tất cả cửa hàng</option>'].concat(isAdmin ? ['<option value="none">Chưa gán</option>'] : [])
     .concat(branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`));
   const employeeFilter = document.getElementById("employeeBranchFilter");
   const current = employeeFilter.value;
@@ -278,7 +283,7 @@ function renderBranches(){
       </div>
       <div class="card-actions">
         <button class="chip-btn" onclick="selectBranch(${b.id})">Gán NV</button>
-        <button class="icon-btn" onclick="editBranch(${b.id})">Sửa</button>
+        ${isAdmin ? `<button class="icon-btn" onclick="editBranch(${b.id})">Sửa</button>` : ""}
       </div>
     </article>
   `).join("");
@@ -370,7 +375,7 @@ function renderEmployeeAssignments(){
     return;
   }
 
-  const branchOptions = ['<option value="">Chưa gán</option>'].concat(
+  const branchOptions = (isAdmin ? ['<option value="">Chưa gán</option>'] : []).concat(
     branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`)
   ).join("");
 

@@ -310,6 +310,7 @@ async function saveDayOverride(){
   if(!editingDate)return showToast("Chọn ngày trước", "error");
   const payload={
     date:editingDate,
+    branch_id:(window.getSelectedBranchId&&window.getSelectedBranchId())?Number(window.getSelectedBranchId()):null,
     day_type:editingDayType,
     label:document.getElementById("editDayLabel").value.trim(),
     pay_multiplier:parseFloat(document.getElementById("editPayMultiplier").value || "1"),
@@ -330,7 +331,7 @@ async function saveOverride(){
 async function saveBulkOverride(){
   const dates=[...selectedDates].sort();
   if(!dates.length)return showToast("Tích chọn ngày trước", "error");
-  const payload={days:dates.map(ds=>({
+  const payload={branch_id:(window.getSelectedBranchId&&window.getSelectedBranchId())?Number(window.getSelectedBranchId()):null,days:dates.map(ds=>({
     date:ds,
     day_type:editingDayType,
     label:document.getElementById("editDayLabel").value.trim(),
@@ -350,7 +351,8 @@ async function deleteDayOverride(){
   if(!editingDate)return showToast("Chọn ngày trước", "error");
   if(!confirm(`Xóa cài đặt đặc biệt ngày ${editingDate}?`))return;
   try{
-    const r=await authFetch(`/api/calendar/day/${editingDate}`,{method:"DELETE"});
+    const url=window.scopedApiUrl?window.scopedApiUrl(`/api/calendar/day/${editingDate}`):`/api/calendar/day/${editingDate}`;
+    const r=await authFetch(url,{method:"DELETE"});
     if(!r.ok)throw new Error((await r.json()).detail||"Không xóa được ngày");
     showToast("Đã xóa override", "success");
     await loadCalendar();

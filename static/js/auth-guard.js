@@ -27,6 +27,39 @@
     try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null'); } catch { return null; }
   }
 
+  function saveUser(nextUser) {
+    if (!nextUser) return;
+    const storage = getAuthStorage();
+    storage.setItem('user', JSON.stringify(nextUser));
+    user = nextUser;
+  }
+
+  function getSelectedBranchId() {
+    const user = getUser();
+    if (!user || user.role !== 'admin') return '';
+    return localStorage.getItem('admin_branch_id') || '';
+  }
+
+  function appendBranchParam(url) {
+    const branchId = getSelectedBranchId();
+    if (!branchId || typeof url !== 'string' || !url.startsWith('/api/')) return url;
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (!parsed.searchParams.has('branch_id')) {
+        parsed.searchParams.set('branch_id', branchId);
+      }
+      return parsed.pathname + parsed.search + parsed.hash;
+    } catch {
+      return url;
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+    });
+  }
+
   function getJwtPayload(token) {
     try {
       const payload = token.split('.')[1];
@@ -55,7 +88,7 @@
   }
 
   // Kiểm tra role — staff không được vào trang quản lý
-  const user = getUser();
+  let user = getUser();
   const currentPath = window.location.pathname;
   if (user && user.role === 'staff' && MANAGER_ONLY.some(p => currentPath.startsWith(p))) {
     window.location.href = '/me';
@@ -65,6 +98,8 @@
   // Expose ra global
   window.getToken = getToken;
   window.getUser  = getUser;
+  window.getSelectedBranchId = getSelectedBranchId;
+  window.scopedApiUrl = appendBranchParam;
 
   let refreshPromise = null;
 
@@ -124,6 +159,11 @@
       options.headers || {}
     );
 
+    const method = String(options.method || 'GET').toUpperCase();
+    if (method === 'GET') {
+      url = appendBranchParam(url);
+    }
+
     let res = await fetch(url, options);
     if (res.status === 401) {
       const refreshed = await refreshAuth();
@@ -167,11 +207,76 @@
     } catch {}
   }
 
+  async function refreshStoredUser() {
+    try {
+      const res = await window.authFetch('/auth/me');
+      if (!res.ok) return getUser();
+      const data = await res.json();
+      if (data.user) saveUser(data.user);
+      return data.user || getUser();
+    } catch {
+      return getUser();
+    }
+  }
+
+  async function installBranchScopeControl() {
+    const current = getUser();
+    if (!current || !document.body.classList.contains('admin-shell')) return;
+    if (current.role !== 'admin' && current.role !== 'manager') return;
+    const header = document.querySelector('body.admin-shell header');
+    const account = header ? header.querySelector('.nav-account') : null;
+    if (!header || !account || document.querySelector('[data-branch-scope]')) return;
+    let branches = [];
+    try {
+      const res = await window.authFetch('/api/branches');
+      branches = await res.json();
+      if (!Array.isArray(branches)) branches = [];
+    } catch {
+      branches = [];
+    }
+    const scope = current.scope || {};
+    const box = document.createElement('div');
+    box.className = 'branch-scope-box';
+    box.setAttribute('data-branch-scope', '');
+    if (current.role === 'admin') {
+      const branchRequired = currentPath.startsWith('/shifts');
+      const selected = getSelectedBranchId();
+      const validSelected = selected && branches.some(function (b) { return String(b.id) === String(selected); });
+      if (selected && !validSelected) localStorage.removeItem('admin_branch_id');
+      box.innerHTML =
+        '<label class="branch-scope-label" for="branchScopeSelect">Chi nhánh</label>' +
+        '<select id="branchScopeSelect" class="branch-scope-select">' +
+        (branchRequired
+          ? '<option value=""' + (validSelected ? '' : ' selected') + ' disabled>Chọn chi nhánh</option>'
+          : '<option value="">Tất cả chi nhánh</option>') +
+        branches.map(function (b) {
+          const isSelected = String(b.id) === String(validSelected ? selected : '');
+          return '<option value="' + b.id + '"' + (isSelected ? ' selected' : '') + '>' + escapeHtml(b.name || ('Chi nhánh #' + b.id)) + '</option>';
+        }).join('') +
+        '</select>';
+      header.insertBefore(box, account);
+      const select = box.querySelector('select');
+      select.addEventListener('change', function () {
+        if (select.value) localStorage.setItem('admin_branch_id', select.value);
+        else localStorage.removeItem('admin_branch_id');
+        window.location.reload();
+      });
+      return;
+    }
+    const branchId = scope.branch_id || (scope.branch_ids && scope.branch_ids[0]);
+    const branch = branches.find(function (b) { return Number(b.id) === Number(branchId); });
+    box.innerHTML =
+      '<div class="branch-scope-label">Chi nhánh</div>' +
+      '<div class="branch-scope-pill">' + escapeHtml((branch && branch.name) || (branchId ? ('Chi nhánh #' + branchId) : 'Chưa gán')) + '</div>';
+    header.insertBefore(box, account);
+  }
+
   // Nút logout nếu có + hiện tên user
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('DOMContentLoaded', async function () {
     if (document.getElementById('mainNav')) {
       document.body.classList.add('admin-shell');
     }
+    await refreshStoredUser();
 
     const sidebarHeader = document.querySelector('body.admin-shell header');
     if (sidebarHeader && !document.querySelector('[data-sidebar-toggle]')) {
@@ -216,6 +321,7 @@
     if (navSystemTitle && user && user.role !== 'admin') {
       navSystemTitle.style.display = 'none';
     }
+    await installBranchScopeControl();
     refreshLeaveNavBadge();
 
     document.querySelectorAll('[data-logout]').forEach(function (el) {

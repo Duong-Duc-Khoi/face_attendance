@@ -73,6 +73,7 @@ def process_attendance(
     emp_code: str,
     confidence: float,
     capture_path: str = "",
+    branch_id: int | None = None,
 ) -> dict | None:
     """
     Xử lý 1 sự kiện chấm công từ kết quả nhận diện.
@@ -91,6 +92,22 @@ def process_attendance(
                 "confidence": round(confidence, 4),
                 "message": "Không tìm thấy nhân viên",
                 "voice_message": "Có lỗi. Không tìm thấy nhân viên.",
+            }
+        if branch_id is not None and emp.branch_id != branch_id:
+            return {
+                "ok": False,
+                "reason": "branch_mismatch",
+                "emp_code": emp_code,
+                "name": emp.name,
+                "department": emp.department,
+                "position": emp.position,
+                "job_role": _employee_job_role(emp),
+                "role_label": _employee_role_label(emp, emp.department),
+                "branch_id": emp.branch_id,
+                "confidence": round(confidence, 4),
+                "message": "Nhân viên không thuộc cửa hàng của kiosk này",
+                "voice_message": "Không thể chấm công. Bạn không thuộc cửa hàng này.",
+                "avatar_url": emp.avatar_url or "",
             }
 
         now = datetime.now()
@@ -362,7 +379,24 @@ def _calc_status_for_employee_shift(emp_code: str, now: datetime, check_type: st
 
 
 # ── Query helpers ────────────────────────────────────────────────
-def get_logs_by_date(date_str: str, emp_code: str = None) -> list:
+def _employee_scope_filter(db, q, branch_ids: list[int] | None = None):
+    if not branch_ids:
+        return q
+    employees = db.query(Employee.id, Employee.emp_code).filter(Employee.branch_id.in_(branch_ids)).all()
+    employee_ids = [row[0] for row in employees]
+    emp_codes = [row[1] for row in employees]
+    from sqlalchemy import or_
+    clauses = []
+    if employee_ids:
+        clauses.append(AttendanceLog.employee_id.in_(employee_ids))
+    if emp_codes:
+        clauses.append(AttendanceLog.emp_code.in_(emp_codes))
+    if not clauses:
+        return q.filter(AttendanceLog.id == -1)
+    return q.filter(or_(*clauses))
+
+
+def get_logs_by_date(date_str: str, emp_code: str = None, branch_ids: list[int] | None = None) -> list:
     db = SessionLocal()
     try:
         dt    = datetime.strptime(date_str, "%Y-%m-%d")
@@ -374,13 +408,14 @@ def get_logs_by_date(date_str: str, emp_code: str = None) -> list:
         )
         if emp_code:
             q = q.filter_by(emp_code=emp_code)
+        q = _employee_scope_filter(db, q, branch_ids)
         logs = q.order_by(AttendanceLog.timestamp.desc()).all()
         return [_log_to_dict(log, _matching_event(db, log)) for log in logs]
     finally:
         db.close()
 
 
-def get_summary_today() -> dict:
+def get_summary_today(branch_ids: list[int] | None = None) -> dict:
     db = SessionLocal()
     try:
         now   = datetime.now()
@@ -394,6 +429,8 @@ def get_summary_today() -> dict:
               )
               .all()
         )
+        if branch_ids is not None:
+            assignments = [a for a in assignments if a.branch_id in branch_ids]
         assignment_ids = [a.id for a in assignments]
         sessions = []
         if assignment_ids:
@@ -411,27 +448,16 @@ def get_summary_today() -> dict:
             a.id for a in assignments
             if session_by_assignment.get(a.id) and session_by_assignment[a.id].check_out_at
         }
-        logs = db.query(AttendanceLog).filter(AttendanceLog.timestamp >= start).all()
-        pending_reviews = (
-            db.query(AttendanceSession)
-              .filter(AttendanceSession.review_status == "pending_review")
-              .count()
-        )
-        pending_absent = (
-            db.query(AttendanceSession)
-              .filter_by(review_status="pending_review", review_type="absent")
-              .count()
-        )
-        pending_missing_checkout = (
-            db.query(AttendanceSession)
-              .filter_by(review_status="pending_review", review_type="missing_checkout")
-              .count()
-        )
-        pending_overtime = (
-            db.query(AttendanceSession)
-              .filter_by(review_status="pending_review", review_type="overtime")
-              .count()
-        )
+        logs_q = db.query(AttendanceLog).filter(AttendanceLog.timestamp >= start)
+        logs_q = _employee_scope_filter(db, logs_q, branch_ids)
+        logs = logs_q.all()
+        review_q = db.query(AttendanceSession).filter(AttendanceSession.review_status == "pending_review")
+        if branch_ids is not None:
+            review_q = review_q.filter(AttendanceSession.branch_id.in_(branch_ids))
+        pending_reviews = review_q.count()
+        pending_absent = review_q.filter(AttendanceSession.review_type == "absent").count()
+        pending_missing_checkout = review_q.filter(AttendanceSession.review_type == "missing_checkout").count()
+        pending_overtime = review_q.filter(AttendanceSession.review_type == "overtime").count()
         total_assigned = len(assignments)
         unique_emp = len({a.emp_code for a in assignments})
 

@@ -17,7 +17,7 @@ from typing import Optional
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.services.branch_scope import ensure_branch_access, scoped_branch_filter
+from app.services.branch_scope import ensure_branch_access, selected_branch_ids
 from app.models.attendance import (
     AttendanceAuditFinding,
     AttendanceEvent,
@@ -78,6 +78,29 @@ def _employee_branch_for_log(db: Session, log: AttendanceLog) -> int | None:
     return emp.branch_id if emp else None
 
 
+def _employee_for_user(db: Session, current_user) -> Employee | None:
+    emp = db.query(Employee).filter_by(user_id=current_user.id, is_active=True).first()
+    if emp:
+        return emp
+    return db.query(Employee).filter_by(email=current_user.email, is_active=True).first()
+
+
+def _branch_ids_for_user(db: Session, current_user, branch_id: int | None = None) -> list[int] | None:
+    if current_user.role in ("admin", "manager"):
+        return selected_branch_ids(db, current_user, branch_id)
+    emp = _employee_for_user(db, current_user)
+    if not emp or not emp.branch_id:
+        raise HTTPException(status_code=403, detail="Tài khoản chưa được gắn với nhân viên/cửa hàng")
+    if branch_id is not None and branch_id != emp.branch_id:
+        raise HTTPException(status_code=403, detail="Bạn chỉ được xem dữ liệu của mình")
+    return [emp.branch_id]
+
+
+def _manager_branch_ids(db: Session, current_user, branch_id: int | None = None) -> list[int] | None:
+    _require_manager_or_admin(current_user)
+    return selected_branch_ids(db, current_user, branch_id)
+
+
 def _ensure_log_scope(db: Session, current_user, log: AttendanceLog) -> None:
     ensure_branch_access(db, current_user, _employee_branch_for_log(db, log))
 
@@ -86,22 +109,20 @@ def _ensure_session_scope(db: Session, current_user, session: AttendanceSession)
     ensure_branch_access(db, current_user, session.branch_id)
 
 
-def _filter_logs_for_scope(db: Session, current_user, logs: list[AttendanceLog]) -> list[AttendanceLog]:
-    if not current_user or current_user.role == "admin":
+def _filter_logs_for_branch_ids(db: Session, logs: list[AttendanceLog], branch_ids: list[int] | None) -> list[AttendanceLog]:
+    if branch_ids is None:
         return logs
-    allowed = scoped_branch_filter(db, current_user)
     scoped = []
     for log in logs:
-        if _employee_branch_for_log(db, log) in allowed:
+        if _employee_branch_for_log(db, log) in branch_ids:
             scoped.append(log)
     return scoped
 
 
-def _filter_log_dicts_for_scope(db: Session, current_user, logs: list[dict]) -> list[dict]:
-    if not current_user or current_user.role == "admin":
+def _filter_log_dicts_for_branch_ids(logs: list[dict], branch_ids: list[int] | None) -> list[dict]:
+    if branch_ids is None:
         return logs
-    allowed = scoped_branch_filter(db, current_user)
-    return [row for row in logs if row.get("branch_id") in allowed]
+    return [row for row in logs if row.get("branch_id") in branch_ids]
 
 
 def _safe_capture_file(raw_path: str, missing_detail: str) -> Path:
@@ -186,38 +207,54 @@ def _evidence_image_file_for_log(log_id: int, db: Session) -> Path:
 
 @router.get("/attendance")
 def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
+                   branch_id: int | None = None,
                    db: Session = Depends(get_db),
                    current_user=Depends(_optional_user)):
+    if current_user:
+        branch_ids = _branch_ids_for_user(db, current_user, branch_id)
+        if current_user.role == "staff":
+            own = _employee_for_user(db, current_user)
+            if not own:
+                raise HTTPException(status_code=403, detail="Tài khoản chưa được gắn với nhân viên")
+            if emp_code and emp_code != own.emp_code:
+                raise HTTPException(status_code=403, detail="Bạn chỉ được xem chấm công của mình")
+            emp_code = own.emp_code
+    else:
+        if branch_id is None:
+            raise HTTPException(status_code=400, detail="Kiosk/public cần truyền branch_id")
+        branch_ids = [branch_id]
     if date:
         logs = []
         start_date = datetime.strptime(date, "%Y-%m-%d")
         for i in range(max(1, days)):
             d = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
-            logs.extend(get_logs_by_date(d, emp_code))
+            logs.extend(get_logs_by_date(d, emp_code, branch_ids))
     else:
         logs = []
         for i in range(days):
             d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
-            logs.extend(get_logs_by_date(d, emp_code))
+            logs.extend(get_logs_by_date(d, emp_code, branch_ids))
     logs.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
-    logs = _filter_log_dicts_for_scope(db, current_user, logs)
+    logs = _filter_log_dicts_for_branch_ids(logs, branch_ids)
     return {"logs": logs, "total": len(logs)}
 
 
 @router.get("/summary")
-def summary_today(current_user=Depends(get_current_user)):
-    return get_summary_today()
+def summary_today(branch_id: int | None = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+    return get_summary_today(branch_ids)
 
 
 @router.get("/summary/range")
-def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def summary_range(from_date: str, to_date: str, branch_id: int | None = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
     start = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0,  minute=0)
     end   = datetime.strptime(to_date,   "%Y-%m-%d").replace(hour=23, minute=59)
     logs  = db.query(AttendanceLog).filter(
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).all()
-    logs = _filter_logs_for_scope(db, current_user, logs)
+    logs = _filter_logs_for_branch_ids(db, logs, branch_ids)
     emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
     assignments = (
@@ -229,9 +266,8 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
           )
           .all()
     )
-    allowed = scoped_branch_filter(db, current_user) if current_user.role != "admin" else None
-    if allowed is not None:
-        assignments = [a for a in assignments if a.branch_id in allowed]
+    if branch_ids is not None:
+        assignments = [a for a in assignments if a.branch_id in branch_ids]
     assignment_ids = [a.id for a in assignments]
     sessions = []
     if assignment_ids:
@@ -291,7 +327,8 @@ def summary_range(from_date: str, to_date: str, db: Session = Depends(get_db), c
 
 
 @router.get("/reports/export")
-def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -305,7 +342,7 @@ def export_excel(from_date: str, to_date: str, db: Session = Depends(get_db), cu
         AttendanceLog.timestamp >= start,
         AttendanceLog.timestamp <= end,
     ).order_by(AttendanceLog.timestamp).all()
-    logs = _filter_logs_for_scope(db, current_user, logs)
+    logs = _filter_logs_for_branch_ids(db, logs, branch_ids)
     emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
 
     wb = Workbook()
@@ -368,10 +405,19 @@ def employee_stats(
     year: int = 0,
     month: int = 0,
     db: Session = Depends(get_db),
-    current_user=Depends(_optional_user),
+    current_user=Depends(get_current_user),
 ):
     from app.services.work_calendar import get_employee_stats, get_employee_stats_month
     from datetime import date as _date
+    emp = db.query(Employee).filter_by(emp_code=emp_code).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+    if current_user.role == "staff":
+        own = _employee_for_user(db, current_user)
+        if not own or own.emp_code != emp_code:
+            raise HTTPException(status_code=403, detail="Bạn chỉ được xem thống kê của mình")
+    else:
+        ensure_branch_access(db, current_user, emp.branch_id)
     y = year  or _date.today().year
     m = month or 0
 
@@ -396,6 +442,7 @@ class AttendanceCreateRequest(BaseModel):
 
 
 class AuditRunRequest(BaseModel):
+    branch_id: Optional[int] = None
     run_type: str = "daily"  # daily | low_confidence | employee_day
     date: Optional[str] = None
     from_date: Optional[str] = None
@@ -459,6 +506,10 @@ def get_attendance_session_events(
     current_user=Depends(get_current_user),
 ):
     """Lấy các event/bằng chứng ảnh của một phiên làm việc."""
+    session = db.query(AttendanceSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
+    _ensure_session_scope(db, current_user, session)
     rows = (
         db.query(AttendanceEvent)
           .filter_by(session_id=session_id)
@@ -491,14 +542,14 @@ def get_attendance_review_items(
     status: str = "pending_review",
     from_date: str = "",
     to_date: str = "",
+    branch_id: int | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    _require_manager_or_admin(current_user)
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
     q = db.query(AttendanceSession)
-    allowed = scoped_branch_filter(db, current_user) if current_user.role != "admin" else None
-    if allowed is not None:
-        q = q.filter(AttendanceSession.branch_id.in_(allowed))
+    if branch_ids is not None:
+        q = q.filter(AttendanceSession.branch_id.in_(branch_ids))
     if status:
         q = q.filter(AttendanceSession.review_status == status)
     if type:
@@ -513,22 +564,15 @@ def get_attendance_review_items(
 
 @router.get("/attendance/review-count")
 def get_attendance_review_count(
+    branch_id: int | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    _require_manager_or_admin(current_user)
-    rows = (
-        db.query(AttendanceSession.review_type, AttendanceSession.id)
-          .filter(AttendanceSession.review_status == "pending_review")
-          .all()
-    )
-    if current_user.role != "admin":
-        allowed = scoped_branch_filter(db, current_user)
-        rows = (
-            db.query(AttendanceSession.review_type, AttendanceSession.id)
-              .filter(AttendanceSession.review_status == "pending_review", AttendanceSession.branch_id.in_(allowed))
-              .all()
-        )
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+    q = db.query(AttendanceSession.review_type, AttendanceSession.id).filter(AttendanceSession.review_status == "pending_review")
+    if branch_ids is not None:
+        q = q.filter(AttendanceSession.branch_id.in_(branch_ids))
+    rows = q.all()
     counts = {"total": len(rows), "absent": 0, "missing_checkout": 0, "overtime": 0}
     for review_type, _id in rows:
         if review_type in counts:
@@ -593,8 +637,8 @@ def create_attendance_audit_run(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    _require_manager_or_admin(current_user)
-    if current_user.role != "admin" and body.emp_code:
+    branch_ids = _manager_branch_ids(db, current_user, body.branch_id)
+    if body.emp_code:
         emp = db.query(Employee).filter_by(emp_code=body.emp_code).first()
         if emp:
             ensure_branch_access(db, current_user, emp.branch_id)
@@ -614,6 +658,7 @@ def create_attendance_audit_run(
             run_type=run_type,
             created_by=current_user.full_name or current_user.email,
             emp_code=(body.emp_code or "").strip(),
+            branch_ids=branch_ids,
             use_ai=body.use_ai,
         )
     except ValueError as e:
@@ -642,18 +687,19 @@ def get_attendance_audit_findings(
     review_status: str = "pending_review",
     risk_level: str = "",
     limit: int = 100,
+    branch_id: int | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    _require_manager_or_admin(current_user)
-    if current_user.role != "admin" and emp_code:
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+    if emp_code:
         emp = db.query(Employee).filter_by(emp_code=emp_code).first()
         if emp:
             ensure_branch_access(db, current_user, emp.branch_id)
     providers = list_ai_provider_settings(db)
     vision_ready = any(p.get("configured") and p.get("is_enabled") for p in providers)
     return {
-        "findings": list_audit_findings(db, date, review_status, risk_level, limit, from_date, to_date, emp_code),
+        "findings": list_audit_findings(db, date, review_status, risk_level, limit, from_date, to_date, emp_code, branch_ids=branch_ids),
         "vision_ai_configured": vision_ready,
         "ai_provider": next((p["label"] for p in providers if p.get("configured") and p.get("is_enabled")), ""),
     }
@@ -667,6 +713,12 @@ def review_attendance_audit_finding(
     current_user=Depends(get_current_user),
 ):
     _require_manager_or_admin(current_user)
+    finding_row = db.query(AttendanceAuditFinding).filter_by(id=finding_id).first()
+    if not finding_row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy finding")
+    log_row = db.query(AttendanceLog).filter_by(id=finding_row.log_id).first()
+    if log_row:
+        _ensure_log_scope(db, current_user, log_row)
     try:
         finding = update_audit_finding_review(
             finding_id=finding_id,

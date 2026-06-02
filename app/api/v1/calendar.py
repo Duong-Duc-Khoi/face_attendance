@@ -14,6 +14,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.calendar import WorkCalendar
 from app.models.user import User
+from app.services.branch_scope import default_branch_id_for_write, selected_branch_ids
 from app.services.work_calendar import get_calendar_month
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
@@ -33,20 +34,30 @@ def _pay_multiplier(value) -> Decimal:
     return result.quantize(Decimal("0.01"))
 
 
+def _optional_branch_id(value) -> int | None:
+    if value in (None, ""):
+        return None
+    return int(value)
+
+
 # ── GET /api/calendar?year=&month= ──────────────────────────────
 
 @router.get("")
 def get_calendar(
     year: int = 0, month: int = 0,
+    branch_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     today = date.today()
     y = year  or today.year
     m = month or today.month
-    days = get_calendar_month(y, m, db)
+    ids = selected_branch_ids(db, current_user, branch_id) if current_user.role != "staff" else None
+    effective_branch_id = ids[0] if ids and len(ids) == 1 else None
+    days = get_calendar_month(y, m, db, effective_branch_id)
     return {
         "year": y, "month": m,
+        "branch_id": effective_branch_id,
         "days": days,
         "defaults": {
             "work_days":  settings.WORK_DAYS,
@@ -145,6 +156,9 @@ def upsert_day(payload: dict,
 
     d_str    = payload.get("date", "")
     day_type = payload.get("day_type", "")
+    branch_id = default_branch_id_for_write(db, current_user, _optional_branch_id(payload.get("branch_id")))
+    if current_user.role != "admin" and branch_id is None:
+        raise HTTPException(400, "Cần chọn cửa hàng")
     if not d_str:
         raise HTTPException(400, "Thiếu trường 'date'")
     if day_type not in VALID_DAY_TYPES:
@@ -155,24 +169,27 @@ def upsert_day(payload: dict,
     except Exception:
         raise HTTPException(400, "Ngày không hợp lệ")
 
-    existing = db.query(WorkCalendar).filter_by(date=d).first()
+    existing = db.query(WorkCalendar).filter_by(date=d, branch_id=branch_id).first()
     if existing:
         existing.day_type   = day_type
         existing.label      = payload.get("label", "")
         existing.pay_multiplier = _pay_multiplier(payload.get("pay_multiplier"))
         existing.salary_note = payload.get("salary_note", "")
         existing.created_by = current_user.email
+        existing.created_by_id = current_user.id
         db.commit()
         db.refresh(existing)
         return {"success": True, "day": _cal_dict(existing)}
     else:
         cal = WorkCalendar(
             date       = d,
+            branch_id  = branch_id,
             day_type   = day_type,
             label      = payload.get("label", ""),
             pay_multiplier = _pay_multiplier(payload.get("pay_multiplier")),
             salary_note = payload.get("salary_note", ""),
             created_by = current_user.email,
+            created_by_id = current_user.id,
         )
         db.add(cal)
         db.commit()
@@ -192,6 +209,9 @@ def batch_upsert(payload: dict,
     entries = payload.get("days", [])
     if not entries:
         raise HTTPException(400, "Danh sách ngày trống")
+    branch_id = default_branch_id_for_write(db, current_user, _optional_branch_id(payload.get("branch_id")))
+    if current_user.role != "admin" and branch_id is None:
+        raise HTTPException(400, "Cần chọn cửa hàng")
 
     saved = []
     for entry in entries:
@@ -204,21 +224,24 @@ def batch_upsert(payload: dict,
         except Exception:
             continue
 
-        existing = db.query(WorkCalendar).filter_by(date=d).first()
+        existing = db.query(WorkCalendar).filter_by(date=d, branch_id=branch_id).first()
         if existing:
             existing.day_type   = day_type
             existing.label      = entry.get("label", "")
             existing.pay_multiplier = _pay_multiplier(entry.get("pay_multiplier"))
             existing.salary_note = entry.get("salary_note", "")
             existing.created_by = current_user.email
+            existing.created_by_id = current_user.id
         else:
             db.add(WorkCalendar(
                 date       = d,
+                branch_id  = branch_id,
                 day_type   = day_type,
                 label      = entry.get("label", ""),
                 pay_multiplier = _pay_multiplier(entry.get("pay_multiplier")),
                 salary_note = entry.get("salary_note", ""),
                 created_by = current_user.email,
+                created_by_id = current_user.id,
             ))
         saved.append(d_str)
 
@@ -230,6 +253,7 @@ def batch_upsert(payload: dict,
 
 @router.delete("/day/{date_str}")
 def delete_day(date_str: str,
+               branch_id: int | None = None,
                db: Session = Depends(get_db),
                current_user: User = Depends(get_current_user)):
     if current_user.role not in ("admin", "manager"):
@@ -239,7 +263,10 @@ def delete_day(date_str: str,
     except Exception:
         raise HTTPException(400, "Ngày không hợp lệ")
 
-    cal = db.query(WorkCalendar).filter_by(date=d).first()
+    branch_id = default_branch_id_for_write(db, current_user, branch_id)
+    if current_user.role != "admin" and branch_id is None:
+        raise HTTPException(400, "Cần chọn cửa hàng")
+    cal = db.query(WorkCalendar).filter_by(date=d, branch_id=branch_id).first()
     if not cal:
         raise HTTPException(404, "Không có cài đặt đặc biệt cho ngày này")
     db.delete(cal)
@@ -250,6 +277,7 @@ def delete_day(date_str: str,
 def _cal_dict(c: WorkCalendar) -> dict:
     return {
         "id":         c.id,
+        "branch_id":  c.branch_id,
         "date":       c.date.isoformat(),
         "day_type":   c.day_type,
         "label":      c.label,

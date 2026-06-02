@@ -118,7 +118,17 @@ html,body{min-height:100vh}
 .fl{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.09em;text-transform:uppercase;margin-bottom:5px}
 .fi{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:13px;padding:9px 13px;border-radius:8px;transition:border-color .2s;outline:none}
 .fi:focus{border-color:var(--teal)}.fi::placeholder{color:var(--muted)}
+.fi-icon{position:relative}
+.fi-icon .fi{padding-right:42px}
+.eye{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  width:22px;height:22px;display:grid;place-items:center;
+  color:var(--muted);font-size:14px;line-height:1;cursor:pointer;
+  user-select:none;transition:color .18s;
+}
+.eye:hover{color:var(--text)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.fr.single{grid-template-columns:1fr}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 18px;border-radius:8px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em;text-decoration:none}
 .btn-t{background:var(--teal);color:#000}
 .btn-t:hover:not(:disabled){background:#00f0c0;transform:translateY(-1px)}
@@ -169,7 +179,7 @@ html,body{min-height:100vh}
   <div>
     <div class="panel" style="margin-bottom:14px">
       <div class="panel-header">
-        <span class="dot"></span> Camera — Đăng ký khuôn mặt nhân viên nhà hàng
+        <span class="dot"></span> Camera — Đăng ký khuôn mặt nhân viên cửa hàng
         <span id="camStatus" style="margin-left:auto;font-family:var(--font-mono);font-size:9px;color:var(--muted)">OFFLINE</span>
       </div>
       <div class="panel-body">
@@ -249,39 +259,31 @@ html,body{min-height:100vh}
     <div class="panel">
       <div class="panel-header"><span class="dot"></span> Thông tin nhân viên</div>
       <div class="panel-body" id="formBody">
-        <div class="fr">
-          <div class="fg"><label class="fl">Mã nhân viên</label>
-            <input class="fi" id="empCode" placeholder="Tự tạo nếu bỏ trống" maxlength="20"></div>
+        <div class="fr single">
           <div class="fg"><label class="fl">Họ và tên *</label>
             <input class="fi" id="empName" placeholder="Nguyễn Văn A"></div>
         </div>
         <div class="fr">
-          <div class="fg"><label class="fl">Khu vực làm việc</label>
-            <input class="fi" id="empDept" placeholder="VD: Sảnh / Bếp / Quầy bar" list="deptList">
-            <datalist id="deptList">
-              <option value="Sảnh"><option value="Bếp">
-              <option value="Quầy bar"><option value="Thu ngân">
-              <option value="Kho"><option value="Vệ sinh">
-            </datalist></div>
-          <div class="fg"><label class="fl">Vai trò nhà hàng</label>
+          <div class="fg"><label class="fl">Chi nhánh *</label>
+            <select class="fi" id="empBranch">
+              <option value="">Đang tải chi nhánh...</option>
+            </select></div>
+          <div class="fg"><label class="fl">Vai trò cửa hàng</label>
             <select class="fi" id="empRole">
-              <option value="server">Phục vụ</option>
+              <option value="security">Bảo vệ</option>
               <option value="cashier">Thu ngân</option>
-              <option value="kitchen">Bếp</option>
-              <option value="bar">Bar / Pha chế</option>
-              <option value="cleaner">Tạp vụ</option>
-              <option value="shift_lead">Quản lý ca</option>
+              <option value="barista">Pha chế</option>
+              <option value="table_service">Phục vụ bàn</option>
             </select></div>
         </div>
         <div class="fr">
           <div class="fg"><label class="fl">Loại hợp đồng</label>
             <select class="fi" id="empEmployment">
-              <option value="full_time">Full-time</option>
-              <option value="part_time">Part-time</option>
-              <option value="casual">Thời vụ</option>
+              <option value="full_time">Fulltime</option>
+              <option value="part_time">Parttime</option>
             </select></div>
           <div class="fg"><label class="fl">Ghi chú vị trí</label>
-            <input class="fi" id="empPosition" placeholder="VD: Phục vụ tầng 2, phụ bếp ca tối"></div>
+            <input class="fi" id="empPosition" placeholder="VD: Quầy thu ngân, khu pha chế, sảnh tầng 2"></div>
         </div>
         <div class="fr">
           <div class="fg"><label class="fl">Email *</label>
@@ -290,14 +292,16 @@ html,body{min-height:100vh}
             <input class="fi" id="empPhone" type="tel" maxlength="20" placeholder="0901234567"></div>
         </div>
 
-        <div class="fr">
+        <div class="fr single">
           <div class="fg"><label class="fl">Mật khẩu *</label>
             <div class="fi-icon">
-              <input class="fi" id="empPassword" type="password" placeholder="Tối thiểu 8 ký tớ, có số" oninput="checkRegPwd()">
+              <input class="fi" id="empPassword" type="password" placeholder="Tối thiểu 8 ký tự, có số" oninput="checkRegPwd()">
               <span class="eye" id="eyePwd" onclick="togglePwd('empPassword','eyePwd')">&#128065;</span>
             </div>
             <div class="hint" id="pwdHint"></div>
           </div>
+        </div>
+        <div class="fr single">
           <div class="fg"><label class="fl">Xác nhận mật khẩu *</label>
             <div class="fi-icon">
               <input class="fi" id="empConfirmPwd" type="password" placeholder="Nhập lại mật khẩu" oninput="checkRegConfirm()">
@@ -349,8 +353,49 @@ html,body{min-height:100vh}
 <script>
 const backendParam = window.KIOSK_BACKEND_URL || new URLSearchParams(location.search).get('backend') || '';
 const backendBase = backendParam.replace(/\/+$/, '');
+const preferredBranchId = window.KIOSK_BRANCH_ID || new URLSearchParams(location.search).get('branch_id') || localStorage.getItem('register_branch_id') || '';
+if (preferredBranchId) localStorage.setItem('register_branch_id', preferredBranchId);
 function apiUrl(path) {
   return backendBase ? `${backendBase}${path}` : path;
+}
+function esc(value){
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+}
+
+async function loadRegisterBranches(){
+  const select = document.getElementById('empBranch');
+  if (!select) return;
+  select.onchange = () => {
+    if (select.value) localStorage.setItem('register_branch_id', select.value);
+  };
+  select.innerHTML = '<option value="">Đang tải chi nhánh...</option>';
+  try{
+    const res = await fetch(apiUrl('/api/branches/public'));
+    if (!res.ok) throw new Error('Không tải được chi nhánh');
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length){
+      select.innerHTML = '<option value="">Chưa có chi nhánh hoạt động</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">Chọn chi nhánh</option>' + rows.map(branch => {
+      const name = branch.name || `Chi nhánh #${branch.id}`;
+      return `<option value="${branch.id}">${esc(name)}</option>`;
+    }).join('');
+    if (preferredBranchId && rows.some(branch => String(branch.id) === String(preferredBranchId))){
+      select.value = String(preferredBranchId);
+    }else if (rows.length === 1){
+      select.value = String(rows[0].id);
+    }
+  }catch(e){
+    if (preferredBranchId){
+      select.innerHTML = `<option value="${esc(preferredBranchId)}">Chi nhánh #${esc(preferredBranchId)}</option>`;
+      select.value = String(preferredBranchId);
+      return;
+    }
+    select.innerHTML = '<option value="">Không tải được chi nhánh</option>';
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -459,6 +504,7 @@ function buildCards(){
   });
 }
 buildCards();
+loadRegisterBranches();
 
 // ── Start camera ──
 async function startCamera(){
@@ -881,14 +927,15 @@ function checkRegConfirm() {
 }
 
 async function submitRegister(){
-  const empCode=document.getElementById('empCode').value.trim();
   const empName=document.getElementById('empName').value.trim();
   const empEmail=document.getElementById('empEmail').value.trim();
   const empPassword=document.getElementById('empPassword').value;
   const empConfirmPwd=document.getElementById('empConfirmPwd').value;
+  const branchId=document.getElementById('empBranch').value;
   const empRole=document.getElementById('empRole').value;
   const empRoleLabel=document.getElementById('empRole').selectedOptions[0]?.textContent||'';
   if(!empName){showToast('Vui lòng nhập họ tên nhân viên','error');return;}
+  if(!branchId){showToast('Vui lòng chọn chi nhánh','error');return;}
   if(!empEmail){showToast('Vui lòng nhập email','error');return;}
   if(!empPassword||empPassword.length<8||!/\d/.test(empPassword)){showToast('Mật khẩu cần ít nhất 8 ký tự và 1 chữ số','error');return;}
   if(empPassword!==empConfirmPwd){showToast('Mật khẩu xác nhận không khớp','error');return;}
@@ -900,8 +947,9 @@ async function submitRegister(){
     const res=await fetch(apiUrl('/api/employees/self-register'),{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        emp_code:empCode,name:empName,
-        department:document.getElementById('empDept').value.trim(),
+        name:empName,
+        branch_id:Number(branchId),
+        department:'',
         position:document.getElementById('empPosition').value.trim()||empRoleLabel,
         job_role:empRole,
         employment_type:document.getElementById('empEmployment').value,
@@ -917,7 +965,7 @@ async function submitRegister(){
     setStep(3);
     document.getElementById('formBody').style.display='none';
     document.getElementById('successCard').style.display='block';
-    document.getElementById('scName').textContent=`${empName} · ${data.employee?.emp_code||empCode}`;
+    document.getElementById('scName').textContent=`${empName} · ${data.employee?.emp_code||''}`;
     document.getElementById('scSub').textContent=data.message||'Đăng ký thành công!';
     showToast('Đăng ký thành công!','success');
   }catch(e){btn.textContent='✦ Lưu hồ sơ khuôn mặt';btn.disabled=false;showToast('Lỗi: '+e.message,'error');}
@@ -945,8 +993,10 @@ function resetAll(){
   mctx.clearRect(0,0,meshCanvas.width,meshCanvas.height);
   zctx.clearRect(0,0,zoneCanvas.width,zoneCanvas.height);
   setArrows([]);
-  ['empCode','empName','empDept','empPosition','empEmail','empPhone','empPassword','empConfirmPwd'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('empRole').value='server';
+  ['empName','empPosition','empEmail','empPhone','empPassword','empConfirmPwd'].forEach(id=>document.getElementById(id).value='');
+  const branchSelect = document.getElementById('empBranch');
+  if (branchSelect && preferredBranchId) branchSelect.value = String(preferredBranchId);
+  document.getElementById('empRole').value='security';
   document.getElementById('empEmployment').value='full_time';
   document.getElementById('formBody').style.display='';document.getElementById('successCard').style.display='none';
   buildCards();setStep(1);

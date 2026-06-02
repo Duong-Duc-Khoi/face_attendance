@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.attendance import AttendanceLog, AttendanceSession
 from app.models.calendar import WorkCalendar
+from app.models.employee import Employee
 from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
 from app.services.shift_service import shift_window
@@ -24,16 +25,21 @@ def _default_work_days() -> set[int]:
 
 # ── Lấy thông tin 1 ngày ─────────────────────────────────────────
 
-def get_calendar_day(d: date, db: Session) -> dict:
+def get_calendar_day(d: date, db: Session, branch_id: int | None = None) -> dict:
     """
     Trả về thông tin ngày làm việc của 1 ngày cụ thể.
     Ưu tiên: WorkCalendar override > mặc định config.
     """
-    override: Optional[WorkCalendar] = db.query(WorkCalendar).filter_by(date=d).first()
+    override: Optional[WorkCalendar] = None
+    if branch_id is not None:
+        override = db.query(WorkCalendar).filter_by(date=d, branch_id=branch_id).first()
+    if not override:
+        override = db.query(WorkCalendar).filter_by(date=d, branch_id=None).first()
 
     if override:
         return {
             "date":       d.isoformat(),
+            "branch_id":   override.branch_id,
             "day_type":   override.day_type,
             "label":      override.label or "",
             "pay_multiplier": float(override.pay_multiplier or 1.0),
@@ -48,6 +54,7 @@ def get_calendar_day(d: date, db: Session) -> dict:
 
     return {
         "date":       d.isoformat(),
+        "branch_id":   branch_id,
         "day_type":   day_type,
         "label":      "",
         "pay_multiplier": 1.0,
@@ -56,15 +63,20 @@ def get_calendar_day(d: date, db: Session) -> dict:
     }
 
 
-def get_calendar_month(year: int, month: int, db: Session) -> list[dict]:
+def get_calendar_month(year: int, month: int, db: Session, branch_id: int | None = None) -> list[dict]:
     """Trả về thông tin tất cả ngày trong tháng."""
     from calendar import monthrange
     _, days_in_month = monthrange(year, month)
     result = []
     for day in range(1, days_in_month + 1):
         d = date(year, month, day)
-        result.append(get_calendar_day(d, db))
+        result.append(get_calendar_day(d, db, branch_id))
     return result
+
+
+def _employee_branch_id(emp_code: str, db: Session) -> int | None:
+    emp = db.query(Employee).filter_by(emp_code=emp_code).first()
+    return emp.branch_id if emp else None
 
 
 def _assigned_shift_rows(emp_code: str, d: date, db: Session) -> list[tuple[ShiftAssignment, Shift]]:
@@ -136,16 +148,19 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
     today = date.today()
     assigned_shifts = _assigned_shift_rows(emp_code, d, db)
     total_shifts = len(assigned_shifts)
+    branch_id = assigned_shifts[0][0].branch_id if assigned_shifts else None
+    if branch_id is None:
+        branch_id = _employee_branch_id(emp_code, db)
 
     # 1. Ngày tương lai
     if d > today:
-        cal = get_calendar_day(d, db)
+        cal = get_calendar_day(d, db, branch_id)
         return {"status": "future", "work_value": 0.0,
                 "label": "Chưa đến", "detail": cal.get("label", ""),
                 "day_type": "scheduled" if total_shifts else cal["day_type"],
                 "total_shifts": total_shifts}
 
-    cal = get_calendar_day(d, db)
+    cal = get_calendar_day(d, db, branch_id)
     day_type = "scheduled" if total_shifts else cal["day_type"]
 
     # 2. Lấy đơn nghỉ/remote có hiệu lực trong ngày
@@ -326,9 +341,10 @@ def get_employee_stats_month(emp_code: str, year: int, month: int, db: Session) 
     from calendar import monthrange
     _, days_in = monthrange(year, month)
     days = []
+    branch_id = _employee_branch_id(emp_code, db)
     for day in range(1, days_in + 1):
         d = date(year, month, day)
-        cal = get_calendar_day(d, db)
+        cal = get_calendar_day(d, db, branch_id)
         st = get_day_status(emp_code, d, db)
         days.append({**cal, **st, "day": day})
     return {"year": year, "month": month, "days": days}

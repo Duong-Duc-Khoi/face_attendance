@@ -76,10 +76,10 @@ def _employee_role_matches_shift(emp: Employee | None, shift: Shift) -> bool:
     return required in employee_roles
 
 
-def _ensure_assignable_workday(work_date: date, db: Session) -> None:
+def _ensure_assignable_workday(work_date: date, db: Session, branch_id: int | None = None) -> None:
     from app.services.work_calendar import get_calendar_day
 
-    cal = get_calendar_day(work_date, db)
+    cal = get_calendar_day(work_date, db, branch_id)
     if cal.get("day_type") == "off":
         label = cal.get("label") or "ngày nghỉ/đóng cửa"
         raise ValueError(f"Không thể xếp ca vào {label}")
@@ -181,13 +181,14 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
     Nếu đã có cùng ca trong ngày → cập nhật (upsert).
     Nhà hàng có thể phân nhiều ca khác nhau cho cùng một nhân viên trong ngày.
     """
-    _ensure_assignable_workday(work_date, db)
     emp = db.query(Employee).filter_by(emp_code=emp_code).first()
     shift = db.query(Shift).filter_by(id=shift_id).first()
     if not shift:
         raise ValueError(f"Không tìm thấy ca #{shift_id}")
     if not shift.is_active:
         raise ValueError(f"Ca #{shift_id} đã tắt, không thể phân công")
+    assignment_branch_id = shift.branch_id or (emp.branch_id if emp else None)
+    _ensure_assignable_workday(work_date, db, assignment_branch_id)
     if emp and not _employee_role_matches_shift(emp, shift):
         role = emp.job_role or emp.position or "chưa xác định"
         raise ValueError(f"Nhân viên {emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
@@ -199,7 +200,7 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
     )
     if existing:
         existing.employee_id = emp.id if emp else existing.employee_id
-        existing.branch_id   = shift.branch_id or (emp.branch_id if emp else existing.branch_id)
+        existing.branch_id   = assignment_branch_id or existing.branch_id
         existing.assigned_by = assigned_by
         existing.note        = note
         existing.status      = "scheduled"
@@ -209,7 +210,7 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
     else:
         a = ShiftAssignment(
             employee_id = emp.id if emp else None,
-            branch_id   = shift.branch_id or (emp.branch_id if emp else None),
+            branch_id   = assignment_branch_id,
             emp_code    = emp_code,
             shift_id    = shift_id,
             work_date   = work_date,
@@ -307,8 +308,6 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
     new_work_date = data.get("work_date", a.work_date)
     if isinstance(new_work_date, str):
         new_work_date = date.fromisoformat(new_work_date)
-    _ensure_assignable_workday(new_work_date, db)
-
     shift = db.query(Shift).filter_by(id=new_shift_id).first()
     if not shift:
         raise ValueError(f"Không tìm thấy ca #{new_shift_id}")
@@ -316,6 +315,8 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
         raise ValueError(f"Ca #{new_shift_id} đã tắt, không thể phân công")
 
     emp = db.query(Employee).filter_by(emp_code=a.emp_code).first()
+    new_branch_id = shift.branch_id or (emp.branch_id if emp else a.branch_id)
+    _ensure_assignable_workday(new_work_date, db, new_branch_id)
     if emp and not _employee_role_matches_shift(emp, shift):
         role = emp.job_role or emp.position or "chưa xác định"
         raise ValueError(f"Nhân viên {a.emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
@@ -337,7 +338,7 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
     a.shift_id = new_shift_id
     a.work_date = new_work_date
     a.employee_id = emp.id if emp else a.employee_id
-    a.branch_id = shift.branch_id or (emp.branch_id if emp else a.branch_id)
+    a.branch_id = new_branch_id
     a.assigned_by = assigned_by or a.assigned_by
     if "note" in data:
         a.note = data.get("note") or ""

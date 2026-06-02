@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.employee import Employee
 from app.models.user import User
-from app.services.branch_scope import ensure_branch_access, scoped_branch_filter
+from app.services.branch_scope import ensure_branch_access, scoped_branch_filter, selected_branch_ids
 from app.services.auth_service import (
     require_admin,
     require_manager,
@@ -47,10 +47,12 @@ def _user_dict(u: User) -> dict:
     }
 
 
-def _scope_users_query(db: Session, current_user: User, q):
-    if current_user.role == "admin":
+def _scope_users_query(db: Session, current_user: User, q, branch_id: int | None = None):
+    if current_user.role == "admin" and branch_id is None:
         return q
-    allowed = scoped_branch_filter(db, current_user)
+    allowed = selected_branch_ids(db, current_user, branch_id) if current_user.role == "admin" else scoped_branch_filter(db, current_user)
+    if allowed is None:
+        return q
     employee_user_ids = [
         row[0]
         for row in db.query(Employee.user_id)
@@ -98,6 +100,7 @@ class SetActiveRequest(BaseModel):
 def list_users(
     pending_only: bool = False,
     role: Optional[str] = None,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_manager),
 ):
@@ -118,6 +121,8 @@ def list_users(
     if current_user.role == "manager":
         q = q.filter(User.role != "admin")
         q = _scope_users_query(db, current_user, q)
+    elif branch_id is not None:
+        q = _scope_users_query(db, current_user, q, branch_id)
 
     users = q.order_by(User.created_at.desc()).all()
     return {"success": True, "users": [_user_dict(u) for u in users], "total": len(users)}
@@ -126,6 +131,7 @@ def list_users(
 # ── GET /api/users/pending ───────────────────────────────────────
 @router.get("/pending")
 def list_pending_users(
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_manager),
 ):
@@ -135,6 +141,8 @@ def list_pending_users(
     if current_user.role == "manager":
         q = q.filter(User.role != "admin")
         q = _scope_users_query(db, current_user, q)
+    elif branch_id is not None:
+        q = _scope_users_query(db, current_user, q, branch_id)
 
     users = q.order_by(User.created_at.asc()).all()
     return {"success": True, "users": [_user_dict(u) for u in users], "total": len(users)}

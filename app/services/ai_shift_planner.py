@@ -11,6 +11,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -78,10 +79,16 @@ def _draft_to_dict(draft: ShiftPlanDraft, db: Session) -> dict:
         .order_by(ShiftPlanDraftAssignment.work_date, ShiftPlanDraftAssignment.shift_id, ShiftPlanDraftAssignment.emp_code)
         .all()
     )
-    shifts = {s.id: _shift_dict(s) for s in db.query(Shift).all()}
-    employees = {e.emp_code: _employee_dict(e) for e in db.query(Employee).all()}
+    shifts_q = db.query(Shift)
+    employees_q = db.query(Employee)
+    if draft.branch_id is not None:
+        shifts_q = shifts_q.filter(or_(Shift.branch_id == draft.branch_id, Shift.branch_id.is_(None)))
+        employees_q = employees_q.filter(Employee.branch_id == draft.branch_id)
+    shifts = {s.id: _shift_dict(s) for s in shifts_q.all()}
+    employees = {e.emp_code: _employee_dict(e) for e in employees_q.all()}
     return {
         "id": draft.id,
+        "branch_id": draft.branch_id,
         "from_date": draft.from_date.isoformat(),
         "to_date": draft.to_date.isoformat(),
         "status": draft.status,
@@ -117,6 +124,7 @@ def create_shift_plan_draft(
     from_date: date,
     to_date: date,
     created_by: str,
+    branch_id: int | None = None,
     instructions: str = "",
     default_min_staff: int = 1,
     min_staff_per_shift: Optional[dict[int, int]] = None,
@@ -124,10 +132,15 @@ def create_shift_plan_draft(
     use_ai: bool = True,
 ) -> dict:
     employees_q = db.query(Employee).filter_by(is_active=True)
+    if branch_id is not None:
+        employees_q = employees_q.filter(Employee.branch_id == branch_id)
     if emp_codes:
         employees_q = employees_q.filter(Employee.emp_code.in_(emp_codes))
     employees = employees_q.order_by(Employee.emp_code).all()
-    shifts = db.query(Shift).filter_by(is_active=True).order_by(Shift.work_start).all()
+    shifts_q = db.query(Shift).filter_by(is_active=True)
+    if branch_id is not None:
+        shifts_q = shifts_q.filter(or_(Shift.branch_id == branch_id, Shift.branch_id.is_(None)))
+    shifts = shifts_q.order_by(Shift.work_start).all()
     dates = _date_range(from_date, to_date)
     if not employees:
         raise ValueError("Không có nhân viên hoạt động để phân ca")
@@ -138,8 +151,10 @@ def create_shift_plan_draft(
         db.query(ShiftAssignment)
         .filter(ShiftAssignment.work_date >= from_date, ShiftAssignment.work_date <= to_date)
         .filter(ShiftAssignment.status != "cancelled")
-        .all()
     )
+    if branch_id is not None:
+        existing = existing.filter(ShiftAssignment.branch_id == branch_id)
+    existing = existing.all()
     context = {
         "dates": [d.isoformat() for d in dates],
         "employees": [_employee_dict(e) for e in employees],
@@ -181,6 +196,7 @@ def create_shift_plan_draft(
     summary = plan.get("summary") or f"Đề xuất {len(valid_assignments)} lượt phân ca."
 
     draft = ShiftPlanDraft(
+        branch_id=branch_id,
         from_date=from_date,
         to_date=to_date,
         status="draft",

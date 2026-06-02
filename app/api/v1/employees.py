@@ -37,7 +37,13 @@ from app.schemas.employee import (
 from app.services.face_engine import face_engine
 from app.core.security import hash_password, get_current_user
 from app.services.auth_service import create_verify_token, send_verification_email
-from app.services.branch_scope import ensure_branch_access, require_admin, require_branch_manager_or_admin, scoped_branch_filter
+from app.services.branch_scope import (
+    default_branch_id_for_write,
+    ensure_branch_access,
+    require_admin,
+    require_branch_manager_or_admin,
+    scoped_branch_filter,
+)
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
@@ -256,6 +262,7 @@ async def create_employee(
     current_user=Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
+    branch_id = default_branch_id_for_write(db, current_user, branch_id)
     ensure_branch_access(db, current_user, branch_id)
     store_role_value = normalize_store_role(store_role)
     if current_user.role != "admin" and store_role_value != "staff":
@@ -341,6 +348,7 @@ async def register_from_camera(payload: dict, db: Session = Depends(get_db), cur
         raise HTTPException(400, result["message"])
 
     profile = _profile_fields_from_payload(payload)
+    profile["branch_id"] = default_branch_id_for_write(db, current_user, profile["branch_id"])
     ensure_branch_access(db, current_user, profile["branch_id"])
     if current_user.role != "admin" and profile["store_role"] != "staff":
         raise HTTPException(403, "Chỉ admin được gán Cửa hàng trưởng/Cửa hàng phó")
@@ -390,6 +398,12 @@ async def self_register(payload: dict, db: Session = Depends(get_db)):
         raise HTTPException(400, "Mật khẩu cần có ít nhất 1 chữ số")
     if not frames:
         raise HTTPException(400, "Không có ảnh khuôn mặt nào")
+    branch_id = _optional_int(payload.get("branch_id"))
+    if branch_id is None:
+        raise HTTPException(400, "Vui lòng chọn chi nhánh")
+    branch = db.query(Branch).filter_by(id=branch_id, is_active=True).first()
+    if not branch:
+        raise HTTPException(404, "Chi nhánh không tồn tại hoặc đã ngừng hoạt động")
 
     # ── Kiểm tra trùng lặp ───────────────────────────────────────
     if emp_code:

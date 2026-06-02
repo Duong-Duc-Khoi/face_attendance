@@ -10,6 +10,7 @@ const staticRoot = path.join(root, "static");
 const host = process.env.KIOSK_HOST || "127.0.0.1";
 const port = Number(process.env.KIOSK_PORT || 5500);
 const backend = (process.env.BACKEND_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const kioskBranchId = process.env.KIOSK_BRANCH_ID || "";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -55,7 +56,7 @@ function renderTemplatePage(req, res, templatePath) {
     }
     html = html.replace(
       "<script>",
-      `<script>window.KIOSK_BACKEND_URL=${JSON.stringify(requestUrl.searchParams.get("backend"))};</script>\n<script>`,
+      `<script>window.KIOSK_BACKEND_URL=${JSON.stringify(requestUrl.searchParams.get("backend"))};window.KIOSK_BRANCH_ID=${JSON.stringify(requestUrl.searchParams.get("branch_id") || kioskBranchId)};</script>\n<script>`,
     );
     send(res, 200, html, "text/html; charset=utf-8");
   });
@@ -101,4 +102,5 @@ server.listen(port, host, () => {
   console.log(`Kiosk UI: http://${host}:${port}/`);
   console.log(`Register: http://${host}:${port}/register`);
   console.log(`Backend : ${backend}`);
+  if (kioskBranchId) console.log(`Branch  : ${kioskBranchId}`);
 });

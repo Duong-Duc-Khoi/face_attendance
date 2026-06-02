@@ -51,6 +51,17 @@ def api_list_branches(
     return [_branch_to_dict(row) for row in rows]
 
 
+@router.get("/public")
+def api_public_branches(db: Session = Depends(get_db)):
+    rows = (
+        db.query(Branch)
+        .filter(Branch.is_active == True)
+        .order_by(Branch.name.asc())
+        .all()
+    )
+    return [_branch_to_dict(row) for row in rows]
+
+
 @router.post("", status_code=201)
 def api_create_branch(
     body: BranchCreate,

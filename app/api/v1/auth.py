@@ -25,6 +25,7 @@ from app.services.auth_service import (
     send_approval_notification, send_login_otp_email, send_password_reset_email, send_verification_email,
     verify_email_token,
 )
+from app.services.branch_scope import user_scope
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -88,8 +89,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 # ── Helper ───────────────────────────────────────────────────────
-def _user_dict(u: User) -> dict:
-    return {
+def _user_dict(u: User, db: Session | None = None) -> dict:
+    data = {
         "id":                u.id,
         "email":             u.email,
         "full_name":         u.full_name,
@@ -100,6 +101,9 @@ def _user_dict(u: User) -> dict:
         "created_at":        u.created_at.strftime("%d/%m/%Y") if u.created_at else "",
         "last_login":        u.last_login.strftime("%d/%m/%Y %H:%M") if u.last_login else None,
     }
+    if db is not None:
+        data["scope"] = user_scope(db, u)
+    return data
 
 
 # ── POST /auth/register ──────────────────────────────────────────
@@ -182,7 +186,7 @@ def login_verify_otp(req: OTPVerifyRequest, db: Session = Depends(get_db)):
     access_token  = create_access_token(user.id, user.email, user.role)
     refresh_token = create_refresh_token_db(user.id, db)
     return {"success": True, "access_token": access_token, "refresh_token": refresh_token,
-            "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXP * 60, "user": _user_dict(user)}
+            "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXP * 60, "user": _user_dict(user, db)}
 
 
 # ── POST /auth/refresh ───────────────────────────────────────────
@@ -212,8 +216,8 @@ def logout(req: RefreshRequest, db: Session = Depends(get_db)):
 
 # ── GET /auth/me ─────────────────────────────────────────────────
 @router.get("/me")
-def get_me(user: User = Depends(require_any)):
-    return {"success": True, "user": _user_dict(user)}
+def get_me(user: User = Depends(require_any), db: Session = Depends(get_db)):
+    return {"success": True, "user": _user_dict(user, db)}
 
 
 # ── POST /auth/resend-verify ─────────────────────────────────────

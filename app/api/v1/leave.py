@@ -15,6 +15,7 @@ from app.core.security import get_current_user
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest, LeaveRequestDay
 from app.models.user import User
+from app.services.branch_scope import ensure_branch_access, selected_branch_ids
 from app.services.work_calendar import get_calendar_day
 from app.services.notify import (
     notify_leave_submitted,
@@ -54,7 +55,39 @@ def _get_emp(emp_code: str, db: Session) -> Optional[Employee]:
 
 
 def _find_emp_by_user(user: User, db: Session) -> Optional[Employee]:
+    emp = db.query(Employee).filter_by(user_id=user.id, is_active=True).first()
+    if emp:
+        return emp
     return db.query(Employee).filter_by(email=user.email, is_active=True).first()
+
+
+def _scope_leave_query(db: Session, current_user: User, q, branch_id: int | None = None):
+    if current_user.role == "staff":
+        emp = _find_emp_by_user(current_user, db)
+        if not emp:
+            return q.filter(LeaveRequest.id == -1)
+        return q.filter(LeaveRequest.emp_code == emp.emp_code)
+    allowed = selected_branch_ids(db, current_user, branch_id)
+    if allowed is None:
+        return q
+    emp_codes = [row[0] for row in db.query(Employee.emp_code).filter(Employee.branch_id.in_(allowed)).all()]
+    if not emp_codes:
+        return q.filter(LeaveRequest.id == -1)
+    return q.filter(LeaveRequest.emp_code.in_(emp_codes))
+
+
+def _ensure_leave_scope(db: Session, current_user: User, req: LeaveRequest) -> None:
+    if current_user.role == "admin":
+        return
+    if current_user.role == "staff":
+        emp = _find_emp_by_user(current_user, db)
+        if not emp or emp.emp_code != req.emp_code:
+            raise HTTPException(403, "Bạn chỉ được thao tác đơn của mình")
+        return
+    emp = db.query(Employee).filter_by(emp_code=req.emp_code).first()
+    if not emp:
+        raise HTTPException(404, "Không tìm thấy nhân viên trong đơn")
+    ensure_branch_access(db, current_user, emp.branch_id)
 
 
 # ── POST /api/leave — Gửi đơn ────────────────────────────────────
@@ -103,7 +136,7 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
                 f"(tối thiểu 1 ngày trước)")
 
         # Kiểm tra ngày có phải ngày làm không
-        cal = get_calendar_day(d, db)
+        cal = get_calendar_day(d, db, emp.branch_id)
         if cal["day_type"] in ("off", "holiday"):
             lbl = "ngày nghỉ" if cal["day_type"] == "off" else "ngày lễ"
             raise HTTPException(400,
@@ -138,6 +171,7 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
 
     # Tạo đơn
     req = LeaveRequest(
+        employee_id  = emp.id,
         emp_code     = emp.emp_code,
         emp_name     = emp.name,
         department   = emp.department or "",
@@ -178,6 +212,7 @@ def list_leaves(
     status: str = "",
     emp_code: str = "",
     request_type: str = "",
+    branch_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -193,6 +228,7 @@ def list_leaves(
 
     # Manager xem tất cả (trừ đơn của admin khác)
     else:
+        q = _scope_leave_query(db, current_user, q, branch_id)
         if emp_code:
             q = q.filter(LeaveRequest.emp_code == emp_code)
 
@@ -209,10 +245,12 @@ def list_leaves(
 
 @router.get("/pending-count")
 def pending_count(db: Session = Depends(get_db),
+                  branch_id: int | None = None,
                   current_user: User = Depends(get_current_user)):
     if current_user.role == "staff":
         return {"count": 0}
-    count = db.query(LeaveRequest).filter_by(status="pending").count()
+    q = _scope_leave_query(db, current_user, db.query(LeaveRequest), branch_id)
+    count = q.filter_by(status="pending").count()
     return {"count": count}
 
 
@@ -228,6 +266,7 @@ def approve_leave(req_id: int, payload: dict = {},
         raise HTTPException(404, "Không tìm thấy đơn")
     if req.status != "pending":
         raise HTTPException(400, f"Đơn đang ở trạng thái '{req.status}', không thể duyệt")
+    _ensure_leave_scope(db, current_user, req)
 
     # Manager chỉ duyệt staff; admin duyệt tất cả kể cả manager
     if current_user.role == "manager":
@@ -263,6 +302,11 @@ def reject_leave(req_id: int, payload: dict = {},
         raise HTTPException(404, "Không tìm thấy đơn")
     if req.status != "pending":
         raise HTTPException(400, f"Đơn đang ở trạng thái '{req.status}'")
+    _ensure_leave_scope(db, current_user, req)
+    if current_user.role == "manager":
+        submitter_user = db.query(User).filter_by(email=req.emp_email).first()
+        if submitter_user and submitter_user.role in ("admin", "manager"):
+            raise HTTPException(403, "Manager không thể từ chối đơn của admin/manager khác")
 
     note = payload.get("note", "").strip()
     if not note:

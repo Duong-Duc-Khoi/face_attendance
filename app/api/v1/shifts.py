@@ -15,7 +15,12 @@ from app.core.security import get_current_user
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
 from app.models.user import User
-from app.services.branch_scope import ensure_branch_access, require_branch_manager_or_admin, scoped_branch_filter
+from app.services.branch_scope import (
+    default_branch_id_for_write,
+    ensure_branch_access,
+    require_branch_manager_or_admin,
+    selected_branch_ids,
+)
 from app.services.shift_service import (
     list_shifts, get_shift, create_shift, update_shift, delete_shift,
     assign_shift, bulk_assign_shift, delete_assignment,
@@ -200,6 +205,7 @@ class AssignmentUpdate(BaseModel):
 
 
 class AIPlanRequest(BaseModel):
+    branch_id: Optional[int] = None
     from_date: str
     to_date: str
     instructions: Optional[str] = ""
@@ -253,11 +259,32 @@ def _employee_branch_id(db: Session, emp_code: str) -> int | None:
     return emp.branch_id
 
 
-def _filter_scoped_rows(db: Session, user: User, rows: list[dict]) -> list[dict]:
-    allowed = scoped_branch_filter(db, user)
+def _filter_scoped_rows(
+    db: Session,
+    user: User,
+    rows: list[dict],
+    branch_id: int | None = None,
+    *,
+    include_global: bool = False,
+) -> list[dict]:
+    allowed = selected_branch_ids(db, user, branch_id)
     if allowed is None:
         return rows
-    return [row for row in rows if row.get("branch_id") in allowed]
+    return [
+        row for row in rows
+        if row.get("branch_id") in allowed or (include_global and row.get("branch_id") is None)
+    ]
+
+
+def _require_admin_branch_for_shift_view(user: User, branch_id: int | None) -> None:
+    if user.role == "admin" and branch_id is None:
+        raise HTTPException(400, "Cần chọn chi nhánh để xem ca làm")
+
+
+def _ensure_shift_assignable_scope(db: Session, user: User, shift_id: int) -> None:
+    branch_id = _shift_branch_id(db, shift_id)
+    if branch_id is not None:
+        ensure_branch_access(db, user, branch_id)
 
 
 def _date_range(from_date: str, to_date: str) -> list[date]:
@@ -281,12 +308,14 @@ def _date_range(from_date: str, to_date: str) -> list[date]:
 @router.get("")
 def api_list_shifts(
     active_only: bool = False,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     rows = list_shifts(db, active_only=active_only)
     if current_user.role in ("admin", "manager"):
-        return _filter_scoped_rows(db, current_user, rows)
+        _require_admin_branch_for_shift_view(current_user, branch_id)
+        return _filter_scoped_rows(db, current_user, rows, branch_id, include_global=True)
     return rows
 
 
@@ -299,8 +328,10 @@ def api_create_shift(
     current_user: User = Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
-    ensure_branch_access(db, current_user, body.branch_id, allow_unassigned_for_admin=True)
-    return create_shift(body.model_dump(), db)
+    data = body.model_dump()
+    data["branch_id"] = default_branch_id_for_write(db, current_user, body.branch_id)
+    ensure_branch_access(db, current_user, data["branch_id"], allow_unassigned_for_admin=True)
+    return create_shift(data, db)
 
 
 # ── GET /api/shifts/my-shift?date=YYYY-MM-DD ─────────────────────
@@ -336,6 +367,9 @@ def api_create_ai_plan(
     current_user: User = Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
+    plan_branch_id = default_branch_id_for_write(db, current_user, body.branch_id)
+    if plan_branch_id is None:
+        raise HTTPException(400, "Cần chọn cửa hàng để lập lịch AI")
     fd = date.fromisoformat(body.from_date)
     td = date.fromisoformat(body.to_date)
     if td < fd:
@@ -354,6 +388,7 @@ def api_create_ai_plan(
             from_date=fd,
             to_date=td,
             created_by=current_user.email,
+            branch_id=plan_branch_id,
             instructions=body.instructions or "",
             default_min_staff=body.default_min_staff,
             min_staff_per_shift=min_by_shift,
@@ -374,6 +409,7 @@ def api_get_ai_plan(
     result = get_shift_plan_draft(draft_id, db)
     if not result:
         raise HTTPException(404, "Không tìm thấy bản nháp")
+    ensure_branch_access(db, current_user, result.get("branch_id"))
     return result
 
 
@@ -384,6 +420,10 @@ def api_apply_ai_plan(
     current_user: User = Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
+    result = get_shift_plan_draft(draft_id, db)
+    if not result:
+        raise HTTPException(404, "Không tìm thấy bản nháp")
+    ensure_branch_access(db, current_user, result.get("branch_id"))
     try:
         return apply_shift_plan_draft(draft_id, current_user.email, db)
     except ValueError as e:
@@ -433,7 +473,7 @@ def api_assign_shift(
 ):
     """Phân công ca cho 1 nhân viên vào 1 ngày cụ thể."""
     require_branch_manager_or_admin(db, current_user)
-    ensure_branch_access(db, current_user, _shift_branch_id(db, body.shift_id))
+    _ensure_shift_assignable_scope(db, current_user, body.shift_id)
     ensure_branch_access(db, current_user, _employee_branch_id(db, body.emp_code))
     try:
         return assign_shift(
@@ -460,7 +500,7 @@ def api_bulk_assign(
     require_branch_manager_or_admin(db, current_user)
     if not body.emp_codes:
         raise HTTPException(400, "Danh sách nhân viên không được rỗng")
-    ensure_branch_access(db, current_user, _shift_branch_id(db, body.shift_id))
+    _ensure_shift_assignable_scope(db, current_user, body.shift_id)
     for emp_code in body.emp_codes:
         ensure_branch_access(db, current_user, _employee_branch_id(db, emp_code))
 
@@ -485,6 +525,7 @@ def api_bulk_assign(
 def api_get_range_assignments(
     from_date: str,
     to_date: str,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -499,7 +540,8 @@ def api_get_range_assignments(
         raise HTTPException(400, "to_date phải >= from_date")
     if (td - fd).days > 62:
         raise HTTPException(400, "Khoảng xem lịch tối đa 63 ngày")
-    return _filter_scoped_rows(db, current_user, get_assignments_by_range(fd, td, db))
+    _require_admin_branch_for_shift_view(current_user, branch_id)
+    return _filter_scoped_rows(db, current_user, get_assignments_by_range(fd, td, db), branch_id)
 
 
 # ── GET /api/shifts/assignments/employee/{emp_code} ──────────────
@@ -528,6 +570,7 @@ def api_get_emp_assignments(
 @router.get("/assignments/date/{work_date}")
 def api_get_date_assignments(
     work_date: str,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -537,7 +580,8 @@ def api_get_date_assignments(
         d = date.fromisoformat(work_date)
     except Exception:
         raise HTTPException(400, "Định dạng ngày phải là YYYY-MM-DD")
-    return _filter_scoped_rows(db, current_user, get_assignments_by_date(d, db))
+    _require_admin_branch_for_shift_view(current_user, branch_id)
+    return _filter_scoped_rows(db, current_user, get_assignments_by_date(d, db), branch_id)
 
 
 # ── GET /api/shifts/{id} ─────────────────────────────────────────
@@ -551,7 +595,7 @@ def api_get_shift(
     result = get_shift(shift_id, db)
     if not result:
         raise HTTPException(404, "Không tìm thấy ca làm việc")
-    if current_user.role != "staff":
+    if current_user.role != "staff" and result.get("branch_id") is not None:
         ensure_branch_access(db, current_user, result.get("branch_id"))
     return result
 
@@ -568,7 +612,7 @@ def api_update_assignment(
     require_branch_manager_or_admin(db, current_user)
     ensure_branch_access(db, current_user, _assignment_branch_id(db, assignment_id))
     if body.shift_id is not None:
-        ensure_branch_access(db, current_user, _shift_branch_id(db, body.shift_id))
+        _ensure_shift_assignable_scope(db, current_user, body.shift_id)
     try:
         result = update_assignment(
             assignment_id,

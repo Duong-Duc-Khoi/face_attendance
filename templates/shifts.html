@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phân ca nhà hàng - FaceAttend</title>
+<title>Phân ca cửa hàng - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-2">
@@ -131,6 +131,14 @@ body::after{
 .assignment-role{font-size:9px;color:var(--green);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-danger{width:22px;height:22px;min-height:22px;padding:0}
 .empty-board{padding:22px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:13px;text-align:center;background:var(--surface)}
+.scope-required{
+  display:grid;gap:8px;margin-bottom:16px;padding:18px 20px;
+  border:1px solid rgba(246,201,14,.34);border-radius:8px;
+  background:linear-gradient(180deg,rgba(246,201,14,.1),rgba(17,30,52,.78));
+}
+.scope-required[hidden]{display:none}
+.scope-required-title{font-size:14px;font-weight:800;color:var(--text)}
+.scope-required-text{font-size:12px;color:var(--muted);line-height:1.55;max-width:720px}
 .stack{display:flex;flex-direction:column;gap:16px}
 .panel.tight .panel-header{padding:12px 14px}
 .panel-title-strong{display:flex;align-items:center;gap:8px;color:var(--text);font-size:12px}
@@ -338,8 +346,8 @@ body::after{
 <main class="ops-page">
   <section class="ops-head">
     <div>
-      <div class="eyebrow">Restaurant Shift Planner</div>
-      <h1 class="ops-title">Phân ca nhà hàng</h1>
+      <div class="eyebrow">Quản lý ca cửa hàng</div>
+      <h1 class="ops-title">Phân ca cửa hàng</h1>
       <p class="ops-sub">Theo dõi ca sáng, trưa, tối, ca đêm và phân công nhân sự theo từng ngày trong tháng.</p>
     </div>
     <div class="head-actions">
@@ -358,18 +366,24 @@ body::after{
     </div>
   </section>
 
-  <section class="metric-grid">
-    <div class="metric"><div class="metric-label">Ca hoạt động</div><div class="metric-value green" id="statActive">0</div></div>
-    <div class="metric"><div class="metric-label">Phân công hôm nay</div><div class="metric-value amber" id="statToday">0</div></div>
-    <div class="metric"><div class="metric-label">Nhân viên</div><div class="metric-value cyan" id="statEmployees">0</div></div>
-    <div class="metric"><div class="metric-label">Đang chọn</div><div class="metric-value" id="statSelected">0</div></div>
+  <section class="scope-required" id="branchRequiredPanel" hidden>
+    <div class="scope-required-title">Chọn một chi nhánh để quản lý ca làm</div>
+    <div class="scope-required-text">Màn phân ca chỉ chạy theo từng cửa hàng để tránh trộn nhân viên, bộ ca và lịch khi chuỗi mở rộng. Hãy chọn chi nhánh ở bộ lọc bên trái.</div>
   </section>
 
-  <section class="tab-bar" aria-label="Khu vực ca làm">
-    <button class="tab-btn active" id="tabBtnSchedule" onclick="switchShiftTab('schedule')">Lịch phân ca</button>
-    <button class="tab-btn" id="tabBtnShifts" onclick="switchShiftTab('shifts')">Bộ ca</button>
-    <button class="tab-btn" id="tabBtnTools" onclick="switchShiftTab('tools')">Công cụ</button>
-  </section>
+  <div id="shiftWorkspace">
+    <section class="metric-grid">
+      <div class="metric"><div class="metric-label">Ca hoạt động</div><div class="metric-value green" id="statActive">0</div></div>
+      <div class="metric"><div class="metric-label">Phân công hôm nay</div><div class="metric-value amber" id="statToday">0</div></div>
+      <div class="metric"><div class="metric-label">Nhân viên</div><div class="metric-value cyan" id="statEmployees">0</div></div>
+      <div class="metric"><div class="metric-label">Đang chọn</div><div class="metric-value" id="statSelected">0</div></div>
+    </section>
+
+    <section class="tab-bar" aria-label="Khu vực ca làm">
+      <button class="tab-btn active" id="tabBtnSchedule" onclick="switchShiftTab('schedule')">Lịch phân ca</button>
+      <button class="tab-btn" id="tabBtnShifts" onclick="switchShiftTab('shifts')">Bộ ca</button>
+      <button class="tab-btn" id="tabBtnTools" onclick="switchShiftTab('tools')">Công cụ</button>
+    </section>
 
   <section class="tab-panel active" id="tabSchedule">
     <div class="schedule-stack">
@@ -470,6 +484,7 @@ body::after{
       </div>
     </div>
   </section>
+  </div>
 </main>
 
 <div class="modal-overlay" id="shiftModal">
@@ -486,7 +501,7 @@ body::after{
       <div class="code-note" id="shiftCodeNote">Mã nội bộ sẽ được hệ thống tự tạo khi lưu ca mới.</div>
       <div class="field">
         <label class="field-label">Vị trí áp dụng</label>
-        <input class="input" id="shiftRequiredPosition" placeholder="VD: Đầu bếp, Phụ bếp, Phục vụ" list="positionList">
+        <input class="input" id="shiftRequiredPosition" placeholder="VD: Bảo vệ, Thu ngân, Pha chế, Phục vụ bàn" list="positionList">
         <datalist id="positionList"></datalist>
       </div>
       <div class="field-row">
@@ -638,23 +653,66 @@ function employeeName(code){
 }
 function employeeRole(emp){
   const labels = {
-    server:"Phục vụ",
+    security:"Bảo vệ",
     cashier:"Thu ngân",
-    kitchen:"Bếp",
-    bar:"Bar",
-    cleaner:"Tạp vụ",
-    shift_lead:"Quản lý ca"
+    barista:"Pha chế",
+    table_service:"Phục vụ bàn"
   };
   const role = emp?.job_role || "";
   return emp?.job_role_label || labels[role] || role || "Chưa có vai trò";
 }
 
+function isAdminWithoutShiftBranch(){
+  const current = window.getUser ? window.getUser() : null;
+  const branchId = window.getSelectedBranchId ? window.getSelectedBranchId() : "";
+  return current?.role === "admin" && !branchId;
+}
+
+function setShiftWorkspaceLocked(locked){
+  const panel = document.getElementById("branchRequiredPanel");
+  const workspace = document.getElementById("shiftWorkspace");
+  if (panel) panel.hidden = !locked;
+  if (workspace) workspace.hidden = locked;
+  document.querySelectorAll(".head-actions button").forEach(btn => {
+    btn.disabled = locked;
+  });
+}
+
+function resetShiftData(){
+  shifts = [];
+  employees = [];
+  selectedEmployee = "";
+  selectedBulk.clear();
+  assignmentsByDate = {};
+  calendarByDate = {};
+  weekAssignments = [];
+  ["statActive","statToday","statEmployees","statSelected"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = "0";
+  });
+}
+
+function requireShiftBranch(action = "xem ca làm"){
+  if (!isAdminWithoutShiftBranch()) return true;
+  setShiftWorkspaceLocked(true);
+  resetShiftData();
+  showToast(`Chọn một chi nhánh để ${action}`, "error");
+  return false;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   setDefaultRange();
+  if (isAdminWithoutShiftBranch()){
+    setShiftWorkspaceLocked(true);
+    resetShiftData();
+    return;
+  }
   await loadAll();
 });
 
 async function loadAll(){
+  if (!requireShiftBranch("làm mới dữ liệu ca làm")) return;
+  setShiftWorkspaceLocked(false);
   await Promise.all([loadShifts(), loadEmployees()]);
   fillShiftSelects();
   await loadTodayAssignments();
@@ -663,6 +721,7 @@ async function loadAll(){
 }
 
 async function loadShifts(){
+  if (!requireShiftBranch("xem bộ ca")) return;
   const showInactive = document.getElementById("showInactive")?.checked;
   const res = await authFetch(showInactive ? "/api/shifts" : "/api/shifts?active_only=true");
   shifts = res.ok ? await res.json() : [];
@@ -673,6 +732,7 @@ async function loadShifts(){
 }
 
 async function loadEmployees(){
+  if (!requireShiftBranch("xem nhân viên xếp ca")) return;
   const res = await authFetch("/api/employees?active_only=true");
   const data = res.ok ? await res.json() : [];
   employees = Array.isArray(data) ? data : (data.items || []);
@@ -681,6 +741,7 @@ async function loadEmployees(){
 }
 
 async function loadTodayAssignments(){
+  if (!requireShiftBranch("xem phân công hôm nay")) return;
   try{
     const res = await authFetch(`/api/shifts/assignments/date/${todayIso()}`);
     const rows = res.ok ? await res.json() : [];
@@ -753,6 +814,7 @@ function filteredEmployees(q = document.getElementById("employeeSearch").value.t
 }
 
 function setSelectedEmployee(code){
+  if (!requireShiftBranch("xem lịch phân ca")) return;
   selectedEmployee = code;
   updateSelectedEmployeeBox();
   renderEmployees();
@@ -766,6 +828,7 @@ function toggleBulkEmployee(code, checked){
 }
 
 function selectVisibleEmployees(){
+  if (!requireShiftBranch("chọn nhân viên")) return;
   filteredEmployees().forEach(e => selectedBulk.add(e.emp_code));
   renderEmployees();
   updateSelectedStats();
@@ -840,6 +903,7 @@ function goThisWeek(){
 }
 
 async function loadCalendar(){
+  if (!requireShiftBranch("xem lịch phân ca")) return;
   const label = document.getElementById("weekLabel");
   if (label) label.textContent = weekLabel();
   const days = weekDays();
@@ -957,6 +1021,7 @@ function dragAssignment(event, assignmentId){
 async function dropOnShift(event, iso, shiftId){
   event.preventDefault();
   event.currentTarget.classList.remove("drag-over");
+  if (!requireShiftBranch("xếp ca")) return;
   if (isCalendarDayOff(iso)) return showToast("Ngày này đang được đặt là ngày nghỉ, không thể xếp nhân viên vào ca", "error");
   let payload = null;
   try{ payload = JSON.parse(event.dataTransfer.getData("application/json") || "{}"); }
@@ -987,6 +1052,7 @@ function isCalendarDayOff(iso){
 }
 
 function openShiftModal(id = null){
+  if (!requireShiftBranch(id ? "sửa ca" : "tạo ca")) return;
   const s = shifts.find(x => x.id === id);
   document.getElementById("shiftId").value = s?.id || "";
   document.getElementById("shiftModalTitle").textContent = s ? "Sửa ca làm" : "Tạo ca làm";
@@ -1014,6 +1080,7 @@ function closeShiftModal(){
 }
 
 async function saveShift(){
+  if (!requireShiftBranch("lưu ca")) return;
   const id = document.getElementById("shiftId").value;
   const saveBtn = document.getElementById("shiftSaveBtn");
   const body = {
@@ -1028,6 +1095,8 @@ async function saveShift(){
     is_overnight: document.getElementById("shiftOvernight").checked,
     note: document.getElementById("shiftNote").value.trim()
   };
+  const branchId = window.getSelectedBranchId ? window.getSelectedBranchId() : "";
+  if (!id && branchId) body.branch_id = Number(branchId);
   if (!body.name) return showToast("Nhập tên ca", "error");
   if (!body.work_start || !body.work_end) return showToast("Nhập giờ vào và giờ ra", "error");
   if (body.early_checkin_minutes > 240 || body.late_threshold_minutes > 120 || body.auto_checkout_minutes > 720 || body.break_minutes > 240){
@@ -1061,6 +1130,7 @@ async function saveShift(){
 }
 
 async function deleteShift(id){
+  if (!requireShiftBranch("tắt ca")) return;
   const s = shifts.find(x => x.id === id);
   if (!s || !confirm(`Tắt ca "${s.name}"?`)) return;
   const res = await authFetch(`/api/shifts/${id}`, {method:"DELETE"});
@@ -1074,6 +1144,7 @@ async function deleteShift(id){
 }
 
 async function restoreShift(id){
+  if (!requireShiftBranch("bật lại ca")) return;
   const s = shifts.find(x => x.id === id);
   if (!s) return;
   const res = await authFetch(`/api/shifts/${id}`, {
@@ -1091,6 +1162,7 @@ async function restoreShift(id){
 }
 
 function openDayModal(iso){
+  if (!requireShiftBranch("xem phân ca theo ngày")) return;
   if (!selectedEmployee) return showToast("Chọn nhân viên trước", "error");
   modalDate = iso;
   const emp = employees.find(e => e.emp_code === selectedEmployee);
@@ -1121,6 +1193,7 @@ function renderAssignedList(){
 }
 
 async function saveDayAssignment(){
+  if (!requireShiftBranch("lưu phân ca")) return;
   if (isCalendarDayOff(modalDate)) return showToast("Ngày này đang được đặt là ngày nghỉ, không thể lưu phân ca", "error");
   const shiftId = parseInt(document.getElementById("dayShiftSelect").value);
   if (!shiftId) return showToast("Chưa có ca hoạt động", "error");
@@ -1144,6 +1217,7 @@ async function saveDayAssignment(){
 }
 
 async function deleteAssignment(id){
+  if (!requireShiftBranch("xoá phân ca")) return;
   const res = await authFetch(`/api/shifts/assignments/${id}`, {method:"DELETE"});
   if (res.ok || res.status === 204){
     await loadCalendar();
@@ -1163,6 +1237,7 @@ function setDefaultRange(){
 }
 
 async function bulkAssign(){
+  if (!requireShiftBranch("phân công hàng loạt")) return;
   const empCodes = [...selectedBulk];
   const shiftId = parseInt(document.getElementById("bulkShiftSelect").value);
   const from = document.getElementById("bulkFrom").value;
@@ -1194,6 +1269,7 @@ async function bulkAssign(){
 }
 
 async function copyCurrentWeek(){
+  if (!requireShiftBranch("sao chép lịch tuần")) return;
   if (!weekAssignments.length) return showToast("Tuần hiện tại chưa có phân ca để sao chép", "error");
   if (!confirm("Sao chép toàn bộ lịch tuần hiện tại sang tuần sau?")) return;
   let ok = 0;
@@ -1240,6 +1316,7 @@ async function getOffDatesInRange(from, to){
 }
 
 function openAiPlanner(){
+  if (!requireShiftBranch("dùng AI đề xuất")) return;
   const from = document.getElementById("bulkFrom").value || todayIso();
   const to = document.getElementById("bulkTo").value || from;
   document.getElementById("aiFrom").value = from;
@@ -1272,6 +1349,7 @@ document.querySelectorAll(".modal-overlay").forEach(overlay => {
 });
 
 async function generateAiPlan(){
+  if (!requireShiftBranch("tạo đề xuất AI")) return;
   const from = document.getElementById("aiFrom").value;
   const to = document.getElementById("aiTo").value;
   if (!from || !to || from > to) return showToast("Khoảng ngày không hợp lệ", "error");
@@ -1280,10 +1358,12 @@ async function generateAiPlan(){
   btn.textContent = "Đang tạo...";
   document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status">Đang tạo bản nháp phân ca...</div>`;
   try{
+    const branchId = window.getSelectedBranchId ? window.getSelectedBranchId() : "";
     const res = await authFetch("/api/shifts/ai-plan", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
+        branch_id: branchId ? Number(branchId) : null,
         from_date: from,
         to_date: to,
         default_min_staff: parseInt(document.getElementById("aiMinStaff").value) || 0,
@@ -1339,6 +1419,7 @@ function renderAiDraft(draft){
 }
 
 async function applyAiPlan(){
+  if (!requireShiftBranch("áp dụng nháp AI")) return;
   if (!currentAiDraft?.id) return;
   if (!confirm("Áp dụng bản nháp này vào lịch phân ca thật?")) return;
   const btn = document.getElementById("aiApplyBtn");

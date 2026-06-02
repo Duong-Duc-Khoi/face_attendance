@@ -1158,6 +1158,13 @@ function addLogItem(data) {
 // ── Backend endpoint helpers ──
 const backendParam = window.KIOSK_BACKEND_URL || new URLSearchParams(location.search).get('backend') || '';
 const backendBase = backendParam.replace(/\/+$/, '');
+const kioskBranchId = window.KIOSK_BRANCH_ID || new URLSearchParams(location.search).get('branch_id') || localStorage.getItem('kiosk_branch_id') || '';
+if (kioskBranchId) localStorage.setItem('kiosk_branch_id', kioskBranchId);
+function withBranchParam(path) {
+  if (!kioskBranchId) return path;
+  const joiner = path.includes('?') ? '&' : '?';
+  return `${path}${joiner}branch_id=${encodeURIComponent(kioskBranchId)}`;
+}
 function apiUrl(path) {
   return backendBase ? `${backendBase}${path}` : path;
 }
@@ -1167,6 +1174,7 @@ function backendAssetUrl(path) {
   return apiUrl(path.startsWith('/') ? path : `/${path}`);
 }
 function wsUrl(path) {
+  path = withBranchParam(path);
   if (backendBase) {
     return backendBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + path;
   }
@@ -1380,7 +1388,7 @@ function updateCamUI() {
 async function loadTodayHistory() {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const res   = await fetch(apiUrl(`/api/attendance?date=${today}`));
+    const res   = await fetch(apiUrl(withBranchParam(`/api/attendance?date=${today}`)));
     const json  = await res.json();
 
     // API trả về {logs: [...], total: N}
