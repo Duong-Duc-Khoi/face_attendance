@@ -236,6 +236,7 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
                 "total_shifts": 0}
 
     shift_states = []
+    now = datetime.now()
     for assignment, shift in assigned_shifts:
         check_in_at, check_out_at = _session_or_logs_for_assignment(emp_code, assignment, shift, db)
         shift_start, _shift_end, _from, _until = shift_window(assignment.work_date, shift)
@@ -244,6 +245,7 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
         shift_states.append({
             "assignment": assignment,
             "shift": shift,
+            "shift_start": shift_start,
             "check_in_at": check_in_at,
             "check_out_at": check_out_at,
             "late_minutes": raw_late if is_late else 0,
@@ -288,6 +290,13 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
         return {"status": "approved_remote", "work_value": work_val,
                 "label": "🏠 Remote" + (" ½ ngày" if half else ""),
                 "detail": req.reason or "",
+                "day_type": day_type,
+                "total_shifts": total_shifts}
+
+    if d == today and all(now < s["shift_start"] for s in shift_states):
+        return {"status": "future", "work_value": 0.0,
+                "label": "Chưa đến giờ vào ca",
+                "detail": f"0/{total_shifts} ca đã vào",
                 "day_type": day_type,
                 "total_shifts": total_shifts}
 

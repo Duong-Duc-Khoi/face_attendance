@@ -113,9 +113,11 @@ body::after{
 .slot-time{font-family:var(--font-mono);font-size:10px;color:var(--text);white-space:nowrap;border:1px solid rgba(232,240,254,.12);border-radius:999px;padding:3px 7px;background:rgba(8,17,31,.25);width:max-content;max-width:100%}
 .shift-cell{min-height:82px;padding:7px;display:grid;gap:5px;align-content:start}
 .shift-cell.day-off{background:rgba(255,127,149,.035);border-color:rgba(255,127,149,.18)}
+.shift-cell.locked{background:rgba(90,122,154,.06);border-color:rgba(90,122,154,.22);opacity:.78}
 .cell-day-label{display:none;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .slot-empty{border:1px dashed rgba(90,122,154,.48);border-radius:8px;padding:9px 6px;font-size:10px;color:var(--muted);text-align:center;background:rgba(8,17,31,.18)}
 .slot-empty.off{border-color:rgba(255,127,149,.28);color:#e29aa7;background:rgba(255,127,149,.045)}
+.slot-empty.locked{border-color:rgba(90,122,154,.3);color:#8fa8c2;background:rgba(90,122,154,.06)}
 .shift-cell.drag-over{background:rgba(0,212,170,.12);box-shadow:0 0 0 1px rgba(0,212,170,.32) inset}
 .assignment-person{
   display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;border:1px solid rgba(90,122,154,.42);
@@ -179,7 +181,8 @@ body::after{
 .pill.warn{color:var(--amber);border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08)}
 .shift-actions{display:flex;gap:6px;justify-content:flex-end}
 
-.roster-tools{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px}
+.roster-tools{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px;align-items:center}
+.selected-count{font-size:11px;color:var(--muted);white-space:nowrap}
 .employee-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;padding-right:2px}
 .employee-row{
   display:grid;grid-template-columns:auto 1fr;align-items:center;gap:11px;
@@ -188,6 +191,7 @@ body::after{
 }
 .employee-row:hover{border-color:rgba(58,143,255,.5)}
 .employee-row.active{border-color:var(--green);background:rgba(0,212,170,.08)}
+.employee-row.selected{border-color:rgba(58,143,255,.7);background:rgba(58,143,255,.09)}
 .employee-row input{accent-color:var(--green)}
 .emp-main{min-width:0}
 .emp-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -244,11 +248,6 @@ body::after{
 .chip-time{font-family:var(--font-mono);color:var(--muted);margin-top:2px}
 .empty-slot{font-size:10px;color:var(--muted);margin-top:auto}
 
-.bulk-panel{display:grid;grid-template-columns:1.2fr .8fr auto;gap:12px;align-items:end}
-.selected-strip{display:flex;gap:6px;flex-wrap:wrap;min-height:36px;padding:8px;border:1px dashed var(--border);border-radius:8px;background:var(--surface)}
-.selected-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);font-size:11px;color:var(--green);font-weight:700}
-.selected-tag button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:14px;line-height:1}
-
 .modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px}
 .modal-overlay.open{display:flex}
 .modal-box{width:min(560px,100%);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;animation:modalIn .18s ease}
@@ -260,18 +259,16 @@ body::after{
 .assigned-list{display:flex;flex-direction:column;gap:8px}
 .assigned-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
 .assigned-title{font-size:12px;font-weight:700}.assigned-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
-.ai-box{display:grid;gap:10px}
-.ai-status{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.55}
-.ai-status strong{color:var(--text)}
-.ai-warning{border-color:rgba(246,201,14,.35);background:rgba(246,201,14,.08);color:var(--amber)}
-.ai-draft-list{display:grid;gap:8px;max-height:280px;overflow:auto}
-.ai-draft-row{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
-.ai-draft-date{font-family:var(--font-mono);font-size:11px;color:var(--green)}
-.ai-draft-main{min-width:0}
-.ai-draft-title{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ai-draft-reason{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ai-source{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-
+.io-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.io-card{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:16px;display:grid;gap:12px}
+.io-title{font-size:14px;font-weight:800;color:var(--text)}
+.io-note{font-size:12px;color:var(--muted);line-height:1.55}
+.io-warning{border:1px solid rgba(246,201,14,.34);border-radius:8px;background:rgba(246,201,14,.08);color:#f6c90e;padding:9px 10px;font-size:12px;line-height:1.45}
+.io-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.import-result{display:none;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:10px 12px;font-size:12px;line-height:1.5}
+.import-result.show{display:block}
+.import-result.error{border-color:rgba(255,77,106,.4);color:#ffb2bf;background:rgba(255,77,106,.08)}
+.import-result.success{border-color:rgba(0,212,170,.35);color:var(--green);background:rgba(0,212,170,.08)}
 @media(max-width:1120px){
   .planner-grid{grid-template-columns:1fr}
   .matrix-header{display:none}
@@ -279,7 +276,7 @@ body::after{
   .shift-row-head{grid-column:1/-1;min-height:auto}
   .cell-day-label{display:block}
   .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .bulk-panel{grid-template-columns:1fr}
+  .io-grid{grid-template-columns:1fr}
 }
 @media(max-width:760px){
   .ops-page{padding:16px}
@@ -352,10 +349,6 @@ body::after{
       <p class="ops-sub">Theo dõi ca sáng, trưa, tối, ca đêm và phân công nhân sự theo từng ngày trong tháng.</p>
     </div>
     <div class="head-actions">
-      <button class="icon-btn" onclick="openAiPlanner()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
-        AI đề xuất
-      </button>
       <button class="icon-btn" onclick="loadAll()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         Làm mới
@@ -377,13 +370,13 @@ body::after{
       <div class="metric"><div class="metric-label">Ca hoạt động</div><div class="metric-value green" id="statActive">0</div></div>
       <div class="metric"><div class="metric-label">Phân công hôm nay</div><div class="metric-value amber" id="statToday">0</div></div>
       <div class="metric"><div class="metric-label">Nhân viên</div><div class="metric-value cyan" id="statEmployees">0</div></div>
-      <div class="metric"><div class="metric-label">Đang chọn</div><div class="metric-value" id="statSelected">0</div></div>
+      <div class="metric"><div class="metric-label">Đã chọn</div><div class="metric-value" id="statSelected">0</div></div>
     </section>
 
     <section class="tab-bar" aria-label="Khu vực ca làm">
       <button class="tab-btn active" id="tabBtnSchedule" onclick="switchShiftTab('schedule')">Lịch phân ca</button>
       <button class="tab-btn" id="tabBtnShifts" onclick="switchShiftTab('shifts')">Bộ ca</button>
-      <button class="tab-btn" id="tabBtnTools" onclick="switchShiftTab('tools')">Công cụ</button>
+      <button class="tab-btn" id="tabBtnIo" onclick="switchShiftTab('io')">Nhập/Xuất</button>
     </section>
 
   <section class="tab-panel active" id="tabSchedule">
@@ -394,14 +387,11 @@ body::after{
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Nhân sự kéo thả
           </div>
-          <button class="chip-btn" onclick="clearSelectedEmployees()">Bỏ chọn</button>
         </div>
         <div class="panel-body">
           <div class="roster-tools">
             <input class="input" id="employeeSearch" placeholder="Tìm tên, mã, bộ phận" oninput="renderEmployees()">
-            <button class="icon-btn icon-only" onclick="selectVisibleEmployees()" title="Chọn danh sách đang lọc" aria-label="Chọn danh sách đang lọc">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-            </button>
+            <span class="selected-count" id="selectedCount">0 đã chọn</span>
           </div>
           <div class="employee-list" id="employeeList"></div>
         </div>
@@ -442,49 +432,51 @@ body::after{
     </div>
   </section>
 
-  <section class="tab-panel" id="tabTools">
-    <div class="panel tight">
-      <div class="panel-header">
-        <div class="panel-title-strong">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
-          Phân công hàng loạt
-        </div>
-        <span style="font-size:11px;color:var(--muted)" id="bulkCount">0 nhân viên</span>
-      </div>
-      <div class="panel-body bulk-panel">
+  <section class="tab-panel" id="tabIo">
+    <div class="io-warning" style="margin-bottom:12px">Chỉ được nhập/chỉnh lịch từ tuần hiện tại trở đi. Lịch các tuần cũ vẫn có thể xuất Excel để xem hoặc đối soát.</div>
+    <div class="io-grid">
+      <div class="io-card">
         <div>
-          <div class="field-label" style="margin-bottom:6px">Nhân viên đã chọn</div>
-          <div class="selected-strip" id="selectedStrip"></div>
-        </div>
-        <div class="field">
-          <label class="field-label">Ca làm</label>
-          <select class="select" id="bulkShiftSelect"></select>
+          <div class="io-title">Xuất lịch phân ca</div>
+          <div class="io-note">Xuất lịch của cửa hàng đang chọn trong khoảng thời gian cần kiểm tra hoặc chỉnh sửa.</div>
         </div>
         <div class="field-row">
-          <div class="field">
-            <label class="field-label">Từ ngày</label>
-            <input class="input" type="date" id="bulkFrom">
-          </div>
-          <div class="field">
-            <label class="field-label">Đến ngày</label>
-            <input class="input" type="date" id="bulkTo">
-          </div>
+          <div class="field"><label class="field-label">Từ ngày</label><input class="input" type="date" id="exportFrom"></div>
+          <div class="field"><label class="field-label">Đến ngày</label><input class="input" type="date" id="exportTo"></div>
         </div>
-        <div class="field" style="grid-column:1/-1">
-          <label class="field-label">Ghi chú</label>
-          <input class="input" id="bulkNote" placeholder="Ví dụ: tăng cường cuối tuần">
+        <div class="io-actions">
+          <button class="icon-btn primary" onclick="exportAssignmentsExcel()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            Xuất Excel
+          </button>
         </div>
-        <button class="icon-btn primary" onclick="bulkAssign()" style="align-self:end">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
-          Phân công
-        </button>
-        <button class="icon-btn" onclick="copyCurrentWeek()" style="align-self:end">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>
-          Sao chép tuần sang tuần sau
-        </button>
+      </div>
+
+      <div class="io-card">
+        <div>
+          <div class="io-title">Nhập lịch phân ca</div>
+          <div class="io-note">Tải mẫu theo cửa hàng đang chọn. Mỗi ngày là một sheet riêng, dropdown nhân viên và ca làm chỉ lấy dữ liệu của cửa hàng đó.</div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label class="field-label">Mẫu từ ngày</label><input class="input" type="date" id="templateFrom"></div>
+          <div class="field"><label class="field-label">Mẫu đến ngày</label><input class="input" type="date" id="templateTo"></div>
+        </div>
+        <div class="io-actions">
+          <button class="icon-btn" onclick="downloadAssignmentTemplate()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+            Tải mẫu
+          </button>
+          <input class="input" type="file" id="assignmentImportFile" accept=".xlsx" style="max-width:280px">
+          <button class="icon-btn primary" onclick="importAssignmentsExcel()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+            Kiểm tra & nhập
+          </button>
+        </div>
+        <div class="import-result" id="importResult"></div>
       </div>
     </div>
   </section>
+
   </div>
 </main>
 
@@ -555,45 +547,6 @@ body::after{
   </div>
 </div>
 
-<div class="modal-overlay" id="aiPlannerModal">
-  <div class="modal-box" style="width:min(760px,100%)" role="dialog" aria-modal="true" aria-labelledby="aiPlannerTitle">
-    <div class="modal-head">
-      <div>
-        <div class="modal-title" id="aiPlannerTitle">AI đề xuất phân ca</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px">Tạo bản nháp để quản lý xem trước rồi mới áp dụng</div>
-      </div>
-      <button class="icon-btn icon-only" onclick="closeAiPlanner()" aria-label="Đóng">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-      <div class="field-row">
-        <div class="field"><label class="field-label">Từ ngày</label><input class="input" type="date" id="aiFrom"></div>
-        <div class="field"><label class="field-label">Đến ngày</label><input class="input" type="date" id="aiTo"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label class="field-label">Tối thiểu mỗi ca</label><input class="input" type="number" id="aiMinStaff" min="0" max="20" value="1"></div>
-        <label class="check-row" style="align-self:end"><input type="checkbox" id="aiUseOpenAI" checked> Dùng OpenAI nếu đã cấu hình key</label>
-      </div>
-      <div class="field">
-        <label class="field-label">Yêu cầu thêm</label>
-        <input class="input" id="aiInstructions" placeholder="VD: cuối tuần đông khách, ưu tiên nhân viên kinh nghiệm ca tối">
-      </div>
-      <div class="ai-box" id="aiDraftBox">
-        <div class="ai-status">Chưa có bản nháp. Bấm tạo đề xuất để bắt đầu.</div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="icon-btn" onclick="closeAiPlanner()">Đóng</button>
-      <button class="icon-btn" onclick="generateAiPlan()" id="aiGenerateBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
-        Tạo đề xuất
-      </button>
-      <button class="icon-btn primary" onclick="applyAiPlan()" id="aiApplyBtn" disabled>Áp dụng nháp</button>
-    </div>
-  </div>
-</div>
-
 <div id="toast"></div>
 <script src="/static/js/toast.js"></script>
 <script>
@@ -606,7 +559,6 @@ let calendarByDate = {};
 let weekAssignments = [];
 let currentWeekStart = startOfWeek(new Date());
 let modalDate = "";
-let currentAiDraft = null;
 
 function normalizeText(value){
   return String(value || "")
@@ -644,6 +596,17 @@ function addDays(date, days){
 }
 function weekDays(){
   return Array.from({length:7}, (_, i) => addDays(currentWeekStart, i));
+}
+function editableWeekStartIso(){
+  return toLocalIso(startOfWeek(new Date()));
+}
+function isAssignmentWriteLocked(iso){
+  return String(iso || "") < editableWeekStartIso();
+}
+function requireEditableAssignmentDate(iso){
+  if (!isAssignmentWriteLocked(iso)) return true;
+  showToast("Không thể chỉnh lịch phân ca trước tuần hiện tại", "error");
+  return false;
 }
 function employeeByCode(code){
   return employees.find(e => e.emp_code === code);
@@ -691,6 +654,7 @@ function resetShiftData(){
     const el = document.getElementById(id);
     if (el) el.textContent = "0";
   });
+  updateSelectedStats();
 }
 
 function requireShiftBranch(action = "xem ca làm"){
@@ -702,7 +666,7 @@ function requireShiftBranch(action = "xem ca làm"){
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  setDefaultRange();
+  setExportDefaults();
   if (isAdminWithoutShiftBranch()){
     setShiftWorkspaceLocked(true);
     resetShiftData();
@@ -737,8 +701,12 @@ async function loadEmployees(){
   const res = await authFetch("/api/employees?active_only=true");
   const data = res.ok ? await res.json() : [];
   employees = Array.isArray(data) ? data : (data.items || []);
+  const validCodes = new Set(employees.map(e => e.emp_code));
+  selectedBulk = new Set([...selectedBulk].filter(code => validCodes.has(code)));
+  if (selectedEmployee && !validCodes.has(selectedEmployee)) selectedEmployee = "";
   renderEmployees();
   document.getElementById("statEmployees").textContent = employees.length;
+  updateSelectedStats();
 }
 
 async function loadTodayAssignments(){
@@ -797,16 +765,33 @@ function renderEmployees(){
   const list = document.getElementById("employeeList");
   list.innerHTML = rows.map(e => {
     const role = employeeRole(e);
+    const checked = selectedBulk.has(e.emp_code);
     return `
-    <label class="employee-row ${selectedEmployee === e.emp_code ? "active" : ""}" draggable="true" ondragstart="dragEmployee(event,'${esc(e.emp_code)}')" ondragend="event.currentTarget.classList.remove('dragging')" ondblclick="setSelectedEmployee('${esc(e.emp_code)}')" title="Kéo ${esc(e.name || e.emp_code)} vào ca">
-      <input type="checkbox" ${selectedBulk.has(e.emp_code) ? "checked" : ""} onchange="toggleBulkEmployee('${esc(e.emp_code)}', this.checked)">
+    <div class="employee-row ${selectedEmployee === e.emp_code ? "active" : ""} ${checked ? "selected" : ""}" draggable="true" ondragstart="dragEmployee(event,'${esc(e.emp_code)}')" ondragend="event.currentTarget.classList.remove('dragging')" ondblclick="setSelectedEmployee('${esc(e.emp_code)}')" title="Kéo ${esc(e.name || e.emp_code)} vào ca">
+      <input type="checkbox" ${checked ? "checked" : ""} aria-label="Chọn ${esc(e.name || e.emp_code)} để kéo nhóm" onclick="event.stopPropagation()" onchange="toggleBulkEmployee('${esc(e.emp_code)}', this.checked)">
       <div class="emp-main" onclick="setSelectedEmployee('${esc(e.emp_code)}')">
         <div class="emp-name">${esc(e.name)}</div>
         <div class="emp-role">${esc(role)}</div>
       </div>
-    </label>`;
+    </div>`;
   }).join("") || `<div class="empty">Không tìm thấy nhân viên</div>`;
-  renderSelectedStrip();
+  updateSelectedStats();
+}
+
+function toggleBulkEmployee(code, checked){
+  if (checked) selectedBulk.add(code);
+  else selectedBulk.delete(code);
+  updateSelectedStats();
+  renderEmployees();
+}
+
+function updateSelectedStats(){
+  const count = selectedBulk.size;
+  const label = count ? `${count} đã chọn` : "0 đã chọn";
+  const countEl = document.getElementById("selectedCount");
+  const statEl = document.getElementById("statSelected");
+  if (countEl) countEl.textContent = label;
+  if (statEl) statEl.textContent = String(count);
 }
 
 function filteredEmployees(q = document.getElementById("employeeSearch").value.trim().toLowerCase()){
@@ -820,39 +805,6 @@ function setSelectedEmployee(code){
   updateSelectedEmployeeBox();
   renderEmployees();
   loadCalendar();
-}
-
-function toggleBulkEmployee(code, checked){
-  if (checked) selectedBulk.add(code); else selectedBulk.delete(code);
-  renderSelectedStrip();
-  updateSelectedStats();
-}
-
-function selectVisibleEmployees(){
-  if (!requireShiftBranch("chọn nhân viên")) return;
-  filteredEmployees().forEach(e => selectedBulk.add(e.emp_code));
-  renderEmployees();
-  updateSelectedStats();
-}
-
-function clearSelectedEmployees(){
-  selectedBulk.clear();
-  renderEmployees();
-  updateSelectedStats();
-}
-
-function renderSelectedStrip(){
-  const strip = document.getElementById("selectedStrip");
-  const codes = [...selectedBulk];
-  strip.innerHTML = codes.length ? codes.map(code => {
-    const emp = employees.find(e => e.emp_code === code);
-    return `<span class="selected-tag">${esc(emp?.name || code)}<button onclick="toggleBulkEmployee('${esc(code)}', false);renderEmployees()">×</button></span>`;
-  }).join("") : `<span style="font-size:12px;color:var(--muted);align-self:center">Chọn nhân viên từ danh sách bên trái</span>`;
-  document.getElementById("bulkCount").textContent = `${codes.length} nhân viên`;
-}
-
-function updateSelectedStats(){
-  document.getElementById("statSelected").textContent = selectedBulk.size;
 }
 
 function updateSelectedEmployeeBox(){
@@ -875,14 +827,13 @@ function updateSelectedEmployeeBox(){
 function fillShiftSelects(){
   const active = shifts.filter(s => s.is_active);
   const html = active.map(s => `<option value="${s.id}">${esc(s.name)} · ${esc(s.work_start)}-${esc(s.work_end)}</option>`).join("");
-  document.getElementById("bulkShiftSelect").innerHTML = html;
   document.getElementById("dayShiftSelect").innerHTML = html;
   const positions = [...new Set(employees.map(e => e.position).filter(Boolean))].sort();
   document.getElementById("positionList").innerHTML = positions.map(p => `<option value="${esc(p)}"></option>`).join("");
 }
 
 function switchShiftTab(tab){
-  ["schedule","shifts","tools"].forEach(name => {
+  ["schedule","shifts","io"].forEach(name => {
     document.getElementById(`tab${name[0].toUpperCase()}${name.slice(1)}`)?.classList.toggle("active", name === tab);
     document.getElementById(`tabBtn${name[0].toUpperCase()}${name.slice(1)}`)?.classList.toggle("active", name === tab);
   });
@@ -982,10 +933,11 @@ function renderShiftCell(iso, shift, dayLabel){
   const cal = calendarByDate[iso] || {};
   const pay = Number(cal.pay_multiplier || 1);
   const isOff = cal.day_type === "off";
+  const isLocked = isAssignmentWriteLocked(iso);
   return `
-    <div class="shift-cell ${isOff ? "day-off" : ""}" data-date="${iso}" data-shift-id="${shift.id}" ondragover="allowShiftDrop(event)" ondragleave="event.currentTarget.classList.remove('drag-over')" ondrop="dropOnShift(event,'${iso}',${shift.id})">
+    <div class="shift-cell ${isOff ? "day-off" : ""} ${isLocked ? "locked" : ""}" data-date="${iso}" data-shift-id="${shift.id}" ondragover="allowShiftDrop(event)" ondragleave="event.currentTarget.classList.remove('drag-over')" ondrop="dropOnShift(event,'${iso}',${shift.id})">
       <div class="cell-day-label">${esc(dayLabel)} · ${esc(iso)}${pay !== 1 ? ` · ${pay.toFixed(2)}x` : ""}</div>
-      ${rows.length ? rows.map(assignmentChip).join("") : `<div class="slot-empty ${isOff ? "off" : ""}">${isOff ? "Ngày nghỉ" : "Kéo vào"}</div>`}
+      ${rows.length ? rows.map(assignmentChip).join("") : `<div class="slot-empty ${isOff ? "off" : ""} ${isLocked ? "locked" : ""}">${isLocked ? "Đã khóa" : (isOff ? "Ngày nghỉ" : "Kéo vào")}</div>`}
     </div>`;
 }
 
@@ -1011,6 +963,11 @@ function allowShiftDrop(event){
 function dragEmployee(event, empCode){
   event.currentTarget.classList.add("dragging");
   event.dataTransfer.effectAllowed = "copy";
+  const group = selectedBulk.has(empCode) ? [...selectedBulk] : [];
+  if (group.length > 1){
+    event.dataTransfer.setData("application/json", JSON.stringify({type:"employees", emp_codes:group}));
+    return;
+  }
   event.dataTransfer.setData("application/json", JSON.stringify({type:"employee", emp_code:empCode}));
 }
 
@@ -1024,10 +981,35 @@ async function dropOnShift(event, iso, shiftId){
   event.currentTarget.classList.remove("drag-over");
   if (!requireShiftBranch("xếp ca")) return;
   if (isCalendarDayOff(iso)) return showToast("Ngày này đang được đặt là ngày nghỉ, không thể xếp nhân viên vào ca", "error");
+  if (!requireEditableAssignmentDate(iso)) return;
   let payload = null;
   try{ payload = JSON.parse(event.dataTransfer.getData("application/json") || "{}"); }
   catch{ payload = null; }
   if (!payload?.type) return;
+
+  if (payload.type === "employees"){
+    const codes = Array.isArray(payload.emp_codes) ? payload.emp_codes.filter(Boolean) : [];
+    if (!codes.length) return;
+    const res = await authFetch("/api/shifts/assignments/multi", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({emp_codes:codes, shift_id:shiftId, work_date:iso})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok){
+      return showToast(formatErrorDetail(data.detail) || "Không xếp được nhóm nhân viên", "error");
+    }
+    await loadCalendar();
+    await loadTodayAssignments();
+    if (data.errors?.length && !data.assigned){
+      showToast(`Không xếp được nhóm: ${data.errors[0].message || "dữ liệu chưa hợp lệ"}`, "error");
+    }else if (data.errors?.length){
+      showToast(`Đã xếp ${data.assigned || 0} nhân viên, lỗi ${data.errors.length}`, "error");
+    }else{
+      showToast(`Đã xếp ${data.assigned || codes.length} nhân viên`, "success");
+    }
+    return;
+  }
 
   const body = payload.type === "employee"
     ? {emp_code:payload.emp_code, shift_id:shiftId, work_date:iso}
@@ -1041,11 +1023,165 @@ async function dropOnShift(event, iso, shiftId){
   });
   if (!res.ok){
     const err = await res.json().catch(() => ({}));
-    return showToast(err.detail || "Không xếp được ca", "error");
+    return showToast(formatErrorDetail(err.detail) || "Không xếp được ca", "error");
   }
   await loadCalendar();
   await loadTodayAssignments();
   showToast(payload.type === "employee" ? "Đã xếp ca" : "Đã chuyển ca", "success");
+}
+
+function currentBranchId(){
+  return window.getSelectedBranchId ? window.getSelectedBranchId() : "";
+}
+
+function branchParam(prefix = "?"){
+  const branchId = currentBranchId();
+  return branchId ? `${prefix}branch_id=${encodeURIComponent(branchId)}` : "";
+}
+
+function rangeDaysInclusive(from, to){
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  return Math.floor((end - start) / 86400000) + 1;
+}
+
+function validateExcelRange(from, to, {requireEditable = false} = {}){
+  if (!from || !to){
+    showToast("Chọn khoảng thời gian", "error");
+    return false;
+  }
+  if (to < from){
+    showToast("Ngày kết thúc phải sau ngày bắt đầu", "error");
+    return false;
+  }
+  if (rangeDaysInclusive(from, to) > 31){
+    showToast("Khoảng ngày tối đa 31 ngày", "error");
+    return false;
+  }
+  if (requireEditable && from < editableWeekStartIso()){
+    showToast("Mẫu nhập chỉ được tạo từ tuần hiện tại trở đi", "error");
+    return false;
+  }
+  return true;
+}
+
+function setExportDefaults(){
+  const from = document.getElementById("exportFrom");
+  const to = document.getElementById("exportTo");
+  const days = weekDays();
+  const defaultFrom = toLocalIso(days[0]);
+  const defaultTo = toLocalIso(days[6]);
+  if (from && !from.value) from.value = defaultFrom;
+  if (to && !to.value) to.value = defaultTo;
+  const templateFrom = document.getElementById("templateFrom");
+  const templateTo = document.getElementById("templateTo");
+  if (templateFrom && !templateFrom.value) templateFrom.value = defaultFrom < editableWeekStartIso() ? editableWeekStartIso() : defaultFrom;
+  if (templateTo && !templateTo.value) templateTo.value = defaultTo < editableWeekStartIso() ? editableWeekStartIso() : defaultTo;
+}
+
+function filenameFromDisposition(disposition, fallback){
+  const value = disposition || "";
+  const utf8 = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8) return decodeURIComponent(utf8[1]);
+  const plain = value.match(/filename="?([^";]+)"?/i);
+  return plain ? plain[1] : fallback;
+}
+
+function formatErrorDetail(detail){
+  if (!detail) return "";
+  if (typeof detail === "string") return detail;
+  if (detail.message && Array.isArray(detail.errors)){
+    const errors = detail.errors.map(item => typeof item === "string" ? item : (item.message || item.msg || JSON.stringify(item)));
+    return `${detail.message}: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "..." : ""}`;
+  }
+  if (Array.isArray(detail)) return detail.map(item => typeof item === "string" ? item : (item.message || item.msg || JSON.stringify(item))).join("; ");
+  return detail.message || JSON.stringify(detail);
+}
+
+async function downloadBlob(url, fallbackName){
+  const res = await authFetch(url);
+  if (!res.ok){
+    const err = await res.json().catch(() => ({}));
+    throw new Error(formatErrorDetail(err.detail || err.error || err) || "Không tải được file");
+  }
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filenameFromDisposition(res.headers.get("Content-Disposition"), fallbackName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 1200);
+}
+
+async function downloadAssignmentTemplate(){
+  if (!requireShiftBranch("tải mẫu Excel")) return;
+  const from = document.getElementById("templateFrom")?.value;
+  const to = document.getElementById("templateTo")?.value;
+  if (!validateExcelRange(from, to, {requireEditable:true})) return;
+  const params = new URLSearchParams({from_date:from, to_date:to});
+  const branchId = currentBranchId();
+  if (branchId) params.set("branch_id", branchId);
+  try{
+    await downloadBlob(`/api/shifts/assignments/template?${params.toString()}`, `MauNhapLichPhanCa_${from}_${to}.xlsx`);
+    showToast("Đã tải file mẫu", "success");
+  }catch(err){
+    showToast(err.message || "Không tải được mẫu", "error");
+  }
+}
+
+async function exportAssignmentsExcel(){
+  if (!requireShiftBranch("xuất Excel")) return;
+  const from = document.getElementById("exportFrom")?.value;
+  const to = document.getElementById("exportTo")?.value;
+  if (!validateExcelRange(from, to)) return;
+  const params = new URLSearchParams({from_date:from, to_date:to});
+  const branchId = currentBranchId();
+  if (branchId) params.set("branch_id", branchId);
+  try{
+    await downloadBlob(`/api/shifts/assignments/export?${params.toString()}`, `LichPhanCa_${from}_${to}.xlsx`);
+    showToast("Đã xuất lịch phân ca", "success");
+  }catch(err){
+    showToast(err.message || "Không xuất được Excel", "error");
+  }
+}
+
+function showImportResult(message, type = "", errors = []){
+  const box = document.getElementById("importResult");
+  if (!box) return;
+  const detail = errors.length ? `<ul>${errors.slice(0, 8).map(e => `<li>${esc(e)}</li>`).join("")}</ul>${errors.length > 8 ? `<div>Còn ${errors.length - 8} lỗi khác.</div>` : ""}` : "";
+  box.className = `import-result show ${type}`;
+  box.innerHTML = `<div>${esc(message)}</div>${detail}`;
+}
+
+async function importAssignmentsExcel(){
+  if (!requireShiftBranch("nhập Excel")) return;
+  const input = document.getElementById("assignmentImportFile");
+  const file = input?.files?.[0];
+  if (!file) return showToast("Chọn file Excel cần nhập", "error");
+  const form = new FormData();
+  form.append("file", file);
+  const branchId = currentBranchId();
+  if (branchId) form.append("branch_id", branchId);
+  showImportResult("Đang kiểm tra file...", "");
+  const res = await authFetch("/api/shifts/assignments/import", {
+    method:"POST",
+    body:form
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok){
+    const detail = data.detail || data;
+    const errors = Array.isArray(detail?.errors) ? detail.errors : [];
+    const message = detail?.message || formatErrorDetail(detail) || "File có lỗi, chưa nhập dữ liệu";
+    showImportResult(message, "error", errors);
+    return showToast(message, "error");
+  }
+  showImportResult(data.message || "Đã nhập lịch phân ca", "success");
+  if (input) input.value = "";
+  await loadCalendar();
+  await loadTodayAssignments();
+  showToast(data.message || "Đã nhập lịch phân ca", "success");
 }
 
 function isCalendarDayOff(iso){
@@ -1196,6 +1332,7 @@ function renderAssignedList(){
 async function saveDayAssignment(){
   if (!requireShiftBranch("lưu phân ca")) return;
   if (isCalendarDayOff(modalDate)) return showToast("Ngày này đang được đặt là ngày nghỉ, không thể lưu phân ca", "error");
+  if (!requireEditableAssignmentDate(modalDate)) return;
   const shiftId = parseInt(document.getElementById("dayShiftSelect").value);
   if (!shiftId) return showToast("Chưa có ca hoạt động", "error");
   const res = await authFetch("/api/shifts/assignments", {
@@ -1219,125 +1356,24 @@ async function saveDayAssignment(){
 
 async function deleteAssignment(id){
   if (!requireShiftBranch("xoá phân ca")) return;
+  const row = weekAssignments.find(r => Number(r.id) === Number(id));
+  const workDate = row?.work_date || modalDate;
+  if (workDate && !requireEditableAssignmentDate(workDate)) return;
   const res = await authFetch(`/api/shifts/assignments/${id}`, {method:"DELETE"});
   if (res.ok || res.status === 204){
     await loadCalendar();
     renderAssignedList();
     showToast("Đã xoá phân ca", "success");
   }else{
-    showToast("Không xoá được phân ca", "error");
+    const err = await res.json().catch(() => ({}));
+    showToast(formatErrorDetail(err.detail) || "Không xoá được phân ca", "error");
   }
-}
-
-function setDefaultRange(){
-  const start = todayIso();
-  const endDate = new Date();
-  endDate.setDate(endDate.getDate() + 6);
-  document.getElementById("bulkFrom").value = start;
-  document.getElementById("bulkTo").value = toLocalIso(endDate);
-}
-
-async function bulkAssign(){
-  if (!requireShiftBranch("phân công hàng loạt")) return;
-  const empCodes = [...selectedBulk];
-  const shiftId = parseInt(document.getElementById("bulkShiftSelect").value);
-  const from = document.getElementById("bulkFrom").value;
-  const to = document.getElementById("bulkTo").value;
-  if (!empCodes.length) return showToast("Chọn ít nhất một nhân viên", "error");
-  if (!shiftId) return showToast("Chọn ca làm", "error");
-  if (!from || !to || from > to) return showToast("Khoảng ngày không hợp lệ", "error");
-  const offDates = await getOffDatesInRange(from, to);
-  if (offDates.length) return showToast(`Khoảng chọn có ngày nghỉ (${offDates.slice(0,3).join(", ")}${offDates.length > 3 ? "..." : ""}), không lưu phân ca`, "error");
-  const res = await authFetch("/api/shifts/assignments/bulk", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      emp_codes:empCodes,
-      shift_id:shiftId,
-      from_date:from,
-      to_date:to,
-      note:document.getElementById("bulkNote").value.trim()
-    })
-  });
-  if (!res.ok){
-    const err = await res.json();
-    return showToast(err.detail || "Không phân công được", "error");
-  }
-  const data = await res.json();
-  await loadCalendar();
-  await loadTodayAssignments();
-  showToast(data.message || "Đã phân công", "success");
-}
-
-async function copyCurrentWeek(){
-  if (!requireShiftBranch("sao chép lịch tuần")) return;
-  if (!weekAssignments.length) return showToast("Tuần hiện tại chưa có phân ca để sao chép", "error");
-  if (!confirm("Sao chép toàn bộ lịch tuần hiện tại sang tuần sau?")) return;
-  let ok = 0;
-  let failed = 0;
-  for (const row of weekAssignments){
-    const nextDate = addDays(new Date(`${row.work_date}T00:00:00`), 7);
-    const nextIso = toLocalIso(nextDate);
-    if (await isOffDate(nextIso)){ failed++; continue; }
-    const res = await authFetch("/api/shifts/assignments", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        emp_code: row.emp_code,
-        shift_id: row.shift_id,
-        work_date: nextIso,
-        note: row.note || ""
-      })
-    });
-    if (res.ok) ok++; else failed++;
-  }
-  await loadCalendar();
-  showToast(failed ? `Đã sao chép ${ok} ca, lỗi ${failed} ca` : `Đã sao chép ${ok} ca sang tuần sau`, failed ? "error" : "success");
-}
-
-async function isOffDate(iso){
-  if (calendarByDate[iso]) return calendarByDate[iso].day_type === "off";
-  const [year, month] = iso.split("-").map(Number);
-  const res = await authFetch(`/api/calendar?year=${year}&month=${month}`);
-  if (!res.ok) return false;
-  const data = await res.json();
-  (data.days || []).forEach(day => calendarByDate[day.date] = day);
-  return (calendarByDate[iso] || {}).day_type === "off";
-}
-
-async function getOffDatesInRange(from, to){
-  const result = [];
-  const start = new Date(`${from}T00:00:00`);
-  const end = new Date(`${to}T00:00:00`);
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)){
-    const iso = toLocalIso(d);
-    if (await isOffDate(iso)) result.push(iso);
-  }
-  return result;
-}
-
-function openAiPlanner(){
-  if (!requireShiftBranch("dùng AI đề xuất")) return;
-  const from = document.getElementById("bulkFrom").value || todayIso();
-  const to = document.getElementById("bulkTo").value || from;
-  document.getElementById("aiFrom").value = from;
-  document.getElementById("aiTo").value = to;
-  document.getElementById("aiInstructions").value = document.getElementById("bulkNote").value || "";
-  currentAiDraft = null;
-  document.getElementById("aiApplyBtn").disabled = true;
-  document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status">Chưa có bản nháp. Bấm tạo đề xuất để bắt đầu.</div>`;
-  document.getElementById("aiPlannerModal").classList.add("open");
-}
-
-function closeAiPlanner(){
-  document.getElementById("aiPlannerModal").classList.remove("open");
 }
 
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   closeShiftModal();
   closeDayModal();
-  closeAiPlanner();
 });
 
 document.querySelectorAll(".modal-overlay").forEach(overlay => {
@@ -1345,105 +1381,8 @@ document.querySelectorAll(".modal-overlay").forEach(overlay => {
     if (e.target !== overlay) return;
     if (overlay.id === "shiftModal") closeShiftModal();
     if (overlay.id === "dayModal") closeDayModal();
-    if (overlay.id === "aiPlannerModal") closeAiPlanner();
   });
 });
-
-async function generateAiPlan(){
-  if (!requireShiftBranch("tạo đề xuất AI")) return;
-  const from = document.getElementById("aiFrom").value;
-  const to = document.getElementById("aiTo").value;
-  if (!from || !to || from > to) return showToast("Khoảng ngày không hợp lệ", "error");
-  const btn = document.getElementById("aiGenerateBtn");
-  btn.disabled = true;
-  btn.textContent = "Đang tạo...";
-  document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status">Đang tạo bản nháp phân ca...</div>`;
-  try{
-    const branchId = window.getSelectedBranchId ? window.getSelectedBranchId() : "";
-    const res = await authFetch("/api/shifts/ai-plan", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        branch_id: branchId ? Number(branchId) : null,
-        from_date: from,
-        to_date: to,
-        default_min_staff: parseInt(document.getElementById("aiMinStaff").value) || 0,
-        instructions: document.getElementById("aiInstructions").value.trim(),
-        emp_codes: [...selectedBulk],
-        use_ai: document.getElementById("aiUseOpenAI").checked
-      })
-    });
-    if (!res.ok){
-      const err = await res.json();
-      throw new Error(err.detail || "Không tạo được bản nháp");
-    }
-    currentAiDraft = await res.json();
-    renderAiDraft(currentAiDraft);
-    document.getElementById("aiApplyBtn").disabled = !currentAiDraft.assignments?.length;
-  }catch(e){
-    currentAiDraft = null;
-    document.getElementById("aiApplyBtn").disabled = true;
-    document.getElementById("aiDraftBox").innerHTML = `<div class="ai-status ai-warning">${esc(e.message)}</div>`;
-    showToast("Không tạo được bản nháp", "error");
-  }finally{
-    btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg> Tạo đề xuất`;
-  }
-}
-
-function renderAiDraft(draft){
-  const warnings = draft.warnings || [];
-  const rows = draft.assignments || [];
-  const grouped = rows.reduce((acc, r) => {
-    const key = r.work_date;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(r);
-    return acc;
-  }, {});
-  const list = Object.keys(grouped).sort().map(day => grouped[day].map(r => {
-    const emp = r.employee?.name || r.emp_code;
-    const shift = r.shift?.name || `Ca #${r.shift_id}`;
-    return `<div class="ai-draft-row">
-      <div class="ai-draft-date">${esc(day)}</div>
-      <div class="ai-draft-main">
-        <div class="ai-draft-title">${esc(emp)} · ${esc(shift)}</div>
-        <div class="ai-draft-reason">${esc(r.reason || "Đề xuất phân ca")}</div>
-      </div>
-      <div class="ai-source">${esc(r.shift?.work_start || "")}-${esc(r.shift?.work_end || "")}</div>
-    </div>`;
-  }).join("")).join("");
-  document.getElementById("aiDraftBox").innerHTML = `
-    <div class="ai-status"><strong>${esc(draft.summary || "Bản nháp phân ca")}</strong><br>Nguồn: ${esc(draft.source)} · ${rows.length} lượt đề xuất</div>
-    ${warnings.length ? `<div class="ai-status ai-warning">${warnings.map(esc).join("<br>")}</div>` : ""}
-    <div class="ai-draft-list">${list || `<div class="ai-status">Không có lượt phân ca mới cần đề xuất.</div>`}</div>
-  `;
-}
-
-async function applyAiPlan(){
-  if (!requireShiftBranch("áp dụng nháp AI")) return;
-  if (!currentAiDraft?.id) return;
-  if (!confirm("Áp dụng bản nháp này vào lịch phân ca thật?")) return;
-  const btn = document.getElementById("aiApplyBtn");
-  btn.disabled = true;
-  btn.textContent = "Đang áp dụng...";
-  try{
-    const res = await authFetch(`/api/shifts/ai-plan/${currentAiDraft.id}/apply`, {method:"POST"});
-    if (!res.ok){
-      const err = await res.json();
-      throw new Error(err.detail || "Không áp dụng được bản nháp");
-    }
-    const data = await res.json();
-    await loadCalendar();
-    await loadTodayAssignments();
-    closeAiPlanner();
-    showToast(data.message || "Đã áp dụng bản nháp", "success");
-  }catch(e){
-    showToast(e.message, "error");
-  }finally{
-    btn.disabled = false;
-    btn.textContent = "Áp dụng nháp";
-  }
-}
 </script>
 </body>
 </html>

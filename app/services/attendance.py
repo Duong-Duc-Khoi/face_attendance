@@ -423,6 +423,11 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
                   .all()
             )
         session_by_assignment = {s.shift_assignment_id: s for s in sessions}
+        shift_ids = {a.shift_id for a in assignments}
+        shifts_by_id = {
+            s.id: s
+            for s in db.query(Shift).filter(Shift.id.in_(shift_ids)).all()
+        } if shift_ids else {}
         checked_in = {
             a.id for a in assignments
             if session_by_assignment.get(a.id) and session_by_assignment[a.id].check_in_at
@@ -431,6 +436,15 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             a.id for a in assignments
             if session_by_assignment.get(a.id) and session_by_assignment[a.id].check_out_at
         }
+        checkin_due = set()
+        for assignment in assignments:
+            shift = shifts_by_id.get(assignment.shift_id)
+            if not shift:
+                checkin_due.add(assignment.id)
+                continue
+            shift_start, _shift_end, _checkin_from, _checkout_until = shift_window(assignment.work_date, shift)
+            if now >= shift_start:
+                checkin_due.add(assignment.id)
         logs = db.query(AttendanceLog).filter(AttendanceLog.timestamp >= start).all()
         logs = filter_logs_by_branch_ids(db, logs, branch_ids)
         review_q = db.query(AttendanceSession).filter(AttendanceSession.review_status == "pending_review")
@@ -450,7 +464,8 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             "scheduled_employees": unique_emp,
             "checked_in":  len(checked_in),
             "checked_out": len(checked_out),
-            "absent":      max(0, total_assigned - len(checked_in)),
+            "absent":      max(0, len(checkin_due - checked_in)),
+            "not_started": max(0, total_assigned - len(checkin_due)),
             "total_logs":  len(logs),
             "pending_attendance_reviews": pending_reviews,
             "pending_absent_reviews": pending_absent,

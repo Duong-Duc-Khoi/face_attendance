@@ -677,7 +677,7 @@ async function loadSummary(){
     const statAbsent=document.getElementById('statAbsent');
     if(statAbsent)statAbsent.textContent=d.absent||0;
     const statDate=document.getElementById('statDate');
-    if(statDate)statDate.textContent=`${d.date} · ${d.scheduled_employees||0} nhân viên`;
+    if(statDate)statDate.textContent=`${d.date} · ${d.scheduled_employees||0} nhân viên${d.not_started?` · ${d.not_started} ca chưa tới giờ`:''}`;
     const overviewToday=document.getElementById('overviewToday');
     if(overviewToday)overviewToday.textContent=`${d.date||'Hôm nay'} · Theo dõi tình trạng vào ca, ra ca và các việc cần duyệt.`;
     updateOperationsOverview();
@@ -743,13 +743,17 @@ function updateOperationsOverview(){
   const checkedIn=dashboardSummary.checked_in||0;
   const checkedOut=dashboardSummary.checked_out||0;
   const absent=dashboardSummary.absent||0;
+  const notStarted=dashboardSummary.not_started||0;
   const reviewCount=attendanceReviewCount||dashboardSummary.pending_attendance_reviews||0;
   const missingCheckout=Math.max(checkedIn-checkedOut,0);
   const lateCount=allLogs.filter(l=>l.check_type==='check_in'&&l.status&&l.status.toLowerCase().includes('muộn')).length;
   setOpsCard('opsMissingCheckout',missingCheckout,missingCheckout?'Cần nhắc nhân viên ra ca hoặc kiểm tra auto checkout.':'Không có nhân viên đang mở ca.',missingCheckout?'danger':'');
   setOpsCard('opsLate',lateCount,lateCount?'Có lượt vào ca bị đánh dấu đi muộn.':'Chưa ghi nhận lượt đi muộn hôm nay.',lateCount?'warn':'');
   setOpsCard('opsLeave',pendingLeaveCount,pendingLeaveCount?'Đơn nghỉ phép/remote đang chờ quản lý duyệt.':'Không có đơn chờ duyệt.',pendingLeaveCount?'info':'');
-  setOpsCard('opsAbsent',absent,absent?'Nhân viên chưa check-in theo dữ liệu hôm nay.':'Tất cả nhân viên đã có check-in.',absent?'danger':'');
+  const absentNote=absent
+    ? 'Có ca đã tới giờ vào nhưng chưa check-in.'
+    : (notStarted ? `Không có ca trễ vào. Còn ${notStarted} ca chưa tới giờ.` : 'Tất cả ca đã tới giờ đều có check-in.');
+  setOpsCard('opsAbsent',absent,absentNote,absent?'danger':'');
   renderWorkItems({missingCheckout,lateCount,pendingLeaveCount,absent,reviewCount});
 }
 
@@ -761,7 +765,7 @@ function renderWorkItems(data){
     {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',url:'/attendance'},
     {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',url:'/attendance'},
     {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép/remote đang chờ xử lý',count:data.pendingLeaveCount,state:'info',url:'/leave'},
-    {label:'Theo dõi chưa vào ca',note:'Lượt phân ca chưa có check-in',count:data.absent,state:'danger',url:'/attendance'}
+    {label:'Theo dõi chưa vào ca',note:'Chỉ tính lượt phân ca đã tới giờ vào',count:data.absent,state:'danger',url:'/attendance'}
   ];
   tbody.innerHTML=rows.map(r=>`
     <tr style="cursor:pointer" onclick="location.href='${r.url}'">

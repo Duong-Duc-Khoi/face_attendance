@@ -89,23 +89,3 @@ def _run_restaurant_schema_migration():
     finally:
         conn.close()
 
-
-# def _seed_sample_data():
-#     """Tạo dữ liệu mẫu nếu DB trống (chỉ chạy lần đầu)."""
-#     from app.models.employee import Employee
-#     db = get_session_factory()()
-#     try:
-#         if db.query(Employee).count() == 0:
-#             samples = [
-#                 Employee(emp_code="NV001", name="Nguyễn Văn An",
-#                          department="Kỹ thuật",   position="Lập trình viên"),
-#                 Employee(emp_code="NV002", name="Trần Thị Bình",
-#                          department="Kinh doanh",  position="Nhân viên kinh doanh"),
-#                 Employee(emp_code="NV003", name="Lê Minh Cường",
-#                          department="Kế toán",     position="Kế toán viên"),
-#             ]
-#             db.add_all(samples)
-#             db.commit()
-#             print("  ✓ Đã tạo dữ liệu nhân viên mẫu")
-#     finally:
-#         db.close()

@@ -6,7 +6,7 @@ Business logic cho ca làm việc.
 import json
 import re
 import unicodedata
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -20,6 +20,23 @@ from app.schemas.employee import normalize_job_role, normalize_job_roles, normal
 
 
 # ── Helpers ──────────────────────────────────────────────────────
+
+VIETNAM_TZ = timezone(timedelta(hours=7))
+PAST_ASSIGNMENT_LOCK_ERROR = "Không thể chỉnh lịch phân ca trước tuần hiện tại"
+
+
+def current_assignment_edit_start(today: date | None = None) -> date:
+    """Return Monday of the current Vietnam-time week."""
+    local_today = today or datetime.now(VIETNAM_TZ).date()
+    return local_today - timedelta(days=local_today.weekday())
+
+
+def ensure_assignment_editable_date(work_date: date | str) -> date:
+    if isinstance(work_date, str):
+        work_date = date.fromisoformat(work_date)
+    if work_date < current_assignment_edit_start():
+        raise ValueError(PAST_ASSIGNMENT_LOCK_ERROR)
+    return work_date
 
 def _shift_to_dict(s: Shift) -> dict:
     return {
@@ -175,12 +192,14 @@ def delete_shift(shift_id: int, db: Session) -> bool:
 # ── CRUD Phân công ca ────────────────────────────────────────────
 
 def assign_shift(emp_code: str, shift_id: int, work_date: date,
-                 assigned_by: str = "", note: str = "", db: Session = None) -> dict:
+                 assigned_by: str = "", note: str = "", db: Session = None,
+                 commit: bool = True) -> dict:
     """
     Phân công ca cho nhân viên vào ngày cụ thể.
     Nếu đã có cùng ca trong ngày → cập nhật (upsert).
     Nhà hàng có thể phân nhiều ca khác nhau cho cùng một nhân viên trong ngày.
     """
+    work_date = ensure_assignment_editable_date(work_date)
     emp = db.query(Employee).filter_by(emp_code=emp_code).first()
     shift = db.query(Shift).filter_by(id=shift_id).first()
     if not shift:
@@ -204,8 +223,11 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
         existing.assigned_by = assigned_by
         existing.note        = note
         existing.status      = "scheduled"
-        db.commit()
-        db.refresh(existing)
+        if commit:
+            db.commit()
+            db.refresh(existing)
+        else:
+            db.flush()
         a = existing
     else:
         a = ShiftAssignment(
@@ -219,12 +241,18 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
             note        = note,
         )
         db.add(a)
-        db.commit()
-        db.refresh(a)
+        if commit:
+            db.commit()
+            db.refresh(a)
+        else:
+            db.flush()
 
     _reconcile_assignment_attendance(a, shift, emp, db)
-    db.commit()
-    db.refresh(a)
+    if commit:
+        db.commit()
+        db.refresh(a)
+    else:
+        db.flush()
     return _assignment_to_dict(a, shift)
 
 
@@ -308,6 +336,8 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
     new_work_date = data.get("work_date", a.work_date)
     if isinstance(new_work_date, str):
         new_work_date = date.fromisoformat(new_work_date)
+    ensure_assignment_editable_date(a.work_date)
+    new_work_date = ensure_assignment_editable_date(new_work_date)
     shift = db.query(Shift).filter_by(id=new_shift_id).first()
     if not shift:
         raise ValueError(f"Không tìm thấy ca #{new_shift_id}")
@@ -357,6 +387,7 @@ def delete_assignment(assignment_id: int, db: Session) -> bool:
     a = db.query(ShiftAssignment).filter_by(id=assignment_id).first()
     if not a:
         return False
+    ensure_assignment_editable_date(a.work_date)
     # Giữ bản ghi để attendance_sessions còn tham chiếu được lịch sử ca.
     # Các query lịch đã lọc status != "cancelled", nên thao tác này vẫn ẩn
     # phân công khỏi UI mà không phá khóa ngoại.
