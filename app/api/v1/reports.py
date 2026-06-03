@@ -34,6 +34,7 @@ from app.services.attendance import (
     get_log_by_id, update_attendance_log,
     delete_attendance_log, create_manual_attendance_log,
 )
+from app.services.employee_branch_history import branch_for_log, filter_logs_by_branch_ids
 from app.services.attendance_audit import (
     get_audit_run,
     list_audit_findings,
@@ -70,12 +71,7 @@ def _require_manager_or_admin(current_user):
 
 
 def _employee_branch_for_log(db: Session, log: AttendanceLog) -> int | None:
-    emp = None
-    if log.employee_id:
-        emp = db.query(Employee).filter_by(id=log.employee_id).first()
-    if not emp and log.emp_code:
-        emp = db.query(Employee).filter_by(emp_code=log.emp_code).first()
-    return emp.branch_id if emp else None
+    return branch_for_log(db, log)
 
 
 def _employee_for_user(db: Session, current_user) -> Employee | None:
@@ -110,13 +106,7 @@ def _ensure_session_scope(db: Session, current_user, session: AttendanceSession)
 
 
 def _filter_logs_for_branch_ids(db: Session, logs: list[AttendanceLog], branch_ids: list[int] | None) -> list[AttendanceLog]:
-    if branch_ids is None:
-        return logs
-    scoped = []
-    for log in logs:
-        if _employee_branch_for_log(db, log) in branch_ids:
-            scoped.append(log)
-    return scoped
+    return filter_logs_by_branch_ids(db, logs, branch_ids)
 
 
 def _filter_log_dicts_for_branch_ids(logs: list[dict], branch_ids: list[int] | None) -> list[dict]:
@@ -156,7 +146,9 @@ def _employee_report_context(logs: list[AttendanceLog], db: Session) -> tuple[di
         employees = q.all()
     by_id = {e.id: e for e in employees}
     by_code = {e.emp_code: e for e in employees}
-    branch_ids = {e.branch_id for e in employees if e.branch_id}
+    branch_ids = {branch_for_log(db, log) for log in logs}
+    branch_ids.update({e.branch_id for e in employees if e.branch_id})
+    branch_ids.discard(None)
     branches = {
         b.id: b.name
         for b in db.query(Branch).filter(Branch.id.in_(list(branch_ids))).all()
@@ -173,9 +165,10 @@ def _role_label_for_log(log: AttendanceLog, emp: Employee | None) -> str:
     return JOB_ROLE_LABELS.get(role, role or log.department or "Chưa xác định")
 
 
-def _branch_label_for_log(emp: Employee | None, branches: dict[int, str]) -> str:
-    if emp and emp.branch_id:
-        return branches.get(emp.branch_id, f"Chi nhánh #{emp.branch_id}")
+def _branch_label_for_log(log: AttendanceLog, branches: dict[int, str], db: Session) -> str:
+    branch_id = branch_for_log(db, log)
+    if branch_id:
+        return branches.get(branch_id, f"Chi nhánh #{branch_id}")
     return "Chưa xác định"
 
 
@@ -219,6 +212,7 @@ def get_attendance(date: str = None, emp_code: str = None, days: int = 1,
             if emp_code and emp_code != own.emp_code:
                 raise HTTPException(status_code=403, detail="Bạn chỉ được xem chấm công của mình")
             emp_code = own.emp_code
+            branch_ids = None
     else:
         if branch_id is None:
             raise HTTPException(status_code=400, detail="Kiosk/public cần truyền branch_id")
@@ -301,7 +295,7 @@ def summary_range(from_date: str, to_date: str, branch_id: int | None = None, db
     for log in logs:
         emp = _employee_for_log(log, emp_by_id, emp_by_code)
         role = _role_label_for_log(log, emp)
-        branch = _branch_label_for_log(emp, branches)
+        branch = _branch_label_for_log(log, branches, db)
         role_stats[role] = role_stats.get(role, 0) + 1
         branch_stats[branch] = branch_stats.get(branch, 0) + 1
 
@@ -368,7 +362,7 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
 
     for i, log in enumerate(logs, 1):
         emp = _employee_for_log(log, emp_by_id, emp_by_code)
-        branch_label = _branch_label_for_log(emp, branches)
+        branch_label = _branch_label_for_log(log, branches, db)
         role_label = _role_label_for_log(log, emp)
         fill_color = "F0FFF4" if log.check_type == "check_in" else "EBF4FF"
         row_fill   = PatternFill("solid", fgColor=fill_color)
@@ -638,10 +632,6 @@ def create_attendance_audit_run(
     current_user=Depends(get_current_user),
 ):
     branch_ids = _manager_branch_ids(db, current_user, body.branch_id)
-    if body.emp_code:
-        emp = db.query(Employee).filter_by(emp_code=body.emp_code).first()
-        if emp:
-            ensure_branch_access(db, current_user, emp.branch_id)
     try:
         if body.date:
             from_date = to_date = datetime.strptime(body.date, "%Y-%m-%d").date()
@@ -692,10 +682,6 @@ def get_attendance_audit_findings(
     current_user=Depends(get_current_user),
 ):
     branch_ids = _manager_branch_ids(db, current_user, branch_id)
-    if emp_code:
-        emp = db.query(Employee).filter_by(emp_code=emp_code).first()
-        if emp:
-            ensure_branch_access(db, current_user, emp.branch_id)
     providers = list_ai_provider_settings(db)
     vision_ready = any(p.get("configured") and p.get("is_enabled") for p in providers)
     return {

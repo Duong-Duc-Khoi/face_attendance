@@ -15,7 +15,7 @@ from app.core.security import get_current_user
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest, LeaveRequestDay
 from app.models.user import User
-from app.services.branch_scope import ensure_branch_access, selected_branch_ids
+from app.services.branch_scope import BRANCH_MANAGER_STORE_ROLES, ensure_branch_access, selected_branch_ids
 from app.services.work_calendar import get_calendar_day
 from app.services.notify import (
     notify_leave_submitted,
@@ -88,6 +88,17 @@ def _ensure_leave_scope(db: Session, current_user: User, req: LeaveRequest) -> N
     if not emp:
         raise HTTPException(404, "Không tìm thấy nhân viên trong đơn")
     ensure_branch_access(db, current_user, emp.branch_id)
+
+
+def _ensure_manager_can_review(db: Session, current_user: User, req: LeaveRequest, action: str) -> None:
+    if current_user.role != "manager":
+        return
+    submitter = db.query(Employee).filter_by(emp_code=req.emp_code).first()
+    submitter_user = db.query(User).filter_by(email=req.emp_email).first()
+    is_manager_account = bool(submitter_user and submitter_user.role in ("admin", "manager"))
+    is_branch_lead = bool(submitter and submitter.store_role in BRANCH_MANAGER_STORE_ROLES)
+    if is_manager_account or is_branch_lead:
+        raise HTTPException(403, f"Cửa hàng trưởng/phó không thể {action} đơn của quản lý khác")
 
 
 # ── POST /api/leave — Gửi đơn ────────────────────────────────────
@@ -268,12 +279,7 @@ def approve_leave(req_id: int, payload: dict = {},
         raise HTTPException(400, f"Đơn đang ở trạng thái '{req.status}', không thể duyệt")
     _ensure_leave_scope(db, current_user, req)
 
-    # Manager chỉ duyệt staff; admin duyệt tất cả kể cả manager
-    if current_user.role == "manager":
-        submitter = db.query(Employee).filter_by(emp_code=req.emp_code).first()
-        submitter_user = db.query(User).filter_by(email=req.emp_email).first()
-        if submitter_user and submitter_user.role in ("admin", "manager"):
-            raise HTTPException(403, "Manager không thể duyệt đơn của admin/manager khác")
+    _ensure_manager_can_review(db, current_user, req, "duyệt")
 
     req.status      = "approved"
     req.reviewed_at = datetime.now()
@@ -303,10 +309,7 @@ def reject_leave(req_id: int, payload: dict = {},
     if req.status != "pending":
         raise HTTPException(400, f"Đơn đang ở trạng thái '{req.status}'")
     _ensure_leave_scope(db, current_user, req)
-    if current_user.role == "manager":
-        submitter_user = db.query(User).filter_by(email=req.emp_email).first()
-        if submitter_user and submitter_user.role in ("admin", "manager"):
-            raise HTTPException(403, "Manager không thể từ chối đơn của admin/manager khác")
+    _ensure_manager_can_review(db, current_user, req, "từ chối")
 
     note = payload.get("note", "").strip()
     if not note:

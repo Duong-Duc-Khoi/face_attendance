@@ -14,6 +14,7 @@ from app.models.calendar import WorkCalendar, WorkCalendarConfig
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
+from app.services.employee_branch_history import branch_for_employee_on
 from app.services.shift_service import shift_window
 
 
@@ -93,8 +94,17 @@ def get_calendar_month(year: int, month: int, db: Session, branch_id: int | None
     return result
 
 
-def _employee_branch_id(emp_code: str, db: Session) -> int | None:
+def _employee_branch_id(emp_code: str, db: Session, on_date: date | None = None) -> int | None:
     emp = db.query(Employee).filter_by(emp_code=emp_code).first()
+    if on_date:
+        historical_branch = branch_for_employee_on(
+            db,
+            employee_id=emp.id if emp else None,
+            emp_code=emp_code,
+            at=on_date,
+        )
+        if historical_branch:
+            return historical_branch
     return emp.branch_id if emp else None
 
 
@@ -169,7 +179,7 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
     total_shifts = len(assigned_shifts)
     branch_id = assigned_shifts[0][0].branch_id if assigned_shifts else None
     if branch_id is None:
-        branch_id = _employee_branch_id(emp_code, db)
+        branch_id = _employee_branch_id(emp_code, db, d)
 
     # 1. Ngày tương lai
     if d > today:
@@ -360,9 +370,9 @@ def get_employee_stats_month(emp_code: str, year: int, month: int, db: Session) 
     from calendar import monthrange
     _, days_in = monthrange(year, month)
     days = []
-    branch_id = _employee_branch_id(emp_code, db)
     for day in range(1, days_in + 1):
         d = date(year, month, day)
+        branch_id = _employee_branch_id(emp_code, db, d)
         cal = get_calendar_day(d, db, branch_id)
         st = get_day_status(emp_code, d, db)
         days.append({**cal, **st, "day": day})

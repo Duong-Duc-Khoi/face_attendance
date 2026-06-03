@@ -22,6 +22,7 @@ from app.services.shift_service import (
     find_shift_assignment_for_time,
     shift_window,
 )
+from app.services.employee_branch_history import branch_for_log, filter_logs_by_branch_ids
 from app.services.notify import notify_missing_checkout
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 
@@ -378,24 +379,6 @@ def _calc_status_for_employee_shift(emp_code: str, now: datetime, check_type: st
     return f"Đúng giờ ({shift.name})"
 
 
-# ── Query helpers ────────────────────────────────────────────────
-def _employee_scope_filter(db, q, branch_ids: list[int] | None = None):
-    if not branch_ids:
-        return q
-    employees = db.query(Employee.id, Employee.emp_code).filter(Employee.branch_id.in_(branch_ids)).all()
-    employee_ids = [row[0] for row in employees]
-    emp_codes = [row[1] for row in employees]
-    from sqlalchemy import or_
-    clauses = []
-    if employee_ids:
-        clauses.append(AttendanceLog.employee_id.in_(employee_ids))
-    if emp_codes:
-        clauses.append(AttendanceLog.emp_code.in_(emp_codes))
-    if not clauses:
-        return q.filter(AttendanceLog.id == -1)
-    return q.filter(or_(*clauses))
-
-
 def get_logs_by_date(date_str: str, emp_code: str = None, branch_ids: list[int] | None = None) -> list:
     db = SessionLocal()
     try:
@@ -408,8 +391,8 @@ def get_logs_by_date(date_str: str, emp_code: str = None, branch_ids: list[int] 
         )
         if emp_code:
             q = q.filter_by(emp_code=emp_code)
-        q = _employee_scope_filter(db, q, branch_ids)
         logs = q.order_by(AttendanceLog.timestamp.desc()).all()
+        logs = filter_logs_by_branch_ids(db, logs, branch_ids)
         return [_log_to_dict(log, _matching_event(db, log)) for log in logs]
     finally:
         db.close()
@@ -448,9 +431,8 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             a.id for a in assignments
             if session_by_assignment.get(a.id) and session_by_assignment[a.id].check_out_at
         }
-        logs_q = db.query(AttendanceLog).filter(AttendanceLog.timestamp >= start)
-        logs_q = _employee_scope_filter(db, logs_q, branch_ids)
-        logs = logs_q.all()
+        logs = db.query(AttendanceLog).filter(AttendanceLog.timestamp >= start).all()
+        logs = filter_logs_by_branch_ids(db, logs, branch_ids)
         review_q = db.query(AttendanceSession).filter(AttendanceSession.review_status == "pending_review")
         if branch_ids is not None:
             review_q = review_q.filter(AttendanceSession.branch_id.in_(branch_ids))
@@ -541,6 +523,7 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
     finding = None
     manual_review = None
     emp = None
+    branch_id = None
     branch_name = ""
     try:
         db = SessionLocal()
@@ -552,8 +535,9 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
                 emp = db.query(Employee).filter_by(id=log.employee_id).first()
             if not emp and log.emp_code:
                 emp = db.query(Employee).filter_by(emp_code=log.emp_code).first()
-            if emp and emp.branch_id:
-                branch = db.query(Branch).filter_by(id=emp.branch_id).first()
+            branch_id = branch_for_log(db, log, event)
+            if branch_id:
+                branch = db.query(Branch).filter_by(id=branch_id).first()
                 branch_name = branch.name if branch else ""
         finally:
             db.close()
@@ -607,7 +591,7 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
         "emp_code":    log.emp_code,
         "name":        log.emp_name,
         "department":  log.department,
-        "branch_id":   emp.branch_id if emp else None,
+        "branch_id":   branch_id,
         "branch_name": branch_name,
         "position":    emp.position if emp else "",
         "job_role":    _employee_job_role(emp),

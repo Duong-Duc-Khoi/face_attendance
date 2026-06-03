@@ -102,6 +102,40 @@ select.form-input option { background: var(--surface); }
 
 /* ── Confirm badge nhanh ── */
 .pending-row td { background: rgba(246,201,14,.025); }
+.assignment-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 2px;
+}
+.assignment-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: -4px 0 12px;
+}
+.profile-chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 150px;
+}
+.profile-chip strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.profile-chip span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.empty-chip {
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 720px) {
+  .assignment-panel { grid-template-columns: 1fr; }
+}
 </style>
 <script src="/static/js/auth-guard.js"></script>
 </head>
@@ -204,6 +238,7 @@ select.form-input option { background: var(--surface); }
         <thead><tr>
           <th>Tài khoản</th>
           <th>Role</th>
+          <th>Cửa hàng</th>
           <th>Trạng thái</th>
           <th>Email</th>
           <th>Ngày đăng ký</th>
@@ -211,7 +246,7 @@ select.form-input option { background: var(--surface); }
           <th style="text-align:right">Thao tác</th>
         </tr></thead>
         <tbody id="userTableBody">
-          <tr><td colspan="7" class="empty">Đang tải...</td></tr>
+          <tr><td colspan="8" class="empty">Đang tải...</td></tr>
         </tbody>
       </table>
     </div>
@@ -219,9 +254,48 @@ select.form-input option { background: var(--surface); }
 
 </div>
 
+<!-- Modal: Duyệt tài khoản -->
+<div class="modal-overlay" id="approveModal" onclick="if(event.target===this)closeApproveModal()">
+  <div class="modal" style="min-width:420px;max-width:520px">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+      Duyệt tài khoản
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px" id="approveModalDesc"></p>
+    <div class="form-group">
+      <label class="form-label">Loại tài khoản</label>
+      <select class="form-input" id="approveRoleSelect" onchange="toggleManagementFields('approve')">
+        <option value="staff">Nhân viên</option>
+        <option value="manager">Quản lý cửa hàng</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div id="approveManagementFields" style="display:none">
+      <p class="assignment-note">Tài khoản quản lý cửa hàng phải được gán vào một chi nhánh cụ thể.</p>
+      <div class="assignment-panel">
+        <div class="form-group">
+          <label class="form-label">Chi nhánh</label>
+          <select class="form-input" id="approveBranchSelect"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chức vụ</label>
+          <select class="form-input" id="approveStoreRoleSelect">
+            <option value="store_manager">Cửa hàng trưởng</option>
+            <option value="assistant_manager">Cửa hàng phó</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-outline" onclick="closeApproveModal()">Hủy</button>
+      <button class="btn btn-approve" onclick="saveApprove()">Duyệt tài khoản</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Đổi role -->
 <div class="modal-overlay" id="roleModal" onclick="if(event.target===this)closeRoleModal()">
-  <div class="modal" style="min-width:360px;max-width:400px">
+  <div class="modal" style="min-width:420px;max-width:520px">
     <div class="modal-title">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       Đổi role tài khoản
@@ -229,11 +303,27 @@ select.form-input option { background: var(--surface); }
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px" id="roleModalDesc"></p>
     <div class="form-group">
       <label class="form-label">Role mới</label>
-      <select class="form-input" id="roleSelect">
-        <option value="staff">Staff</option>
-        <option value="manager">Manager</option>
+      <select class="form-input" id="roleSelect" onchange="toggleManagementFields('role')">
+        <option value="staff">Nhân viên</option>
+        <option value="manager">Quản lý cửa hàng</option>
         <option value="admin">Admin</option>
       </select>
+    </div>
+    <div id="roleManagementFields" style="display:none">
+      <p class="assignment-note">Khi chọn quản lý cửa hàng, hệ thống sẽ cập nhật luôn hồ sơ nhân viên và phạm vi chi nhánh.</p>
+      <div class="assignment-panel">
+        <div class="form-group">
+          <label class="form-label">Chi nhánh</label>
+          <select class="form-input" id="roleBranchSelect"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chức vụ</label>
+          <select class="form-input" id="roleStoreRoleSelect">
+            <option value="store_manager">Cửa hàng trưởng</option>
+            <option value="assistant_manager">Cửa hàng phó</option>
+          </select>
+        </div>
+      </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
       <button class="btn btn-outline" onclick="closeRoleModal()">Hủy</button>
@@ -246,15 +336,28 @@ select.form-input option { background: var(--surface); }
 
 <script>
 let allUsers = [];
+let branches = [];
 let currentTab = 'pending';
+let approvingUserId = null;
 let editingRoleUserId = null;
 
 // ── Init ──────────────────────────────────────────────────────────
 (async function init() {
+  await loadBranches();
   await loadUsers();
 })();
 
 // ── Load ─────────────────────────────────────────────────────────
+async function loadBranches() {
+  try {
+    const r = await authFetch('/api/branches');
+    const d = await r.json();
+    branches = Array.isArray(d) ? d : [];
+  } catch (e) {
+    branches = [];
+  }
+}
+
 async function loadUsers() {
   try {
     const token = getToken();
@@ -263,7 +366,7 @@ async function loadUsers() {
     if (r.status === 401) { window.location = '/login'; return; }
     if (r.status === 403) {
       document.getElementById('userTableBody').innerHTML =
-        '<tr><td colspan="7" class="empty" style="color:var(--red)">Bạn không có quyền truy cập trang này</td></tr>';
+        '<tr><td colspan="8" class="empty" style="color:var(--red)">Bạn không có quyền truy cập trang này</td></tr>';
       return;
     }
     const d = await r.json();
@@ -336,7 +439,7 @@ function renderTable(list) {
 
   if (!list.length) {
     tbody.innerHTML = `
-      <tr><td colspan="7">
+      <tr><td colspan="8">
         <div class="empty-state">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block;margin:0 auto"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <p style="margin-top:10px">${currentTab === 'pending' ? 'Không có tài khoản nào đang chờ duyệt' : 'Không có tài khoản nào'}</p>
@@ -354,7 +457,8 @@ function renderTable(list) {
       ? `<span class="badge badge-rejected">🔒 Đã khóa</span>`
       : `<span class="badge badge-approved">✓ Đã duyệt</span>`;
 
-    const roleBadge = `<span class="role-badge role-${u.role}">${u.role}</span>`;
+    const roleBadge = `<span class="role-badge role-${u.role}">${roleLabel(u.role)}</span>`;
+    const branchCell = renderBranchCell(u);
 
     // Nút hành động tùy trạng thái
     let actionBtns = '';
@@ -369,7 +473,9 @@ function renderTable(list) {
     } else {
       actionBtns += `<button class="btn btn-outline" onclick="setActive(${u.id},true,'${escHtml(u.email)}')" style="padding:5px 10px" title="Mở khóa">🔓</button>`;
     }
-    actionBtns += `<button class="btn btn-outline" onclick="openRoleModal(${u.id},'${escHtml(u.full_name)}','${u.role}')" style="padding:5px 10px" title="Đổi role">⚙</button>`;
+    if (isAdminUser()) {
+      actionBtns += `<button class="btn btn-outline" onclick="openRoleModal(${u.id},'${escHtml(u.full_name)}','${u.role}')" style="padding:5px 10px" title="Đổi role">⚙</button>`;
+    }
 
     const rowClass = (u.is_email_verified && !u.is_approved && u.is_active) ? ' class="pending-row"' : '';
 
@@ -384,6 +490,7 @@ function renderTable(list) {
         </div>
       </td>
       <td>${roleBadge}</td>
+      <td>${branchCell}</td>
       <td>${statusBadge}</td>
       <td>
         ${u.is_email_verified
@@ -399,6 +506,10 @@ function renderTable(list) {
 
 // ── Approve ───────────────────────────────────────────────────────
 async function approveUser(id, email) {
+  if (isAdminUser()) {
+    openApproveModal(id);
+    return;
+  }
   if (!confirm(`Duyệt tài khoản "${email}"?\nUser sẽ nhận email thông báo và có thể đăng nhập ngay.`)) return;
   await callAction(`/api/users/${id}/approve`, 'POST', `Đã duyệt tài khoản ${email}`);
 }
@@ -427,16 +538,53 @@ async function callAction(url, method, successMsg, body) {
     if (!r.ok) throw new Error(d.detail || 'Lỗi thao tác');
     showToast(successMsg, 'success');
     await loadUsers();
+    return true;
   } catch (e) {
     showToast('Lỗi: ' + e.message, 'error');
+    return false;
   }
+}
+
+// ── Approve Modal ────────────────────────────────────────────────
+function openApproveModal(id) {
+  const user = allUsers.find(u => Number(u.id) === Number(id));
+  if (!user) return;
+  approvingUserId = id;
+  const emp = user.employee || {};
+  document.getElementById('approveModalDesc').textContent =
+    `Duyệt "${user.full_name || user.email}" và chọn quyền sử dụng hệ thống`;
+  document.getElementById('approveRoleSelect').value = user.role || 'staff';
+  fillBranchSelect('approveBranchSelect', emp.branch_id);
+  document.getElementById('approveStoreRoleSelect').value =
+    ['store_manager', 'assistant_manager'].includes(emp.store_role) ? emp.store_role : 'store_manager';
+  toggleManagementFields('approve');
+  document.getElementById('approveModal').classList.add('open');
+}
+
+function closeApproveModal() {
+  document.getElementById('approveModal').classList.remove('open');
+  approvingUserId = null;
+}
+
+async function saveApprove() {
+  if (!approvingUserId) return;
+  const payload = buildRolePayload('approve');
+  if (!payload) return;
+  const ok = await callAction(`/api/users/${approvingUserId}/approve`, 'POST', 'Đã duyệt tài khoản', payload);
+  if (ok) closeApproveModal();
 }
 
 // ── Role Modal ────────────────────────────────────────────────────
 function openRoleModal(id, name, currentRole) {
+  const user = allUsers.find(u => Number(u.id) === Number(id));
+  const emp = (user && user.employee) || {};
   editingRoleUserId = id;
   document.getElementById('roleModalDesc').textContent = `Thay đổi role cho "${name}"`;
   document.getElementById('roleSelect').value = currentRole;
+  fillBranchSelect('roleBranchSelect', emp.branch_id);
+  document.getElementById('roleStoreRoleSelect').value =
+    ['store_manager', 'assistant_manager'].includes(emp.store_role) ? emp.store_role : 'store_manager';
+  toggleManagementFields('role');
   document.getElementById('roleModal').classList.add('open');
 }
 function closeRoleModal() {
@@ -444,13 +592,72 @@ function closeRoleModal() {
   editingRoleUserId = null;
 }
 async function saveRole() {
-  const role = document.getElementById('roleSelect').value;
   if (!editingRoleUserId) return;
-  await callAction(`/api/users/${editingRoleUserId}/role`, 'PUT', `Đã cập nhật role`, { role });
-  closeRoleModal();
+  const payload = buildRolePayload('role');
+  if (!payload) return;
+  const ok = await callAction(`/api/users/${editingRoleUserId}/role`, 'PUT', `Đã cập nhật role`, payload);
+  if (ok) closeRoleModal();
 }
 
 // ── Util ──────────────────────────────────────────────────────────
+function isAdminUser() {
+  const user = window.getUser ? window.getUser() : null;
+  return user && user.role === 'admin';
+}
+
+function roleLabel(role) {
+  return ({ staff: 'Nhân viên', manager: 'Quản lý', admin: 'Admin' })[role] || role || '—';
+}
+
+function renderBranchCell(user) {
+  const emp = user.employee || {};
+  if (!emp.branch_id) {
+    return '<span class="empty-chip">Chưa gắn hồ sơ</span>';
+  }
+  const role = emp.store_role_label || 'Nhân viên';
+  const branch = emp.branch_name || ('Chi nhánh #' + emp.branch_id);
+  return `<span class="profile-chip"><strong>${escHtml(branch)}</strong><span>${escHtml(role)} · ${escHtml(emp.emp_code || '')}</span></span>`;
+}
+
+function fillBranchSelect(id, selectedValue) {
+  const select = document.getElementById(id);
+  if (!select) return;
+  const selected = String(selectedValue || '');
+  select.innerHTML =
+    '<option value="">Chọn chi nhánh</option>' +
+    branches.map(b => {
+      const value = String(b.id);
+      return `<option value="${value}"${value === selected ? ' selected' : ''}>${escHtml(b.name || ('Chi nhánh #' + b.id))}</option>`;
+    }).join('');
+}
+
+function toggleManagementFields(prefix) {
+  const roleSelectId = prefix === 'role' ? 'roleSelect' : prefix + 'RoleSelect';
+  const role = document.getElementById(roleSelectId).value;
+  const box = document.getElementById(prefix + 'ManagementFields');
+  if (box) box.style.display = role === 'manager' ? '' : 'none';
+}
+
+function buildRolePayload(prefix) {
+  const roleSelectId = prefix === 'role' ? 'roleSelect' : prefix + 'RoleSelect';
+  const role = document.getElementById(roleSelectId).value;
+  const payload = { role };
+  if (role !== 'manager') return payload;
+  const branchId = Number(document.getElementById(prefix + 'BranchSelect').value || 0);
+  const storeRole = document.getElementById(prefix + 'StoreRoleSelect').value;
+  if (!branchId) {
+    showToast('Vui lòng chọn chi nhánh quản lý', 'error');
+    return null;
+  }
+  if (!storeRole) {
+    showToast('Vui lòng chọn chức vụ quản lý', 'error');
+    return null;
+  }
+  payload.branch_id = branchId;
+  payload.store_role = storeRole;
+  return payload;
+}
+
 function escHtml(s) {
   return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }

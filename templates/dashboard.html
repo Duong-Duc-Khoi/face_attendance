@@ -597,7 +597,7 @@
 
 <script>
 let employees=[],employeeRoles=[],allLogs=[],editingId=null;
-let _isMgr=false,_isAdmin=false;
+let _isMgr=false,_isAdmin=false,_currentEmployeeId=null;
 let _atdEditId=null,_atdDelId=null;
 let _captureObjectUrl='',_activeFindingId=null,_activeManualLogId=null;
 let auditFindings=[],manualReviewLogs=[],auditVisionConfigured=false,auditProvider='',auditMode='manual',manualLowOnly=false,auditLastRunNote='',auditAiCount=0;
@@ -608,6 +608,7 @@ const ACTIVE_PAGE='{{ active_page|default("overview") }}';
 // ── Init ──
 (async function init(){
   const user=window.getUser?window.getUser():null;
+  _currentEmployeeId=user&&user.scope?Number(user.scope.employee_id||0):null;
   if(user&&(user.role==='admin'||user.role==='manager')){
     _isMgr=true;
     // Show manager UI elements
@@ -807,6 +808,24 @@ function employeeRoleCode(emp){
   return emp.job_role||emp.position||'';
 }
 
+function isStoreManagementEmployee(emp){
+  return ['store_manager','assistant_manager'].includes((emp&&emp.store_role)||'staff');
+}
+
+function isCurrentUserEmployee(emp){
+  return !!(emp&&_currentEmployeeId&&Number(emp.id)===Number(_currentEmployeeId));
+}
+
+function canChangeEmployeeStatus(emp){
+  if(_isAdmin)return true;
+  if(!_isMgr)return false;
+  return !isCurrentUserEmployee(emp)&&!isStoreManagementEmployee(emp);
+}
+
+function canSoftDeleteEmployee(emp){
+  return canChangeEmployeeStatus(emp);
+}
+
 function populateRoleFilter(){
   const sel=document.getElementById('filterRole');if(!sel)return;
   const curr=sel.value;
@@ -989,7 +1008,11 @@ function renderEmployees(list){
   if(employmentFilter)filtered=filtered.filter(e=>(e.employment_type||'full_time')===employmentFilter);
   if(statusFilter!=='')filtered=filtered.filter(e=>String(e.is_active)===statusFilter);
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="7" class="empty">Không có nhân viên nào</td></tr>';return;}
-  tbody.innerHTML=filtered.map(e=>`
+  tbody.innerHTML=filtered.map(e=>{
+    const deleteBtn=canSoftDeleteEmployee(e)
+      ? `<button class="btn btn-red" onclick="deleteEmployee(${e.id})" style="padding:5px 10px">Xóa</button>`
+      : '';
+    return `
     <tr>
       <td><div class="emp-cell">
         <div class="emp-avatar">${e.avatar_url?`<img src="${rosterSafe(e.avatar_url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${rosterSafe((e.name||'?')[0])}'">`:rosterSafe((e.name||'?')[0])}</div>
@@ -1002,9 +1025,10 @@ function renderEmployees(list){
       <td><span class="badge ${e.is_active?'badge-active':'badge-inactive'}">${e.is_active?'● Đang làm':'○ Đã nghỉ'}</span></td>
       <td style="text-align:right"><div style="display:flex;gap:6px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="openEditModal(${e.id})" style="padding:5px 10px">Sửa</button>
-        <button class="btn btn-red" onclick="deleteEmployee(${e.id})" style="padding:5px 10px">Xóa</button>
+        ${deleteBtn}
       </div></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function filterEmployees(){
@@ -1381,7 +1405,7 @@ function openEditModal(id){
   document.getElementById('mEmpEmployment').value=emp.employment_type||'full_time';
   document.getElementById('mEmpEmail').value=emp.email||'';document.getElementById('mEmpPhone').value=emp.phone||'';
   document.getElementById('mEmpActive').value=String(emp.is_active);
-  document.getElementById('modalActiveRow').style.display='';
+  document.getElementById('modalActiveRow').style.display=canChangeEmployeeStatus(emp)?'':'none';
   document.getElementById('empModal').classList.add('open');
 }
 function closeModal(){document.getElementById('empModal').classList.remove('open');}
@@ -1395,8 +1419,11 @@ async function saveEmployee(){
         employment_type:document.getElementById('mEmpEmployment').value,
         email:document.getElementById('mEmpEmail').value.trim(),
         phone:document.getElementById('mEmpPhone').value.trim(),
-        is_active:document.getElementById('mEmpActive').value==='true',
       };
+      const emp=employees.find(e=>e.id===editingId);
+      if(canChangeEmployeeStatus(emp)){
+        payload.is_active=document.getElementById('mEmpActive').value==='true';
+      }
       const r=await authFetch('/api/employees/'+editingId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!r.ok)throw new Error((await r.json()).detail||'Lỗi cập nhật');
       showToast('Đã cập nhật nhân viên','success');
@@ -1412,6 +1439,10 @@ async function saveEmployee(){
 }
 async function deleteEmployee(id){
   const emp=employees.find(e=>e.id===id);
+  if(!canSoftDeleteEmployee(emp)){
+    showToast('Chỉ admin được vô hiệu hóa hồ sơ này','error');
+    return;
+  }
   const name=emp?.name||'nhân viên này';
   if(!confirm('Vô hiệu hóa nhân viên "'+name+'"?'))return;
   try{

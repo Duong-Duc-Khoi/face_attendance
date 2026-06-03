@@ -9,7 +9,7 @@ Thay đổi:
 
 import base64
 import json
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 import re
 from typing import Optional
@@ -17,6 +17,7 @@ from typing import Optional
 import cv2
 import numpy as np
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -37,7 +38,9 @@ from app.schemas.employee import (
 from app.services.face_engine import face_engine
 from app.core.security import hash_password, get_current_user
 from app.services.auth_service import create_verify_token, send_verification_email
+from app.services.employee_branch_history import transfer_employee_to_branch
 from app.services.branch_scope import (
+    BRANCH_MANAGER_STORE_ROLES,
     default_branch_id_for_write,
     ensure_branch_access,
     require_admin,
@@ -46,6 +49,12 @@ from app.services.branch_scope import (
 )
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
+
+
+class TransferBranchRequest(BaseModel):
+    branch_id: int
+    effective_date: Optional[str] = None
+    note: Optional[str] = ""
 
 
 # ── Helper ───────────────────────────────────────────────────────
@@ -118,6 +127,46 @@ def _ensure_store_role_slot(
 
 def _require_employee_access(db: Session, current_user: User, emp: Employee) -> None:
     ensure_branch_access(db, current_user, emp.branch_id)
+
+
+def _is_store_management_employee(emp: Employee) -> bool:
+    return (emp.store_role or "staff") in BRANCH_MANAGER_STORE_ROLES
+
+
+def _is_current_user_employee(current_user: User, emp: Employee) -> bool:
+    if emp.user_id and emp.user_id == current_user.id:
+        return True
+    emp_email = (emp.email or "").strip().lower()
+    user_email = (current_user.email or "").strip().lower()
+    return bool(emp_email and user_email and emp_email == user_email)
+
+
+def _status_change_requested(emp: Employee, update_data: dict) -> bool:
+    if "status" not in update_data and "is_active" not in update_data:
+        return False
+    current_status = normalize_employee_status(emp.status, emp.is_active)
+    current_active = is_active_for_status(current_status)
+    next_status = update_data.get("status", current_status)
+    next_active = update_data.get("is_active", current_active)
+    return normalize_employee_status(next_status, next_active) != current_status or bool(next_active) != current_active
+
+
+def _ensure_manager_can_change_employee_status(current_user: User, emp: Employee, update_data: dict) -> None:
+    if current_user.role == "admin" or not _status_change_requested(emp, update_data):
+        return
+    if _is_current_user_employee(current_user, emp):
+        raise HTTPException(403, "Không thể tự thay đổi trạng thái làm việc của chính mình")
+    if _is_store_management_employee(emp):
+        raise HTTPException(403, "Chỉ admin được thay đổi trạng thái của Cửa hàng trưởng/Cửa hàng phó")
+
+
+def _ensure_manager_can_deactivate_employee(current_user: User, emp: Employee) -> None:
+    if current_user.role == "admin":
+        return
+    if _is_current_user_employee(current_user, emp):
+        raise HTTPException(403, "Không thể tự vô hiệu hóa hồ sơ nhân viên của chính mình")
+    if _is_store_management_employee(emp):
+        raise HTTPException(403, "Chỉ admin được vô hiệu hóa Cửa hàng trưởng/Cửa hàng phó")
 
 
 def _generate_employee_code(db: Session) -> str:
@@ -483,6 +532,59 @@ async def self_register(payload: dict, db: Session = Depends(get_db)):
         "message": "Đăng ký thành công! Kiểm tra email để xác minh tài khoản. Sau khi xác minh, tài khoản sẽ chờ admin/manager phê duyệt.",
         "employee": _emp_dict(emp),
     }
+
+
+@router.post("/{emp_id}/transfer-branch")
+def transfer_employee_branch(
+    emp_id: int,
+    body: TransferBranchRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_admin(current_user)
+    emp = db.query(Employee).filter_by(id=emp_id).first()
+    if not emp:
+        raise HTTPException(404, "Nhân viên không tồn tại")
+
+    target_branch = db.query(Branch).filter_by(id=body.branch_id, is_active=True).first()
+    if not target_branch:
+        raise HTTPException(404, "Chi nhánh không tồn tại hoặc đã ngừng hoạt động")
+
+    try:
+        effective_date = date.fromisoformat(body.effective_date) if body.effective_date else date.today()
+    except Exception:
+        raise HTTPException(400, "effective_date phải định dạng YYYY-MM-DD")
+    if effective_date > date.today():
+        raise HTTPException(400, "Không thể đặt ngày chuyển trong tương lai")
+
+    from_branch_id = emp.branch_id
+    if from_branch_id == target_branch.id:
+        raise HTTPException(400, "Nhân viên đã thuộc chi nhánh này")
+
+    store_role = emp.store_role or "staff"
+    if emp.is_active:
+        _ensure_store_role_slot(db, target_branch.id, store_role, emp.id)
+
+    from_branch_id, cancelled_count = transfer_employee_to_branch(
+        db,
+        emp,
+        target_branch,
+        effective_date=effective_date,
+        changed_by=current_user.email or current_user.full_name or "",
+        note=(body.note or "").strip(),
+    )
+    db.commit()
+    db.refresh(emp)
+    return {
+        "success": True,
+        "employee": _emp_dict(emp),
+        "from_branch_id": from_branch_id,
+        "to_branch_id": target_branch.id,
+        "effective_date": effective_date.isoformat(),
+        "cancelled_assignments": cancelled_count,
+    }
+
+
 @router.put("/{emp_id}")
 def update_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     emp = db.query(Employee).filter_by(id=emp_id).first()
@@ -514,16 +616,17 @@ def update_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(get
         update_data["job_roles"] = json.dumps(role_list, ensure_ascii=False)
     if "phone" in update_data:
         update_data["phone"] = _clean_phone(update_data["phone"])
-    if "branch_id" in update_data and update_data["branch_id"] is not None:
-        branch = db.query(Branch).filter_by(id=update_data["branch_id"]).first()
-        if not branch:
-            raise HTTPException(404, "Cửa hàng không tồn tại")
+    if "branch_id" in update_data:
+        if update_data["branch_id"] != emp.branch_id:
+            raise HTTPException(400, "Vui lòng dùng chức năng Chuyển cửa hàng để đổi chi nhánh")
+        update_data.pop("branch_id", None)
     next_branch_id = update_data.get("branch_id", emp.branch_id)
     next_store_role = update_data.get("store_role", emp.store_role or "staff")
     next_active = update_data.get("is_active", emp.is_active)
     if next_active:
         _ensure_store_role_slot(db, next_branch_id, next_store_role, emp.id)
     ensure_branch_access(db, current_user, next_branch_id)
+    _ensure_manager_can_change_employee_status(current_user, emp, update_data)
 
     allowed = {
         "name", "full_name", "branch_id", "department", "position", "store_role", "job_role", "job_roles",
@@ -552,6 +655,7 @@ def delete_employee(emp_id: int, hard: bool = False, db: Session = Depends(get_d
         face_engine.delete(emp.emp_code)
         db.delete(emp)
     else:
+        _ensure_manager_can_deactivate_employee(current_user, emp)
         emp.is_active = False
         emp.status = "inactive"
         emp.deactivated_at = datetime.now()

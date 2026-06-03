@@ -27,8 +27,8 @@ from app.models.attendance import (
     AttendanceEvidence,
     AttendanceLog,
 )
-from app.models.employee import Employee
 from app.services.attendance import LOW_CONFIDENCE_THRESHOLD
+from app.services.employee_branch_history import filter_logs_by_branch_ids
 from app.services.integration_settings import get_ai_provider_runtime_configs
 
 
@@ -325,25 +325,13 @@ def list_audit_findings(
         end_dt = datetime.strptime(to_date or from_date or datetime.now().strftime("%Y-%m-%d"), "%Y-%m-%d")
         start = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
         end = end_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
-        log_q = db.query(AttendanceLog.id).filter(AttendanceLog.timestamp >= start, AttendanceLog.timestamp <= end)
+        log_q = db.query(AttendanceLog).filter(AttendanceLog.timestamp >= start, AttendanceLog.timestamp <= end)
         if emp_code:
             log_q = log_q.filter(AttendanceLog.emp_code == emp_code)
         if branch_ids is not None:
-            employees = db.query(Employee.id, Employee.emp_code).filter(Employee.branch_id.in_(branch_ids)).all()
-            employee_ids = [row[0] for row in employees]
-            emp_codes = [row[1] for row in employees]
-            if not employee_ids and not emp_codes:
-                return []
-            from sqlalchemy import or_
-            clauses = []
-            if employee_ids:
-                clauses.append(AttendanceLog.employee_id.in_(employee_ids))
-            if emp_codes:
-                clauses.append(AttendanceLog.emp_code.in_(emp_codes))
-            log_q = log_q.filter(or_(*clauses))
-        log_ids = [
-            row[0] for row in log_q.all()
-        ]
+            log_ids = [log.id for log in filter_logs_by_branch_ids(db, log_q.all(), branch_ids)]
+        else:
+            log_ids = [log.id for log in log_q.all()]
         if not log_ids:
             return []
         q = q.filter(AttendanceAuditFinding.log_id.in_(log_ids))
@@ -429,24 +417,10 @@ def run_attendance_audit(
     )
     if emp_code:
         q = q.filter(AttendanceLog.emp_code == emp_code)
-    empty_scope = False
-    if branch_ids is not None:
-        employees = db.query(Employee.id, Employee.emp_code).filter(Employee.branch_id.in_(branch_ids)).all()
-        employee_ids = [row[0] for row in employees]
-        emp_codes = [row[1] for row in employees]
-        if not employee_ids and not emp_codes:
-            empty_scope = True
-        else:
-            from sqlalchemy import or_
-            clauses = []
-            if employee_ids:
-                clauses.append(AttendanceLog.employee_id.in_(employee_ids))
-            if emp_codes:
-                clauses.append(AttendanceLog.emp_code.in_(emp_codes))
-            q = q.filter(or_(*clauses))
     if run_type == "low_confidence":
         q = q.filter(AttendanceLog.confidence > 0, AttendanceLog.confidence < LOW_CONFIDENCE_THRESHOLD)
-    logs = [] if empty_scope else q.order_by(AttendanceLog.timestamp.asc()).all()
+    logs = q.order_by(AttendanceLog.timestamp.asc()).all()
+    logs = filter_logs_by_branch_ids(db, logs, branch_ids)
     ai_configs = get_ai_provider_runtime_configs(db) if use_ai else []
     ai_attempted = bool(ai_configs)
 

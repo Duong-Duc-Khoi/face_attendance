@@ -4,6 +4,7 @@ Entry point khởi động server.
 """
 
 import ctypes
+import os
 import uvicorn
 from app.core.config import settings
 
@@ -20,14 +21,16 @@ if __name__ == "__main__":
 
     print("=" * 50)
     print("  FaceAttend System — Khởi động...")
-    print(f"  Truy cập : http://{settings.HOST}:{settings.PORT}")
-    print(f"  API Docs : http://{settings.HOST}:{settings.PORT}/docs")
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "8000"))
+    print(f"  Truy cập : http://{host}:{port}")
+    print(f"  API Docs : http://{host}:{port}/docs")
     print("=" * 50)
 
     uvicorn.run(
         "app.main:app",
-        host      = settings.HOST,
-        port      = settings.PORT,
+        host      = host,
+        port      = port,
         reload    = True,
         log_level = "info",
     )

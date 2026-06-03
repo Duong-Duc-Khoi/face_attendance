@@ -67,7 +67,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 @media(max-width:700px){.ops-page{padding:16px}.ops-head{grid-template-columns:1fr}.head-actions{justify-content:flex-start}.metric-grid{grid-template-columns:1fr}.branch-toolbar,.employee-toolbar{grid-template-columns:1fr}.branch-list{grid-template-columns:1fr}}
 </style>
 </head>
-<body class="admin-shell">
+<body class="admin-shell" data-no-branch-scope>
 <header>
   <div class="brand">
     <div class="brand-icon">
@@ -136,7 +136,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
       </div>
 
       <div class="panel employee-panel">
-        <div class="panel-header"><div class="panel-title">Gán nhân viên vào cửa hàng</div></div>
+        <div class="panel-header"><div class="panel-title">Chuyển nhân viên giữa cửa hàng</div></div>
         <div class="employee-toolbar">
           <input class="input" id="employeeSearch" placeholder="Tìm nhân viên, mã NV, vai trò" oninput="renderEmployeeAssignments()">
           <select class="select" id="employeeBranchFilter" onchange="renderEmployeeAssignments()"></select>
@@ -145,7 +145,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
         <div class="assign-table-wrap">
           <table class="assign-table">
             <thead>
-              <tr><th>Nhân viên</th><th>Vai trò</th><th>Cửa hàng hiện tại</th><th>Gán cửa hàng</th><th></th></tr>
+              <tr><th>Nhân viên</th><th>Vai trò</th><th>Cửa hàng hiện tại</th><th>Chuyển đến</th><th></th></tr>
             </thead>
             <tbody id="employeeAssignBody"><tr><td colspan="5" class="empty">Đang tải dữ liệu...</td></tr></tbody>
           </table>
@@ -283,7 +283,7 @@ function renderBranches(){
         ${b.phone ? `<span class="pill">${esc(b.phone)}</span>` : ""}
       </div>
       <div class="card-actions">
-        <button class="chip-btn" onclick="selectBranch(${b.id})">Gán NV</button>
+        <button class="chip-btn" onclick="selectBranch(${b.id})">Xem NV</button>
         ${isAdmin ? `<button class="icon-btn" onclick="editBranch(${b.id})">Sửa</button>` : ""}
       </div>
     </article>
@@ -376,7 +376,7 @@ function renderEmployeeAssignments(){
     return;
   }
 
-  const branchOptions = (isAdmin ? ['<option value="">Chưa gán</option>'] : []).concat(
+  const branchOptions = ['<option value="">Chọn cửa hàng</option>'].concat(
     branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`)
   ).join("");
 
@@ -393,7 +393,7 @@ function renderEmployeeAssignments(){
           ${branchOptions}
         </select>
       </td>
-      <td style="text-align:right"><button class="icon-btn" onclick="saveEmployeeBranch(${e.id})">Lưu</button></td>
+      <td style="text-align:right"><button class="icon-btn" onclick="transferEmployeeBranch(${e.id})">Chuyển</button></td>
     </tr>
   `).join("");
   rows.forEach(e => {
@@ -402,20 +402,42 @@ function renderEmployeeAssignments(){
   });
 }
 
-async function saveEmployeeBranch(empId){
+function todayIso(){
+  const now = new Date();
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - tzOffset).toISOString().slice(0,10);
+}
+
+async function transferEmployeeBranch(empId){
+  const emp = employees.find(e => Number(e.id) === Number(empId));
+  if (!emp) return;
   const select = document.getElementById(`empBranch${empId}`);
   const branchId = select.value ? Number(select.value) : null;
-  const res = await authFetch(`/api/employees/${empId}`, {
-    method: "PUT",
+  if (!branchId) return show("Vui lòng chọn cửa hàng cần chuyển đến", "error");
+  if (Number(emp.branch_id) === Number(branchId)) return show("Nhân viên đã thuộc cửa hàng này", "error");
+  const target = branchById(branchId);
+  const ok = confirm(
+    `Chuyển "${emp.full_name || emp.name}" sang "${target ? target.name : "cửa hàng đã chọn"}"?\n\n` +
+    "Các ca tương lai ở cửa hàng cũ từ hôm nay sẽ bị hủy. Quản lý cần phân ca lại ở cửa hàng mới."
+  );
+  if (!ok) return;
+  const res = await authFetch(`/api/employees/${empId}/transfer-branch`, {
+    method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({branch_id: branchId})
+    body: JSON.stringify({
+      branch_id: branchId,
+      effective_date: todayIso(),
+      note: "Chuyển cửa hàng từ tab Cửa hàng"
+    })
   });
   if (!res.ok){
     const err = await res.json().catch(() => ({}));
-    return show(err.detail || "Không gán được cửa hàng", "error");
+    return show(err.detail || "Không chuyển được cửa hàng", "error");
   }
-  show("Đã cập nhật cửa hàng cho nhân viên", "success");
-  await loadEmployees();
+  const data = await res.json().catch(() => ({}));
+  const cancelled = Number(data.cancelled_assignments || 0);
+  show(cancelled ? `Đã chuyển cửa hàng, hủy ${cancelled} ca tương lai ở cửa hàng cũ` : "Đã chuyển cửa hàng", "success");
+  await loadAll();
 }
 </script>
 </body>

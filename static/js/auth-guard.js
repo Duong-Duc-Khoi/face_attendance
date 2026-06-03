@@ -9,7 +9,8 @@
 
 (function () {
   const LOGIN_PAGE = '/auth/login-page';
-  const MANAGER_ONLY = ['/dashboard', '/branches', '/shifts', '/report', '/users', '/settings', '/integrations'];
+  const ADMIN_ONLY = ['/branches'];
+  const MANAGER_ONLY = ['/dashboard', '/shifts', '/report', '/users', '/settings', '/integrations'];
 
   function getToken() {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
@@ -37,6 +38,7 @@
   function getSelectedBranchId() {
     const user = getUser();
     if (!user || user.role !== 'admin') return '';
+    if (document.body && document.body.hasAttribute('data-no-branch-scope')) return '';
     return localStorage.getItem('admin_branch_id') || '';
   }
 
@@ -87,12 +89,29 @@
     window.location.href = LOGIN_PAGE + '?next=' + encodeURIComponent(window.location.pathname);
   }
 
-  // Kiểm tra role — staff không được vào trang quản lý
+  // Kiểm tra role — staff không được vào trang quản lý, manager không vào trang admin-only
   let user = getUser();
   const currentPath = window.location.pathname;
-  if (user && user.role === 'staff' && MANAGER_ONLY.some(p => currentPath.startsWith(p))) {
-    window.location.href = '/me';
-    throw new Error('Redirecting staff to /me');
+
+  function isPathIn(paths) {
+    return paths.some(function (p) { return currentPath.startsWith(p); });
+  }
+
+  function enforcePathAccess(currentUser) {
+    if (!currentUser) return false;
+    if (isPathIn(ADMIN_ONLY) && currentUser.role !== 'admin') {
+      window.location.href = currentUser.role === 'staff' ? '/me' : '/dashboard';
+      return true;
+    }
+    if (currentUser.role === 'staff' && isPathIn(MANAGER_ONLY)) {
+      window.location.href = '/me';
+      return true;
+    }
+    return false;
+  }
+
+  if (enforcePathAccess(user)) {
+    throw new Error('Redirecting unauthorized role');
   }
 
   // Expose ra global
@@ -278,6 +297,7 @@
       document.body.classList.add('admin-shell');
     }
     await refreshStoredUser();
+    if (enforcePathAccess(user)) return;
 
     const sidebarHeader = document.querySelector('body.admin-shell header');
     if (sidebarHeader && !document.querySelector('[data-sidebar-toggle]')) {
@@ -310,6 +330,9 @@
     }
 
     // Ẩn link Tài khoản nếu role không phải admin
+    document.querySelectorAll('a.nav-link[href="/branches"]').forEach(function (link) {
+      if (user && user.role !== 'admin') link.style.display = 'none';
+    });
     const navUsers = document.getElementById('navUsers');
     if (navUsers && user && user.role !== 'admin') {
       navUsers.style.display = 'none';
