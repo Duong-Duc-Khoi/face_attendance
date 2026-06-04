@@ -10,7 +10,7 @@
 (function () {
   const LOGIN_PAGE = '/auth/login-page';
   const ADMIN_ONLY = ['/branches'];
-  const MANAGER_ONLY = ['/dashboard', '/shifts', '/report', '/users', '/settings', '/integrations'];
+  const MANAGER_ONLY = ['/dashboard', '/employees', '/shifts', '/report', '/users', '/settings', '/integrations'];
 
   function getToken() {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';

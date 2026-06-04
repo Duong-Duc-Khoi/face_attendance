@@ -27,6 +27,17 @@ html,body{min-height:100vh}
   flex-shrink:0;overflow:hidden;
 }
 .emp-cell{display:flex;align-items:center;gap:10px}
+.emp-face-status{
+  display:inline-flex;align-items:center;gap:5px;margin-top:4px;
+  border:1px solid rgba(90,122,154,.34);border-radius:999px;
+  padding:2px 7px;font-size:10px;font-weight:800;color:var(--muted);
+  background:rgba(8,17,31,.34);white-space:nowrap;
+}
+.emp-face-status::before{
+  content:"";width:5px;height:5px;border-radius:50%;background:currentColor;
+}
+.emp-face-status.ok{color:var(--teal);border-color:rgba(0,212,170,.34);background:rgba(0,212,170,.08)}
+.emp-face-status.missing{color:var(--yellow);border-color:rgba(246,201,14,.34);background:rgba(246,201,14,.08)}
 
 /* ── Modal ── */
 .modal-overlay{

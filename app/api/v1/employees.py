@@ -17,7 +17,7 @@ from typing import Optional
 import cv2
 import numpy as np
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -55,6 +55,10 @@ class TransferBranchRequest(BaseModel):
     branch_id: int
     effective_date: Optional[str] = None
     note: Optional[str] = ""
+
+
+class FaceUpdateRequest(BaseModel):
+    frames: list[str] = Field(default_factory=list)
 
 
 # ── Helper ───────────────────────────────────────────────────────
@@ -99,6 +103,20 @@ def _clean_phone(value: str | None) -> str:
     if len(phone) > 20:
         raise HTTPException(400, "Số điện thoại tối đa 20 ký tự")
     return phone
+
+
+def _decode_base64_frames(frames: list[str]) -> list:
+    cv_images = []
+    for b64 in frames:
+        try:
+            img_bytes = base64.b64decode(str(b64).split(",")[-1])
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is not None:
+                cv_images.append(img)
+        except Exception:
+            continue
+    return cv_images
 
 
 def _ensure_store_role_slot(
@@ -205,6 +223,7 @@ def _emp_dict(e: Employee) -> dict:
         "email":      e.email,
         "phone":      e.phone,
         "avatar_url": e.avatar_url,
+        "has_face":   e.emp_code in face_engine.embeddings,
         "status":     e.status or ("active" if e.is_active else "inactive"),
         "is_active":  e.is_active,
         "created_at": e.created_at.strftime("%d/%m/%Y") if e.created_at else "",
@@ -582,6 +601,41 @@ def transfer_employee_branch(
         "to_branch_id": target_branch.id,
         "effective_date": effective_date.isoformat(),
         "cancelled_assignments": cancelled_count,
+    }
+
+
+@router.post("/{emp_id}/face")
+def update_employee_face(
+    emp_id: int,
+    payload: FaceUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_branch_manager_or_admin(db, current_user)
+    emp = db.query(Employee).filter_by(id=emp_id).first()
+    if not emp:
+        raise HTTPException(404, "Nhân viên không tồn tại")
+    _require_employee_access(db, current_user, emp)
+    if not payload.frames:
+        raise HTTPException(400, "Không có ảnh khuôn mặt nào")
+
+    cv_images = _decode_base64_frames(payload.frames)
+    if not cv_images:
+        raise HTTPException(400, "Không có ảnh hợp lệ")
+
+    result = face_engine.register(emp.emp_code, cv_images)
+    if not result["success"]:
+        raise HTTPException(400, result["message"])
+
+    emp.face_path = f"data/faces/{emp.emp_code}"
+    emp.avatar_url = f"/data/faces/{emp.emp_code}/0.jpg"
+    emp.updated_at = datetime.now()
+    db.commit()
+    db.refresh(emp)
+    return {
+        "success": True,
+        "employee": _emp_dict(emp),
+        "message": f"Đã cập nhật khuôn mặt cho {emp.name} ({emp.emp_code})",
     }
 
 

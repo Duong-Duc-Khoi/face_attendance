@@ -203,6 +203,7 @@
     width: 100%; height: 100%;
     object-fit: cover;
     display: block;
+    transform: scaleX(-1);
   }
 
   /* Corner brackets */
@@ -1355,7 +1356,12 @@ function captureFramePayload() {
   canvas.width = Math.round(video.videoWidth * scale);
   canvas.height = Math.round(video.videoHeight * scale);
   const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.restore();
   return {
     type: 'frame',
     client_id: cameraClientId,

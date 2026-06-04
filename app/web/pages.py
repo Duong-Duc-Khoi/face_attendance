@@ -69,6 +69,11 @@ async def employees_page(request: Request):
     return _redirect_to_web("/employees")
 
 
+@router.get("/employees/{emp_id}/face")
+async def employee_face_page(emp_id: int):
+    return _redirect_to_web(f"/employees/{emp_id}/face")
+
+
 @router.get("/branches")
 async def branches_page(request: Request):
     return _redirect_to_web("/branches")
