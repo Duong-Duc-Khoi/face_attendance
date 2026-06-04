@@ -1,16 +1,18 @@
-# Kiosk Static Host
+# FaceAttend Kiosk Host
 
-Host rieng giao dien kiosk bang Node.js, con backend FastAPI chay rieng.
+Kiosk host là server Node.js nhỏ chạy ở `:5500`, dùng để mở màn hình chấm công và trang đăng ký khuôn mặt trên `localhost`. Browser camera cần `localhost` hoặc HTTPS, nên kiosk được tách khỏi backend/web host.
 
-## Chay backend
+## Cách chạy
+
+Chạy backend trước:
 
 ```powershell
 cd G:\face_attendance
-conda activate face_attendance
+.\venv\Scripts\activate
 python run.py
 ```
 
-## Chay kiosk cung may
+Chạy kiosk trên cùng máy:
 
 ```powershell
 cd G:\face_attendance
@@ -18,23 +20,25 @@ $env:KIOSK_BRANCH_ID="2"
 node kiosk\server.js
 ```
 
-Mo:
+Mở:
 
 ```text
 http://127.0.0.1:5500/
 http://127.0.0.1:5500/register
 ```
 
-Mac dinh kiosk se gui API/WebSocket ve:
+## Biến môi trường
 
-```text
-http://127.0.0.1:8000
-```
+| Biến | Mặc định | Mô tả |
+| --- | --- | --- |
+| `KIOSK_HOST` | `127.0.0.1` | Host lắng nghe của kiosk server |
+| `KIOSK_PORT` | `5500` | Cổng kiosk |
+| `BACKEND_URL` | `http://127.0.0.1:8000` | Backend API/WebSocket mà kiosk gửi frame và request |
+| `KIOSK_BRANCH_ID` | rỗng | ID cửa hàng gắn cố định với máy kiosk |
 
-`KIOSK_BRANCH_ID` la ID cua chi nhanh/cua hang gan voi may kiosk. Neu khong set,
-man hinh kiosk se bao chua cau hinh cua hang va khong cho bat camera cham cong.
+`kiosk/server.js` tự đọc `.env` ở thư mục gốc nếu biến môi trường chưa được set.
 
-## Chay kiosk tro den backend may khac
+## Chạy kiosk trỏ tới backend máy khác
 
 ```powershell
 cd G:\face_attendance
@@ -43,22 +47,29 @@ $env:KIOSK_BRANCH_ID="2"
 node kiosk\server.js
 ```
 
-Mo tren may kiosk:
+Mở trên máy kiosk:
 
 ```text
 http://127.0.0.1:5500/
 http://127.0.0.1:5500/register
 ```
 
-Trong do:
+Có thể test nhanh bằng URL:
 
-- `/` la man hinh cham cong kiosk.
-- `/register` la trang dang ky khuon mat bang camera tren may kiosk.
-- Co the mo nhanh bang URL `http://127.0.0.1:5500/?branch_id=2`, nhung khi lap may
-  thuc te nen dung `KIOSK_BRANCH_ID` de co dinh chi nhanh cho kiosk.
+```text
+http://127.0.0.1:5500/?branch_id=2
+```
 
-Luu y: camera browser chi duoc phep tren `localhost` hoac HTTPS. Vi vay may kiosk
-nen host UI local o `127.0.0.1:5500`, sau do gui frame/API ve backend qua `BACKEND_URL`.
+Khi lắp máy thật, nên dùng `KIOSK_BRANCH_ID` để khóa chi nhánh cho kiosk thay vì truyền query string.
 
-Neu doi cong/domain kiosk, cap nhat `CORS_ORIGINS` cua backend de cho phep origin
-do goi API.
+## Liên kết với backend/web host
+
+- Kiosk gửi API/WebSocket trực tiếp về `BACKEND_URL`.
+- Web host `:5600` không proxy WebSocket kiosk.
+- Nếu đổi host/cổng kiosk, thêm origin đó vào `CORS_ORIGINS` của backend, ví dụ:
+
+```env
+CORS_ORIGINS=http://127.0.0.1:5500,http://127.0.0.1:5600,http://localhost:5500,http://localhost:5600
+```
+
+Nếu `KIOSK_BRANCH_ID` chưa có, màn hình kiosk sẽ báo thiếu cấu hình cửa hàng và không cho bật camera chấm công.

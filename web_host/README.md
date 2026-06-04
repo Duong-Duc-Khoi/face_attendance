@@ -1,63 +1,64 @@
 # FaceAttend Web Host
 
-Host rieng cho giao dien quan ly/nhan vien bang FastAPI, con backend API chay
-rieng o cong khac.
+Web host là FastAPI app riêng chạy ở `:5600`. App này render các trang quản lý/nhân viên từ `templates/`, mount `static/` và proxy HTTP `/api/*`, `/auth/*`, `/data/*` về backend thật ở `:8000`.
 
-## Chay backend
+Business logic, database, auth, scheduler, camera backend và WebSocket vẫn nằm trong backend `app.main`.
+
+## Cách chạy
+
+Chạy backend trước:
 
 ```powershell
 cd G:\face_attendance
-conda activate face_attendance
+.\venv\Scripts\activate
 python run.py
 ```
 
-Mac dinh backend o:
-
-```text
-http://127.0.0.1:8000
-```
-
-## Chay web host quan ly
+Chạy web host:
 
 ```powershell
 cd G:\face_attendance
-conda activate face_attendance
+.\venv\Scripts\activate
 python run_web.py
 ```
 
-Mo:
+Mở:
 
 ```text
 http://127.0.0.1:5600/auth/login-page
 http://127.0.0.1:5600/dashboard
+http://127.0.0.1:5600/me
 ```
 
-Trang dang ky khuon mat khong nam o web host. Link `/register` se chuyen sang:
+Trang đăng ký khuôn mặt không render ở web host. Route `/register` sẽ chuyển sang kiosk:
 
 ```text
 http://127.0.0.1:5500/register
 ```
 
-Mac dinh web host se proxy API/Auth/Data ve:
+## Biến môi trường
 
-```text
-http://127.0.0.1:8000
-```
+| Biến | Mặc định | Mô tả |
+| --- | --- | --- |
+| `WEB_HOST` | `127.0.0.1` | Host lắng nghe của web host |
+| `WEB_PORT` | `5600` | Cổng web host |
+| `BACKEND_URL` | `http://127.0.0.1:8000` | Backend để proxy API/Auth/Data |
+| `KIOSK_URL` | `http://127.0.0.1:5500` | Kiosk để mở chấm công/đăng ký khuôn mặt |
 
-## Doi backend/kiosk URL
+Chạy với URL khác:
 
 ```powershell
+cd G:\face_attendance
 $env:BACKEND_URL="http://127.0.0.1:8000"
 $env:KIOSK_URL="http://127.0.0.1:5500"
 python run_web.py
 ```
 
-Trong ban tach thu nay, web host van render Jinja template hien co va proxy
-`/api/*`, `/auth/*`, `/data/*` ve backend. Cach nay giup tach port FE/BE ma
-chua can rewrite dashboard thanh static SPA.
+## Luồng proxy
 
-Web host khong proxy WebSocket. Kiosk se ket noi WebSocket truc tiep ve backend
-thong qua `BACKEND_URL`.
+- `GET /dashboard`, `/attendance`, `/employees`, `/leave`, `/roster`, `/work-calendar`, `/report`, `/users`, `/settings`, `/shifts`, `/integrations` render Jinja template.
+- `/api/*`, `/auth/*`, `/data/*` được proxy nguyên method/body/header về `BACKEND_URL`.
+- Web host không proxy WebSocket. Kiosk kết nối WebSocket trực tiếp về backend qua `BACKEND_URL`.
+- Nếu chạy web host ở origin khác, thêm origin đó vào `CORS_ORIGINS` của backend.
 
-Neu chay voi origin khac, cap nhat `CORS_ORIGINS` trong backend de cho phep
-web/kiosk host goi API.
+Backend `:8000` vẫn giữ redirect legacy cho các route trang cũ. Người dùng nên vào web quản lý qua `:5600`.

@@ -11,74 +11,68 @@
 
 FaceAttend la ung dung cham cong thoi gian thuc cho nhan vien, su dung FastAPI, PostgreSQL, OpenCV va InsightFace. He thong co kiosk nhan dien khuon mat qua webcam, quan ly nhan vien, tai khoan nguoi dung, ca lam viec, lich lam viec, don nghi phep, bao cao cham cong va audit bang chung cham cong.
 
-## Tinh nang chinh
+## Tính năng chính
 
-- Kiosk cham cong bang webcam voi luong MJPEG va WebSocket.
-- Nhan dien khuon mat bang InsightFace/ArcFace, luu embedding theo ma nhan vien.
-- Tu dong check-in/check-out, cooldown tranh cham lap, tinh di muon/ve som theo ca.
-- Quan ly nhan vien, anh khuon mat, trang thai dang lam/nghi viec.
-- Xac thuc bang email, mat khau, OTP, refresh token va phan quyen `admin`, `manager`, `staff`.
-- Duyet tai khoan moi sau khi nguoi dung xac minh email.
-- Quan ly ca lam, phan cong ca don le/hang loat, lich lam viec va ngay dac biet.
-- Lap nhap phan ca bang AI neu cau hinh OpenAI/Gemini; fallback bang thuat toan heuristic.
-- Don nghi phep/remote, duyet/tu choi/huy don va thong bao email.
-- Bao cao cham cong, thong ke theo ngay/khoang ngay, xuat Excel.
-- Bang chung anh cham cong, audit diem rui ro va luong review cho manager/admin.
-- Scheduler tu dong: bao cao ngay 18:00, auto checkout moi 15 phut, don dep bang chung qua han luc 02:30.
+- Kiosk chấm công bằng webcam, gửi frame qua WebSocket về backend.
+- Đăng ký và cập nhật ảnh khuôn mặt nhân viên từ camera kiosk.
+- Nhận diện khuôn mặt bằng InsightFace/ArcFace, lưu embedding theo mã nhân viên.
+- Tự động check-in/check-out, cooldown chống chấm lặp, tính đi muộn/về sớm theo ca.
+- Quản lý nhân viên, tài khoản, vai trò hệ thống, cửa hàng/chi nhánh và lịch sử chuyển chi nhánh.
+- Quản lý ca làm, phân ca lẻ/hàng loạt, import/export Excel, lịch vận hành và ngày đặc biệt.
+- Đơn nghỉ phép/remote, duyệt/từ chối/hủy đơn và thông báo email.
+- Báo cáo chấm công, thống kê theo ngày/khoảng ngày và xuất Excel.
+- Lưu ảnh bằng chứng chấm công, audit rủi ro và luồng review cho manager/admin.
+- AI đề xuất phân ca nếu cấu hình OpenAI/Gemini; nếu không có khóa API sẽ dùng heuristic.
+- Scheduler backend: báo cáo ngày 18:00, auto checkout mỗi 15 phút, dọn bằng chứng quá hạn lúc 02:30.
 
-## Cong nghe
+## Kiến trúc chạy local
 
-| Thanh phan | Cong nghe |
+FaceAttend đang tách 3 tiến trình:
+
+| Cổng | Thành phần | Lệnh chạy | Vai trò |
+| --- | --- | --- | --- |
+| `8000` | Backend FastAPI | `python run.py` | API/Auth/WebSocket, database, camera backend, scheduler |
+| `5600` | Web host FastAPI | `python run_web.py` | Render giao diện quản lý/nhân viên và proxy HTTP về backend |
+| `5500` | Kiosk Node.js | `node kiosk/server.js` | Host màn hình kiosk và đăng ký khuôn mặt trên `localhost` |
+
+Backend `:8000` vẫn giữ các route trang cũ dưới dạng redirect sang web/kiosk để tương thích link cũ. Giao diện quản lý nên truy cập qua `:5600`, kiosk nên truy cập qua `:5500`.
+
+## Công nghệ
+
+| Thành phần | Công nghệ |
 | --- | --- |
 | Backend | FastAPI, Uvicorn |
 | Database | PostgreSQL, SQLAlchemy 2.x |
-| AI nhan dien | InsightFace, ONNX Runtime |
-| Camera | OpenCV, MJPEG stream, WebSocket |
+| AI nhận diện | InsightFace, ONNX Runtime |
+| Camera | OpenCV, browser camera, MJPEG/WebSocket |
 | Auth | PyJWT, bcrypt, OTP qua email |
-| Frontend | Jinja2 templates, vanilla JavaScript, CSS rieng theo man hinh |
-| Bao cao | OpenPyXL |
+| Frontend | Jinja2 templates, vanilla JavaScript, CSS |
+| Web host proxy | FastAPI, HTTPX |
+| Báo cáo | OpenPyXL |
 | Scheduler | APScheduler |
-| Tich hop AI | OpenAI Responses API, Google Gemini API |
+| AI planning/audit | OpenAI, Google Gemini |
 
-## Yeu cau
+## Yêu cầu
 
 - Python 3.10+.
+- Node.js 18+ để chạy kiosk host.
 - PostgreSQL 14+.
-- Webcam USB hoac camera tich hop.
-- Windows/Linux/macOS. Tren Windows, `run.py` co toi uu timer cho MJPEG.
-- RAM khuyen nghi toi thieu 8 GB khi chay model `buffalo_l`.
+- Webcam USB hoặc camera tích hợp.
+- RAM khuyến nghị tối thiểu 8 GB khi chạy model InsightFace `buffalo_l`.
+- Trên Windows, `run.py` tối ưu timer cho luồng MJPEG/camera.
 
-## Cai dat nhanh
+## Cài đặt
 
-1. Tao va kich hoat moi truong ao:
+Tạo môi trường Python:
 
 ```powershell
+cd G:\face_attendance
 python -m venv venv
 .\venv\Scripts\activate
-```
-
-Tren Linux/macOS:
-
-```bash
-git clone https://github.com/your-username/face-attendance.git
-cd face-attendance
-
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# Linux / macOS
-source venv/bin/activate
-```
-
-### Bước 2 — Cài đặt thư viện
-
-```bash
 pip install -r requirements.txt
 ```
 
-### Bước 3 — Tạo database PostgreSQL
+Tạo database PostgreSQL:
 
 ```sql
 CREATE DATABASE face_attendance;
@@ -86,188 +80,153 @@ CREATE USER face_user WITH PASSWORD 'your_password';
 GRANT ALL PRIVILEGES ON DATABASE face_attendance TO face_user;
 ```
 
-### Bước 4 — Cấu hình môi trường
+Tạo file cấu hình:
 
-Tạo file `.env` từ mẫu:
-
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 ```
 
-Chỉnh sửa `.env`:
+Cập nhật các biến chính trong `.env`:
 
 ```env
-# Database
 DB_USER=face_user
 DB_PASSWORD=your_password
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=face_attendance
 
-# JWT
-JWT_SECRET=your-32-character-secret-key-here
+JWT_SECRET=change_this_to_a_random_32_char_string
 
-# Camera
-CAMERA_ID=0
-FACE_THRESHOLD=0.50
-MIN_FACE_SIZE=40
-COOLDOWN_MINUTES=5
+BASE_URL=http://127.0.0.1:5600
+BACKEND_URL=http://127.0.0.1:8000
+WEB_URL=http://127.0.0.1:5600
+KIOSK_URL=http://127.0.0.1:5500
+KIOSK_BRANCH_ID=2
+CORS_ORIGINS=http://127.0.0.1:5500,http://127.0.0.1:5600,http://localhost:5500,http://localhost:5600
 
-# Email (Gmail, cần bật App Password)
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-app-password
 EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your@gmail.com
+EMAIL_PASSWORD=app_password_here
+EMAIL_TO=admin@company.com
 ```
 
-### Bước 5 — Chạy ứng dụng
+`KIOSK_BRANCH_ID` là ID chi nhánh/cửa hàng gắn cố định với máy kiosk. Nếu chưa cấu hình, màn hình kiosk sẽ báo thiếu cấu hình và không cho bật camera chấm công.
+
+## Chạy ứng dụng
+
+Mở 3 terminal riêng.
 
 Backend API/Auth/WebSocket:
 
-```bash
+```powershell
+cd G:\face_attendance
+.\venv\Scripts\activate
 python run.py
 ```
 
 Web quản lý/nhân viên:
 
-```bash
+```powershell
+cd G:\face_attendance
+.\venv\Scripts\activate
 python run_web.py
 ```
 
 Kiosk chấm công và đăng ký khuôn mặt:
 
-```bash
-node kiosk/server.js
+```powershell
+cd G:\face_attendance
+$env:KIOSK_BRANCH_ID="2"
+node kiosk\server.js
 ```
-
-Backend tự động:
-- Tạo các bảng database nếu chưa có
-- Tạo thư mục `data/faces`, `data/captures`, `data/exports`
-- Load model InsightFace lần đầu (tải ~300MB nếu chưa có)
 
 Truy cập:
 
-- Backend/API docs: **http://127.0.0.1:8000/docs**
-- Web quản lý: **http://127.0.0.1:5600/dashboard**
-- Đăng nhập: **http://127.0.0.1:5600/auth/login-page**
-- Kiosk chấm công: **http://127.0.0.1:5500/**
-- Đăng ký khuôn mặt: **http://127.0.0.1:5500/register**
+- Backend/API docs: `http://127.0.0.1:8000/docs`
+- Web quản lý: `http://127.0.0.1:5600/dashboard`
+- Đăng nhập: `http://127.0.0.1:5600/auth/login-page`
+- Nhân viên tự xem lịch: `http://127.0.0.1:5600/me`
+- Kiosk chấm công: `http://127.0.0.1:5500/`
+- Đăng ký khuôn mặt: `http://127.0.0.1:5500/register`
 
-Trong mô hình tách cổng:
+Khi backend khởi động, hệ thống sẽ tạo bảng nếu chưa có, seed vai trò/ca mặc định, tạo thư mục `data/faces`, `data/captures`, `data/exports` và load model InsightFace. Lần đầu chạy model có thể tải dữ liệu về thư mục cache của InsightFace.
 
-- `:8000` chỉ là backend API/Auth/WebSocket.
-- `:5600` render web quản lý/nhân viên và proxy HTTP `/api/*`, `/auth/*`, `/data/*` về backend.
-- `:5500` host kiosk và đăng ký khuôn mặt để browser camera chạy trên `localhost`.
-- WebSocket kiosk kết nối trực tiếp về backend qua `BACKEND_URL`, không đi qua web host.
+## Cấu trúc thư mục
 
----
-
-## Cấu Trúc Thư Mục
-
-```
+```text
 face_attendance/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py            # FastAPI backend API/Auth/WebSocket
-│   ├── ws.py              # WebSocket handler, ConnectionManager
-│   ├── face_engine.py     # InsightFace singleton, register & recognize
-│   ├── camera.py          # CameraStream (3-thread: capture/MJPEG/recognition)
-│   ├── attendance.py      # Business logic check-in/out, late detection
-│   ├── database.py        # SQLAlchemy models: Employee, AttendanceLog
-│   ├── auth.py            # JWT, bcrypt, OTP, RBAC, email verification
-│   ├── notify.py          # Gmail SMTP + Telegram notifications
-│   └── routes/
-│       ├── __init__.py
-│       ├── auth.py        # POST /auth/register, login, OTP, refresh...
-│       ├── employees.py   # GET/POST/PUT/DELETE /api/employees
-│       └── reports.py     # GET /api/attendance, /api/summary, /api/reports/export
-├── templates/
-│   ├── kiosk.html         # Màn hình chấm công (public)
-│   ├── dashboard.html     # Quản lý nhân viên + lịch sử
-│   ├── register.html      # Đăng ký khuôn mặt nhân viên
-│   ├── reports.html       # Báo cáo & xuất Excel
-│   ├── login.html         # Đăng nhập (email + OTP 2 bước)
-│   └── user_register.html # Tạo tài khoản quản lý
+│   ├── main.py              # FastAPI backend API/Auth/WebSocket
+│   ├── api/v1/              # Routers API: auth, employees, reports, shifts, leave...
+│   ├── core/                # Config, database, security, lifespan
+│   ├── models/              # SQLAlchemy models
+│   ├── schemas/             # Pydantic schemas và normalize helpers
+│   ├── services/            # Business logic: attendance, face, camera, shift, notify...
+│   └── web/                 # Legacy page redirects từ backend sang web/kiosk host
+├── templates/               # Jinja pages dùng bởi web host và kiosk host
+│   └── dashboard_tabs/      # Các tab con của dashboard
 ├── static/
-│   ├── css/
-│   │   ├── base.css        # CSS variables, reset, grid background
-│   │   ├── nav.css         # Header, brand, navigation
-│   │   ├── components.css  # Panel, table, badge, button, toast, spinner
-│   │   ├── auth.css        # Layout auth, card, form fields
-│   │   ├── dashboard.css   # Stats, modal, employee cell
-│   │   ├── reports.css     # Charts, filter row, quick buttons
-│   │   ├── login.css       # Step tabs, OTP input boxes
-│   │   └── user_register.css # Password strength, success screen
-│   ├── js/
-│   │   └── toast.js        # showToast() dùng chung
-│   └── sounds/             # Âm thanh thông báo chấm công
-├── data/
-│   ├── embeddings.pkl      # Face embeddings (tự động tạo khi đăng ký)
-│   ├── faces/              # Ảnh đăng ký theo {emp_code}/
-│   ├── captures/           # Ảnh chụp lúc chấm công (bằng chứng)
-│   └── exports/            # File Excel xuất ra
-├── .env                    # Cấu hình (không commit)
-├── .env.example            # Mẫu cấu hình
+│   ├── css/                 # CSS theo layout/màn hình
+│   └── js/                  # auth guard, toast
+├── kiosk/
+│   ├── server.js            # Node static host kiosk ở :5500
+│   └── README.md
+├── web_host/
+│   ├── server.py            # FastAPI web host ở :5600
+│   └── README.md
+├── data/                    # Runtime data, không commit
+│   ├── embeddings.pkl
+│   ├── faces/
+│   ├── captures/
+│   └── exports/
+├── .env.example
 ├── requirements.txt
-├── run.py                  # Entry point backend API (:8000)
-├── run_web.py              # Entry point web quản lý (:5600)
-├── kiosk/                  # Node static host kiosk + đăng ký khuôn mặt (:5500)
-├── web_host/               # FastAPI host riêng cho giao diện quản lý
+├── run.py
+├── run_web.py
 └── Readme.md
 ```
 
----
+## API chính
 
-## API
+Swagger UI đầy đủ ở `http://127.0.0.1:8000/docs`.
 
-Swagger UI đầy đủ tại **http://localhost:8000/docs**
+| Nhóm | Endpoint chính |
+| --- | --- |
+| Auth | `/auth/register`, `/auth/login`, `/auth/login/verify-otp`, `/auth/refresh`, `/auth/me` |
+| Người dùng | `/api/users`, `/api/users/pending`, `/api/users/{id}/approve` |
+| Nhân viên | `/api/employees`, `/api/employees/{id}`, `/api/employees/{id}/face` |
+| Cửa hàng | `/api/branches`, `/api/branches/public` |
+| Ca làm | `/api/shifts`, `/api/shifts/assignments`, `/api/shifts/assignments/import` |
+| Lịch vận hành | `/api/calendar`, `/api/calendar/config` |
+| Nghỉ phép | `/api/leave`, `/api/leave/pending-count` |
+| Báo cáo | `/api/attendance`, `/api/summary`, `/api/reports/export` |
+| Camera | `/video_feed`, `/api/camera/start`, `/api/camera/stop`, `/api/camera/status` |
+| Realtime | `/ws/attendance`, `/ws/kiosk` |
+| Cấu hình | `/api/health`, `/api/config`, `/api/integrations/ai-keys` |
 
-**Auth**
+## Biến môi trường quan trọng
 
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| `POST` | `/auth/register` | Tạo tài khoản mới |
-| `GET` | `/auth/verify-email` | Xác minh email qua link |
-| `POST` | `/auth/login` | Gửi OTP đến email |
-| `POST` | `/auth/login/verify-otp` | Xác nhận OTP → trả JWT |
-| `POST` | `/auth/refresh` | Lấy access token mới |
-| `POST` | `/auth/logout` | Thu hồi refresh token |
-| `GET` | `/auth/me` | Thông tin user hiện tại |
+| Biến | Mô tả |
+| --- | --- |
+| `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` | Kết nối PostgreSQL |
+| `JWT_SECRET`, `ACCESS_TOKEN_EXP`, `REFRESH_TOKEN_EXP`, `OTP_EXP_MINUTES` | Xác thực và phiên đăng nhập |
+| `BASE_URL` | URL web dùng trong email xác minh/khôi phục mật khẩu |
+| `BACKEND_URL` | Backend thật để web host/kiosk proxy hoặc gọi API |
+| `WEB_URL` | URL web host dùng cho redirect legacy từ backend |
+| `KIOSK_URL` | URL kiosk dùng cho link đăng ký và redirect |
+| `KIOSK_BRANCH_ID` | ID cửa hàng gắn với máy kiosk |
+| `CORS_ORIGINS` | Origin web/kiosk được phép gọi backend |
+| `CAMERA_ID` | Camera backend mặc định cho mode legacy |
+| `FACE_THRESHOLD`, `MIN_FACE_SIZE` | Ngưỡng nhận diện và kích thước mặt tối thiểu |
+| `PRESENTATION_GUARD_*` | Cấu hình chống giả mạo/bằng chứng review |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY` | Tùy chọn để bật AI phân ca/audit |
+| `EMAIL_*` | SMTP gửi OTP, xác minh email và thông báo |
 
-**Nhân viên**
+## Lưu ý vận hành
 
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| `GET` | `/api/employees` | Danh sách nhân viên |
-| `POST` | `/api/employees` | Tạo mới + đăng ký khuôn mặt (multipart) |
-| `PUT` | `/api/employees/{id}` | Cập nhật thông tin |
-| `DELETE` | `/api/employees/{id}` | Vô hiệu hóa (soft delete) |
-
-**Chấm công & Báo cáo**
-
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| `GET` | `/api/attendance` | Lịch sử chấm công (query: `date`, `days`) |
-| `GET` | `/api/summary` | Thống kê hôm nay |
-| `GET` | `/api/summary/range` | Thống kê theo khoảng thời gian |
-| `GET` | `/api/reports/export` | Xuất Excel (query: `from_date`, `to_date`) |
-
-**Camera**
-
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| `GET` | `/video_feed` | MJPEG stream |
-| `WS` | `/ws/attendance` | WebSocket nhận diện realtime |
-| `POST` | `/api/camera/start` | Bật camera |
-| `POST` | `/api/camera/stop` | Tắt camera |
-| `GET` | `/api/camera/status` | Trạng thái camera |
-
----
-
-## Lưu Ý Vận Hành
-
-- **Camera lần đầu:** Model InsightFace `buffalo_l` (~300MB) sẽ tự tải về `~/.insightface/` lần đầu chạy
-- **GPU:** Nếu có CUDA, hệ thống tự dùng GPU; nếu không, fallback sang CPU (chậm hơn ~3x)
-- **Ánh sáng:** Đặt camera ở vị trí đủ sáng, ngang tầm mặt để đạt độ chính xác tối đa
-- **Ngưỡng nhận diện:** `FACE_THRESHOLD=0.50` — tăng lên nếu nhận nhầm người, giảm xuống nếu không nhận ra
-- **Kích thước mặt tối thiểu:** `MIN_FACE_SIZE=40` — bỏ qua khuôn mặt quá nhỏ trong khung hình
-- **Gmail OTP:** Cần bật [App Password](https://myaccount.google.com/apppasswords) trong tài khoản Google (không dùng mật khẩu thường)
+- Browser chỉ cho phép camera trên `localhost` hoặc HTTPS, nên kiosk nên host local ở `127.0.0.1:5500`.
+- Nếu chạy web/kiosk ở domain hoặc cổng khác, cập nhật `CORS_ORIGINS` ở backend.
+- Nếu nhận diện nhầm, tăng `FACE_THRESHOLD`; nếu khó nhận ra, giảm nhẹ và kiểm tra ánh sáng/camera.
+- Dữ liệu người dùng nằm trong `data/` và `.env`; các file này đã được ignore, không nên commit.
+- Không cài đồng thời `opencv-python` và `opencv-python-headless`.
