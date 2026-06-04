@@ -74,7 +74,7 @@
         </button>
         <button class="btn btn-outline" id="btnExport" onclick="exportExcel()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Xuất Excel
+          Xuất bảng công
         </button>
       </div>
     </div>
@@ -126,45 +126,32 @@
     </div>
   </div>
 
-  <!-- Employee stats section -->
+  <!-- Exceptions section -->
   <div class="panel" style="margin-top:16px">
     <div class="panel-header">
-      <div class="panel-header-left"><span class="dot"></span> Thống kê nhân viên theo năm</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="statsEmpSelect" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none;min-width:160px">
-          <option value="">— Chọn nhân viên —</option>
-        </select>
-        <input type="number" id="statsYear" value="2026" min="2020" max="2030"
-          style="width:70px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-size:11px;outline:none">
-        <button onclick="loadEmpStats()" style="padding:5px 13px;border-radius:6px;background:var(--teal);color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:none">Xem</button>
+      <div class="panel-header-left"><span class="dot"></span> Theo dõi nghỉ, vắng & quên checkout</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button class="quick-btn active" id="exFilterAll" onclick="setExceptionFilter('all')">Tất cả</button>
+        <button class="quick-btn" id="exFilterLeave" onclick="setExceptionFilter('leave')">Nghỉ</button>
+        <button class="quick-btn" id="exFilterAbsent" onclick="setExceptionFilter('absent')">Vắng</button>
+        <button class="quick-btn" id="exFilterMissing" onclick="setExceptionFilter('missing_checkout')">Quên checkout</button>
       </div>
     </div>
-    <div id="empStatsPanel" style="padding:16px;display:none">
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px">
-        <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--teal)" id="esPresent">—</div>
-          <div style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px">Có mặt</div>
-        </div>
-        <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--blue)" id="esRemote">—</div>
-          <div style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px">Remote</div>
-        </div>
-        <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:#f6c90e" id="esLeave">—</div>
-          <div style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px">Nghỉ phép</div>
-        </div>
-        <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--red)" id="esAbsent">—</div>
-          <div style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px">Vắng KP</div>
-        </div>
-        <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:#a78bfa" id="esLate">—</div>
-          <div style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px">Đi muộn</div>
-        </div>
+    <div style="padding:16px">
+      <div class="stats-row" style="margin-bottom:14px">
+        <div class="stat-card"><div class="stat-label">Nghỉ</div><div class="stat-value yellow" id="exLeave">0</div></div>
+        <div class="stat-card"><div class="stat-label">Vắng</div><div class="stat-value" style="color:var(--red)" id="exAbsent">0</div></div>
+        <div class="stat-card"><div class="stat-label">Quên checkout</div><div class="stat-value blue" id="exMissing">0</div></div>
       </div>
-    </div>
-    <div id="empStatsEmpty" style="padding:28px;text-align:center;color:var(--muted);font-size:12px">
-      Chọn nhân viên và năm để xem thống kê
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Loại</th><th>Ngày</th><th>Nhân viên</th><th>Chi nhánh</th>
+            <th>Ca</th><th>Trạng thái</th><th>Chi tiết</th><th>Ghi chú</th>
+          </tr></thead>
+          <tbody id="exceptionBody"><tr><td colspan="8" class="empty">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -172,7 +159,7 @@
 <div id="toast"></div>
 
 <script>
-let chartDate=null,chartDept=null;
+let chartDate=null,chartDept=null,exceptionItems=[],exceptionFilter='all';
 
 // ── Init dates ──
 (function(){
@@ -186,7 +173,7 @@ let chartDate=null,chartDept=null;
 function fmtDate(d){return d.toISOString().split('T')[0];}
 
 function setRange(days){
-  document.querySelectorAll('.quick-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.quick-btns .quick-btn').forEach(b=>b.classList.remove('active'));
   event.target.classList.add('active');
   const to=new Date();
   const from=new Date(to);
@@ -202,12 +189,14 @@ async function loadReport(){
   if(!from||!to){showToast('Vui lòng chọn khoảng thời gian','error');return;}
   document.getElementById('reportBody').innerHTML='<tr><td colspan="8" class="empty"><div class="spinner" style="margin:0 auto"></div></td></tr>';
   try{
-    const [summRes,logRes]=await Promise.all([
+    const [summRes,logRes,exRes]=await Promise.all([
       authFetch('/api/summary/range?from_date='+from+'&to_date='+to),
-      authFetch('/api/attendance?date='+from+'&days='+daysBetween(from,to))
+      authFetch('/api/attendance?date='+from+'&days='+daysBetween(from,to)),
+      authFetch('/api/reports/attendance-exceptions?from_date='+from+'&to_date='+to)
     ]);
     const summ=await summRes.json();
     const logs=await logRes.json();
+    const exceptions=await exRes.json();
 
     // Summary cards
     document.getElementById('rTotalLogs').textContent=summ.total_logs||0;
@@ -220,6 +209,9 @@ async function loadReport(){
     // Charts
     renderDateChart(summ.by_date||[]);
     renderDeptChart(summ.by_dept||[]);
+    renderExceptionSummary(exceptions.summary||{});
+    exceptionItems=exceptions.items||[];
+    renderExceptions();
 
     // Table
     const allLogs=logs.logs||[];
@@ -306,7 +298,7 @@ async function exportExcel(){
   const to=document.getElementById('toDate').value;
   if(!from||!to){showToast('Vui lòng chọn khoảng thời gian','error');return;}
   const btn=document.getElementById('btnExport');
-  btn.innerHTML='<div class="spinner"></div> Đang xuất...';btn.disabled=true;
+  btn.innerHTML='<div class="spinner"></div> Đang xuất bảng công...';btn.disabled=true;
   try{
     const url='/api/reports/export?from_date='+from+'&to_date='+to;
     const res=await authFetch(url);
@@ -322,51 +314,64 @@ async function exportExcel(){
     }
     const blob=await res.blob();
     const downloadUrl=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=downloadUrl;a.download='BaoCaoChamCong.xlsx';
+    const a=document.createElement('a');a.href=downloadUrl;a.download=`BangCong_${from}_${to}.xlsx`;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(downloadUrl),1000);
-    showToast('Đã tải xuống file Excel','success');
-  }catch(e){showToast('Lỗi xuất Excel: '+e.message,'error');}
+    showToast('Đã tải xuống bảng công','success');
+  }catch(e){showToast('Lỗi xuất bảng công: '+e.message,'error');}
   finally{
-    setTimeout(()=>{btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Xuất Excel';btn.disabled=false;},1500);
+    setTimeout(()=>{btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Xuất bảng công';btn.disabled=false;},1500);
   }
 }
 
-// ── Employee stats ──
-async function loadEmpCodeList() {
-  try {
-    const r = await authFetch('/api/employees');
-    const emps = await r.json();
-    const sel = document.getElementById('statsEmpSelect');
-    emps.forEach(e => {
-      const o = document.createElement('option');
-      o.value = e.emp_code;
-      o.textContent = `${e.name} (${e.emp_code})`;
-      sel.appendChild(o);
-    });
-  } catch {}
+function safeText(value){
+  return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-async function loadEmpStats() {
-  const code = document.getElementById('statsEmpSelect').value;
-  const year = document.getElementById('statsYear').value;
-  if (!code) { showToast('Chọn nhân viên', 'error'); return; }
-  try {
-    const r = await authFetch(`/api/reports/employee/${code}/stats?year=${year}`);
-    const d = await r.json();
-    document.getElementById('esPresent').textContent = d.present_days ?? '0';
-    document.getElementById('esRemote').textContent  = d.remote_days  ?? '0';
-    document.getElementById('esLeave').textContent   = d.approved_leave ?? '0';
-    document.getElementById('esAbsent').textContent  = d.absent_days  ?? '0';
-    document.getElementById('esLate').textContent    = d.late_days    ?? '0';
-    document.getElementById('empStatsPanel').style.display = '';
-    document.getElementById('empStatsEmpty').style.display = 'none';
-  } catch(e) { showToast('Lỗi tải thống kê', 'error'); }
+function exceptionTypeLabel(type){
+  return {leave:'Nghỉ',absent:'Vắng',missing_checkout:'Quên checkout'}[type]||type||'—';
 }
 
-// Set default year
-document.getElementById('statsYear').value = new Date().getFullYear();
-loadEmpCodeList();
+function exceptionBadge(type){
+  const cls=type==='missing_checkout'?'badge-out':'badge-late';
+  return `<span class="badge ${cls}">${safeText(exceptionTypeLabel(type))}</span>`;
+}
+
+function renderExceptionSummary(summary){
+  document.getElementById('exLeave').textContent=summary.leave||0;
+  document.getElementById('exAbsent').textContent=summary.absent||0;
+  document.getElementById('exMissing').textContent=summary.missing_checkout||0;
+}
+
+function setExceptionFilter(type){
+  exceptionFilter=type;
+  const ids={all:'exFilterAll',leave:'exFilterLeave',absent:'exFilterAbsent',missing_checkout:'exFilterMissing'};
+  Object.values(ids).forEach(id=>document.getElementById(id)?.classList.remove('active'));
+  document.getElementById(ids[type]||ids.all)?.classList.add('active');
+  renderExceptions();
+}
+
+function renderExceptions(){
+  const body=document.getElementById('exceptionBody');
+  if(!body)return;
+  const rows=exceptionFilter==='all'?exceptionItems:exceptionItems.filter(item=>item.type===exceptionFilter);
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="8" class="empty">Không có nhân viên nghỉ, vắng hoặc quên checkout trong khoảng này</td></tr>';
+    return;
+  }
+  body.innerHTML=rows.map(item=>`
+    <tr>
+      <td>${exceptionBadge(item.type)}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${safeText(item.date||'—')}</td>
+      <td><b>${safeText(item.emp_name||'—')}</b><br><span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${safeText(item.emp_code||'')}</span></td>
+      <td>${safeText(item.branch||'—')}</td>
+      <td>${safeText(item.shift_name||'—')}</td>
+      <td>${safeText(item.status||'—')}</td>
+      <td>${safeText(item.detail||'—')}</td>
+      <td>${safeText(item.note||'')}</td>
+    </tr>
+  `).join('');
+}
 
 </script>
 <script src="/static/js/toast.js"></script>

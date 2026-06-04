@@ -27,8 +27,10 @@ from app.models.attendance import (
 )
 from app.models.branch import Branch
 from app.models.employee import Employee
+from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
+from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
     get_log_by_id, update_attendance_log,
@@ -170,6 +172,159 @@ def _branch_label_for_log(log: AttendanceLog, branches: dict[int, str], db: Sess
     if branch_id:
         return branches.get(branch_id, f"Chi nhánh #{branch_id}")
     return "Chưa xác định"
+
+
+def _parse_export_range(from_date: str, to_date: str) -> tuple[datetime, datetime]:
+    try:
+        start = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+        end = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ngày không hợp lệ")
+    if end < start:
+        raise HTTPException(status_code=400, detail="Ngày kết thúc phải sau ngày bắt đầu")
+    return start, end
+
+
+def _hours(minutes: int | None) -> float:
+    return round(max(0, int(minutes or 0)) / 60, 2)
+
+
+def _dt_text(value: datetime | None) -> str:
+    return value.strftime("%H:%M %d/%m/%Y") if value else ""
+
+
+def _employment_label(value: str | None) -> str:
+    return {
+        "full_time": "Full-time",
+        "part_time": "Part-time",
+        "casual": "Thời vụ",
+    }.get(value or "full_time", "Full-time")
+
+
+def _review_label(value: str | None) -> str:
+    return {
+        "none": "Không cần duyệt",
+        "pending_review": "Chờ duyệt",
+        "approved": "Đã duyệt",
+        "rejected": "Từ chối",
+    }.get(value or "none", value or "Không cần duyệt")
+
+
+def _session_status_label(session: AttendanceSession | None) -> str:
+    if not session:
+        return "Chưa có chấm công"
+    return {
+        "open": "Đang mở",
+        "completed": "Hoàn tất",
+        "missing_checkout": "Quên checkout",
+        "absent": "Vắng",
+        "cancelled": "Đã hủy",
+    }.get(session.status or "", session.status or "Chưa xác định")
+
+
+def _session_counts_as_work(session: AttendanceSession | None) -> bool:
+    if not session:
+        return False
+    if session.review_status in ("pending_review", "rejected"):
+        return False
+    if session.status in ("absent", "cancelled", "missing_checkout"):
+        return False
+    return bool(session.check_in_at and session.check_out_at)
+
+
+def _session_needs_review(session: AttendanceSession | None) -> bool:
+    return bool(session and session.review_status == "pending_review")
+
+
+def _session_ot_buckets(session: AttendanceSession | None) -> tuple[int, int]:
+    ot = int(session.overtime_minutes or 0) if session else 0
+    if not ot:
+        return 0, 0
+    if session.review_status == "pending_review":
+        return 0, ot
+    if session.review_status == "rejected":
+        return 0, 0
+    return ot, 0
+
+
+def _write_table_sheet(ws, title: str, headers: list[str], rows: list[list], widths: list[int], styles) -> None:
+    Alignment, Border, Font, PatternFill, _Side, get_column_letter = styles
+    ws.title = title
+    thin = _Side(border_style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    hdr_fill = PatternFill("solid", fgColor="1A365D")
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = hdr_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = border
+    for r_idx, row in enumerate(rows, 2):
+        for c_idx, val in enumerate(row, 1):
+            cell = ws.cell(row=r_idx, column=c_idx, value=val)
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+            cell.border = border
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+    for col, width in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+
+def _employee_context_for_assignments(assignments: list[ShiftAssignment], db: Session) -> tuple[dict[int, Employee], dict[str, Employee]]:
+    employee_ids = {a.employee_id for a in assignments if a.employee_id}
+    emp_codes = {a.emp_code for a in assignments if a.emp_code}
+    employees = []
+    if employee_ids or emp_codes:
+        q = db.query(Employee)
+        if employee_ids and emp_codes:
+            from sqlalchemy import or_
+            q = q.filter(or_(Employee.id.in_(list(employee_ids)), Employee.emp_code.in_(list(emp_codes))))
+        elif employee_ids:
+            q = q.filter(Employee.id.in_(list(employee_ids)))
+        else:
+            q = q.filter(Employee.emp_code.in_(list(emp_codes)))
+        employees = q.all()
+    return {e.id: e for e in employees}, {e.emp_code: e for e in employees}
+
+
+def _branch_labels(branch_ids: set[int | None], db: Session) -> dict[int, str]:
+    ids = {bid for bid in branch_ids if bid}
+    if not ids:
+        return {}
+    return {b.id: b.name for b in db.query(Branch).filter(Branch.id.in_(list(ids))).all()}
+
+
+def _log_linked_to_shift_session(db: Session, log: AttendanceLog) -> bool:
+    from sqlalchemy import or_
+
+    event = (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == log.employee_id,
+              AttendanceEvent.event_type == log.check_type,
+              AttendanceEvent.event_time == log.timestamp,
+          )
+          .order_by(AttendanceEvent.id.desc())
+          .first()
+    )
+    if event and event.session_id:
+        session = db.query(AttendanceSession).filter_by(id=event.session_id).first()
+        if session and session.shift_assignment_id:
+            return True
+
+    session = (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.employee_id == log.employee_id,
+              or_(
+                  AttendanceSession.check_in_at == log.timestamp,
+                  AttendanceSession.check_out_at == log.timestamp,
+              ),
+          )
+          .order_by(AttendanceSession.id.desc())
+          .first()
+    )
+    return bool(session and session.shift_assignment_id)
 
 
 def _capture_file_for_log(log: AttendanceLog) -> Path:
@@ -320,31 +475,21 @@ def summary_range(from_date: str, to_date: str, branch_id: int | None = None, db
     }
 
 
-@router.get("/reports/export")
-def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+def _build_attendance_history_workbook(logs: list[AttendanceLog], from_date: str, to_date: str, db: Session):
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import get_column_letter
     except ImportError:
-        return JSONResponse({"error": "Cài openpyxl: pip install openpyxl"}, status_code=500)
+        return None
 
-    start = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0)
-    end   = datetime.strptime(to_date,   "%Y-%m-%d").replace(hour=23, minute=59)
-    logs  = db.query(AttendanceLog).filter(
-        AttendanceLog.timestamp >= start,
-        AttendanceLog.timestamp <= end,
-    ).order_by(AttendanceLog.timestamp).all()
-    logs = _filter_logs_for_branch_ids(db, logs, branch_ids)
     emp_by_id, emp_by_code, branches = _employee_report_context(logs, db)
-
     wb = Workbook()
     ws = wb.active
-    ws.title = "Báo cáo chấm công"
+    ws.title = "Lich su cham cong"
 
     ws.merge_cells("A1:H1")
-    ws["A1"]           = f"BÁO CÁO CHẤM CÔNG  —  {from_date} đến {to_date}"
+    ws["A1"]           = f"LỊCH SỬ CHẤM CÔNG  —  {from_date} đến {to_date}"
     ws["A1"].font      = Font(bold=True, size=14)
     ws["A1"].alignment = Alignment(horizontal="center")
 
@@ -379,16 +524,396 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
 
     for col, w in enumerate([6, 10, 22, 18, 18, 8, 24, 20], 1):
         ws.column_dimensions[get_column_letter(col)].width = w
+    return wb
+
+
+@router.get("/attendance/export")
+def export_attendance_history(
+    from_date: str,
+    to_date: str,
+    emp_code: str | None = None,
+    branch_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    branch_ids = _branch_ids_for_user(db, current_user, branch_id)
+    if current_user.role == "staff":
+        own = _employee_for_user(db, current_user)
+        if not own:
+            raise HTTPException(status_code=403, detail="Tài khoản chưa được gắn với nhân viên")
+        if emp_code and emp_code != own.emp_code:
+            raise HTTPException(status_code=403, detail="Bạn chỉ được xuất chấm công của mình")
+        emp_code = own.emp_code
+        branch_ids = None
+
+    start, end = _parse_export_range(from_date, to_date)
+    q = db.query(AttendanceLog).filter(
+        AttendanceLog.timestamp >= start,
+        AttendanceLog.timestamp <= end,
+    )
+    if emp_code:
+        q = q.filter(AttendanceLog.emp_code == emp_code)
+    logs = q.order_by(AttendanceLog.timestamp).all()
+    logs = _filter_logs_for_branch_ids(db, logs, branch_ids)
+
+    wb = _build_attendance_history_workbook(logs, from_date, to_date, db)
+    if wb is None:
+        return JSONResponse({"error": "Cài openpyxl: pip install openpyxl"}, status_code=500)
 
     settings.EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = str(settings.EXPORTS_DIR / f"chamcong_{from_date}_{to_date}.xlsx")
+    suffix = f"_{emp_code}" if emp_code else ""
+    filepath = str(settings.EXPORTS_DIR / f"lichsu_chamcong_{from_date}_{to_date}{suffix}.xlsx")
     wb.save(filepath)
 
     return FileResponse(
         filepath,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=f"BaoCaoChamCong_{from_date}_{to_date}.xlsx",
+        filename=f"LichSuChamCong_{from_date}_{to_date}{suffix}.xlsx",
     )
+
+
+@router.get("/reports/export")
+def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return JSONResponse({"error": "Cài openpyxl: pip install openpyxl"}, status_code=500)
+
+    start, end = _parse_export_range(from_date, to_date)
+    assignments = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.work_date >= start.date(),
+              ShiftAssignment.work_date <= end.date(),
+              ShiftAssignment.status != "cancelled",
+          )
+          .order_by(ShiftAssignment.work_date, ShiftAssignment.emp_code, ShiftAssignment.shift_id)
+          .all()
+    )
+    if branch_ids is not None:
+        assignments = [a for a in assignments if a.branch_id in branch_ids]
+
+    assignment_ids = [a.id for a in assignments]
+    sessions = []
+    if assignment_ids:
+        sessions = (
+            db.query(AttendanceSession)
+              .filter(AttendanceSession.shift_assignment_id.in_(assignment_ids))
+              .all()
+        )
+    session_by_assignment = {s.shift_assignment_id: s for s in sessions}
+
+    shift_ids = {a.shift_id for a in assignments if a.shift_id}
+    shifts = {
+        s.id: s
+        for s in db.query(Shift).filter(Shift.id.in_(list(shift_ids))).all()
+    } if shift_ids else {}
+    emp_by_id, emp_by_code = _employee_context_for_assignments(assignments, db)
+    branch_ids_for_labels = {a.branch_id for a in assignments}
+    branch_ids_for_labels.update({s.branch_id for s in sessions if s.branch_id})
+    branches = _branch_labels(branch_ids_for_labels, db)
+
+    summary: dict[str, dict] = {}
+    detail_rows: list[list] = []
+    for idx, assignment in enumerate(assignments, 1):
+        emp = emp_by_id.get(assignment.employee_id) or emp_by_code.get(assignment.emp_code)
+        shift = shifts.get(assignment.shift_id)
+        session = session_by_assignment.get(assignment.id)
+        emp_code = assignment.emp_code
+        emp_name = (emp.name or emp.full_name) if emp else emp_code
+        role_label = _role_label_for_log(
+            AttendanceLog(emp_code=emp_code, department=(emp.position if emp else "")),
+            emp,
+        )
+        assignment_branch_id = assignment.branch_id or (session.branch_id if session else None)
+        branch_label = branches.get(assignment_branch_id, f"Chi nhánh #{assignment_branch_id}" if assignment_branch_id else "Chưa xác định")
+        employment = _employment_label(emp.employment_type if emp else None)
+        leave_approved = assignment.status == LEAVE_ASSIGNMENT_STATUS
+        paid_shift = 1 if (not leave_approved and _session_counts_as_work(session)) else 0
+        worked_minutes = int(session.worked_minutes or 0) if paid_shift and session else 0
+        ot_approved, ot_pending = _session_ot_buckets(session)
+        needs_review = _session_needs_review(session)
+        missing_checkout = bool(session and (session.status == "missing_checkout" or session.review_type == "missing_checkout"))
+        absent = bool(session and session.status == "absent")
+        rejected = bool(session and session.review_status == "rejected")
+
+        row = summary.setdefault(emp_code, {
+            "emp_code": emp_code,
+            "emp_name": emp_name,
+            "branches": set(),
+            "role": role_label,
+            "employment": employment,
+            "assigned": 0,
+            "paid_shifts": 0,
+            "worked_minutes": 0,
+            "ot_approved": 0,
+            "ot_pending": 0,
+            "late_count": 0,
+            "late_minutes": 0,
+            "early_leave_minutes": 0,
+            "absent": 0,
+            "missing_checkout": 0,
+            "pending_review": 0,
+        })
+        row["branches"].add(branch_label)
+        row["assigned"] += 1
+        row["paid_shifts"] += paid_shift
+        row["worked_minutes"] += worked_minutes
+        row["ot_approved"] += ot_approved if paid_shift else 0
+        row["ot_pending"] += ot_pending
+        if session and session.late_minutes:
+            row["late_count"] += 1
+            row["late_minutes"] += int(session.late_minutes or 0)
+        if session and session.early_leave_minutes:
+            row["early_leave_minutes"] += int(session.early_leave_minutes or 0)
+        if absent:
+            row["absent"] += 1
+        if missing_checkout:
+            row["missing_checkout"] += 1
+        if needs_review:
+            row["pending_review"] += 1
+
+        note_parts = [assignment.note or ""]
+        if session:
+            note_parts.extend([session.note or "", session.review_note or ""])
+        detail_rows.append([
+            idx,
+            assignment.work_date.isoformat(),
+            branch_label,
+            emp_code,
+            emp_name,
+            role_label,
+            employment,
+            shift.name if shift else f"Ca #{assignment.shift_id}",
+            f"{shift.work_start}-{shift.work_end}" if shift else "",
+            _dt_text(session.check_in_at if session else None),
+            _dt_text(session.check_out_at if session else None),
+            "Nghỉ phép" if leave_approved else ("Từ chối" if rejected else _session_status_label(session)),
+            _review_label(session.review_status if session else None),
+            paid_shift,
+            _hours(worked_minutes),
+            _hours(ot_approved if paid_shift else 0),
+            _hours(ot_pending),
+            int(session.late_minutes or 0) if session else 0,
+            int(session.early_leave_minutes or 0) if session else 0,
+            " | ".join([p for p in note_parts if p]),
+        ])
+
+    summary_rows = []
+    for idx, row in enumerate(sorted(summary.values(), key=lambda item: (",".join(sorted(item["branches"])), item["emp_name"])), 1):
+        summary_rows.append([
+            idx,
+            row["emp_code"],
+            row["emp_name"],
+            ", ".join(sorted(row["branches"])),
+            row["role"],
+            row["employment"],
+            row["assigned"],
+            row["paid_shifts"],
+            _hours(row["worked_minutes"]),
+            _hours(row["ot_approved"]),
+            _hours(row["ot_pending"]),
+            row["late_count"],
+            row["late_minutes"],
+            row["early_leave_minutes"],
+            row["absent"],
+            row["missing_checkout"],
+            row["pending_review"],
+        ])
+
+    logs = (
+        db.query(AttendanceLog)
+          .filter(AttendanceLog.timestamp >= start, AttendanceLog.timestamp <= end)
+          .order_by(AttendanceLog.timestamp)
+          .all()
+    )
+    logs = _filter_logs_for_branch_ids(db, logs, branch_ids)
+    log_emp_by_id, log_emp_by_code, log_branches = _employee_report_context(logs, db)
+    loose_rows = []
+    loose_idx = 1
+    for log in logs:
+        if _log_linked_to_shift_session(db, log):
+            continue
+        emp = _employee_for_log(log, log_emp_by_id, log_emp_by_code)
+        loose_rows.append([
+            loose_idx,
+            log.emp_code,
+            log.emp_name,
+            _branch_label_for_log(log, log_branches, db),
+            _role_label_for_log(log, emp),
+            "Vào" if log.check_type == "check_in" else "Ra",
+            _dt_text(log.timestamp),
+            log.note or "",
+            round(float(log.confidence or 0) * 100, 1) if log.confidence else "",
+        ])
+        loose_idx += 1
+
+    styles = (Alignment, Border, Font, PatternFill, Side, get_column_letter)
+    wb = Workbook()
+    ws_summary = wb.active
+    _write_table_sheet(
+        ws_summary,
+        "Tong hop",
+        ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại nhân sự", "Số ca phân", "Số ca tính công", "Giờ làm tính công", "OT đã duyệt (giờ)", "OT chờ duyệt (giờ)", "Số lần đi muộn", "Phút đi muộn", "Phút về sớm", "Ca vắng", "Ca quên checkout", "Ca cần duyệt"],
+        summary_rows,
+        [6, 12, 24, 22, 18, 14, 12, 14, 16, 16, 16, 14, 14, 14, 10, 16, 14],
+        styles,
+    )
+    _write_table_sheet(
+        wb.create_sheet("Chi tiet ca"),
+        "Chi tiet ca",
+        ["STT", "Ngày", "Chi nhánh", "Mã NV", "Họ tên", "Vai trò", "Loại nhân sự", "Ca", "Giờ ca", "Giờ vào", "Giờ ra", "Trạng thái ca", "Trạng thái duyệt", "Số ca tính công", "Giờ làm tính công", "OT đã duyệt (giờ)", "OT chờ duyệt (giờ)", "Đi muộn (phút)", "Về sớm (phút)", "Ghi chú"],
+        detail_rows,
+        [6, 12, 22, 12, 24, 18, 14, 18, 14, 18, 18, 16, 16, 14, 16, 16, 16, 14, 14, 30],
+        styles,
+    )
+    _write_table_sheet(
+        wb.create_sheet("Cham cong le"),
+        "Cham cong le",
+        ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại", "Thời gian", "Trạng thái", "Độ chính xác (%)"],
+        loose_rows,
+        [6, 12, 24, 22, 18, 10, 20, 24, 16],
+        styles,
+    )
+
+    settings.EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    filepath = str(settings.EXPORTS_DIR / f"bangcong_{from_date}_{to_date}.xlsx")
+    wb.save(filepath)
+
+    return FileResponse(
+        filepath,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=f"BangCong_{from_date}_{to_date}.xlsx",
+    )
+
+
+def _leave_status_label(status: str | None) -> str:
+    return {
+        "approved": "Đã duyệt",
+        "pending": "Chờ duyệt",
+        "rejected": "Từ chối",
+        "cancelled": "Đã hủy",
+    }.get(status or "", status or "")
+
+
+def _leave_day_detail(day: dict) -> str:
+    return {
+        "am": "Nghỉ buổi sáng",
+        "pm": "Nghỉ buổi chiều",
+    }.get(day.get("half"), "Nghỉ cả ngày")
+
+
+@router.get("/reports/attendance-exceptions")
+def attendance_exceptions(
+    from_date: str,
+    to_date: str,
+    branch_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+    start, end = _parse_export_range(from_date, to_date)
+    fd, td = start.date(), end.date()
+
+    allowed_emp_codes: set[str] | None = None
+    if branch_ids is not None:
+        allowed_emp_codes = {
+            row[0]
+            for row in db.query(Employee.emp_code).filter(Employee.branch_id.in_(branch_ids)).all()
+        }
+
+    leave_q = db.query(LeaveRequest).filter(
+        LeaveRequest.request_type == "leave",
+        LeaveRequest.status.in_(["approved", "pending"]),
+    )
+    if allowed_emp_codes is not None:
+        if not allowed_emp_codes:
+            leave_q = leave_q.filter(LeaveRequest.id == -1)
+        else:
+            leave_q = leave_q.filter(LeaveRequest.emp_code.in_(list(allowed_emp_codes)))
+    leave_requests = leave_q.order_by(LeaveRequest.submitted_at.desc()).all()
+
+    session_q = db.query(AttendanceSession).filter(
+        AttendanceSession.work_date >= fd,
+        AttendanceSession.work_date <= td,
+        AttendanceSession.review_status == "pending_review",
+        AttendanceSession.review_type.in_(["absent", "missing_checkout"]),
+    )
+    if branch_ids is not None:
+        session_q = session_q.filter(AttendanceSession.branch_id.in_(branch_ids))
+    sessions = session_q.order_by(AttendanceSession.work_date.asc(), AttendanceSession.id.asc()).all()
+
+    emp_codes = {req.emp_code for req in leave_requests}
+    employee_ids = {session.employee_id for session in sessions if session.employee_id}
+    employees = []
+    if emp_codes or employee_ids:
+        q = db.query(Employee)
+        if emp_codes and employee_ids:
+            from sqlalchemy import or_
+            q = q.filter(or_(Employee.emp_code.in_(list(emp_codes)), Employee.id.in_(list(employee_ids))))
+        elif emp_codes:
+            q = q.filter(Employee.emp_code.in_(list(emp_codes)))
+        else:
+            q = q.filter(Employee.id.in_(list(employee_ids)))
+        employees = q.all()
+    emp_by_code = {emp.emp_code: emp for emp in employees}
+    emp_by_id = {emp.id: emp for emp in employees}
+
+    branch_ids_for_labels = {emp.branch_id for emp in employees if emp.branch_id}
+    branch_ids_for_labels.update({session.branch_id for session in sessions if session.branch_id})
+    branches = _branch_labels(branch_ids_for_labels, db)
+
+    items: list[dict] = []
+    for req in leave_requests:
+        emp = emp_by_code.get(req.emp_code)
+        branch_id_for_row = emp.branch_id if emp else None
+        for day in req.get_dates():
+            raw_date = day.get("date")
+            if not raw_date:
+                continue
+            try:
+                d = datetime.strptime(raw_date, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if d < fd or d > td:
+                continue
+            items.append({
+                "type": "leave",
+                "date": d.isoformat(),
+                "emp_code": req.emp_code,
+                "emp_name": req.emp_name or (emp.name if emp else ""),
+                "branch": branches.get(branch_id_for_row, f"Chi nhánh #{branch_id_for_row}" if branch_id_for_row else ""),
+                "shift_name": "",
+                "status": _leave_status_label(req.status),
+                "detail": _leave_day_detail(day),
+                "note": req.reason or req.note or "",
+            })
+
+    for session in sessions:
+        row = _session_review_to_dict(session, db)
+        review_type = row.get("review_type") or ""
+        items.append({
+            "type": review_type,
+            "date": row.get("work_date") or "",
+            "emp_code": row.get("emp_code") or "",
+            "emp_name": row.get("emp_name") or "",
+            "branch": row.get("branch_name") or "",
+            "shift_name": row.get("shift_name") or "",
+            "status": _review_label(row.get("review_status")),
+            "detail": "Không check-in cả ca" if review_type == "absent" else "Quên checkout",
+            "note": row.get("review_note") or row.get("note") or "",
+        })
+
+    order = {"leave": 0, "absent": 1, "missing_checkout": 2}
+    items.sort(key=lambda item: (item.get("date") or "", order.get(item.get("type"), 9), item.get("emp_name") or ""))
+    summary = {"leave": 0, "absent": 0, "missing_checkout": 0, "total": len(items)}
+    for item in items:
+        if item["type"] in summary:
+            summary[item["type"]] += 1
+    return {"summary": summary, "items": items}
 
 
 # ── GET /api/reports/employee/{emp_code}/stats ───────────────────

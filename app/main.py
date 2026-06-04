@@ -21,6 +21,7 @@ from app.api.v1.camera import router as camera_router
 from app.api.v1.employee_roles import router as employee_roles_router
 from app.api.v1.integrations import router as integrations_router
 from app.api.v1.leave import router as leave_router
+from app.api.v1.me import router as me_router
 from app.api.v1.shifts import router as shifts_router
 from app.api.v1.system import router as system_router
 from app.api.v1.users import router as users_router
@@ -55,6 +56,7 @@ app.include_router(employees.router)
 app.include_router(employee_roles_router)
 app.include_router(branches_router)
 app.include_router(reports.router)
+app.include_router(me_router)
 app.include_router(leave_router)
 app.include_router(calendar_router)
 app.include_router(shifts_router)

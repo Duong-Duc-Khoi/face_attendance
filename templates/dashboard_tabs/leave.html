@@ -5,7 +5,7 @@
         <div class="panel-header-left"><span class="dot"></span> Đơn chờ duyệt</div>
         <div style="display:flex;gap:8px;align-items:center">
           <select id="lvFilterType" class="lv-filter" onchange="loadLeaveRequests()">
-            <option value="">Tất cả loại</option><option value="leave">Nghỉ phép</option><option value="remote">Remote</option>
+            <option value="">Tất cả đơn nghỉ</option><option value="leave">Nghỉ phép</option>
           </select>
           <select id="lvFilterStatus" class="lv-filter" onchange="loadLeaveRequests()">
             <option value="pending">Chờ duyệt</option><option value="">Tất cả</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option>
@@ -15,7 +15,7 @@
       <div style="overflow-x:auto">
         <table class="lv-table">
           <thead><tr>
-            <th>Nhân viên</th><th>Loại</th><th>Ngày</th><th>Tổng</th>
+            <th>Nhân viên</th><th>Kiểu nghỉ</th><th>Ngày / ca</th><th>Tổng</th>
             <th>Lý do</th><th>Gửi lúc</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th>
           </tr></thead>
           <tbody id="leaveTableBody"><tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Đang tải...</td></tr></tbody>

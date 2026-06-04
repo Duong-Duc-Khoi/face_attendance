@@ -10,6 +10,7 @@ from app.models.employee import Employee
 from app.models.user import User
 
 BRANCH_MANAGER_STORE_ROLES = ("store_manager", "assistant_manager")
+INACTIVE_BRANCH_ERROR = "Cửa hàng đã ngừng hoạt động"
 
 
 def employee_for_user(db: Session, user: User) -> Employee | None:
@@ -33,6 +34,9 @@ def managed_branch_ids(db: Session, user: User) -> list[int]:
     if not emp or not emp.branch_id:
         return []
     if emp.store_role not in BRANCH_MANAGER_STORE_ROLES:
+        return []
+    branch = db.query(Branch).filter_by(id=emp.branch_id, is_active=True).first()
+    if not branch:
         return []
     return [emp.branch_id]
 
@@ -80,9 +84,12 @@ def default_branch_id_for_write(db: Session, user: User, branch_id: int | None =
     if user.role == "admin":
         if branch_id is not None:
             selected_branch_ids(db, user, branch_id)
+            ensure_branch_active(db, branch_id)
         return branch_id
     allowed = selected_branch_ids(db, user, branch_id)
-    return allowed[0] if allowed else None
+    effective_branch_id = allowed[0] if allowed else None
+    ensure_branch_active(db, effective_branch_id)
+    return effective_branch_id
 
 
 def is_admin(user: User) -> bool:
@@ -117,6 +124,32 @@ def ensure_branch_access(db: Session, user: User, branch_id: int | None, *, allo
         raise HTTPException(status_code=403, detail="Bạn chưa được gán quản lý cửa hàng nào")
     if branch_id is None or branch_id not in allowed:
         raise HTTPException(status_code=403, detail="Bạn chỉ được thao tác trong cửa hàng mình quản lý")
+
+
+def ensure_branch_active(db: Session, branch_id: int | None) -> None:
+    if branch_id is None:
+        return
+    branch = db.query(Branch).filter_by(id=branch_id).first()
+    if not branch:
+        raise HTTPException(status_code=404, detail="Không tìm thấy cửa hàng")
+    if not branch.is_active:
+        raise HTTPException(status_code=400, detail=INACTIVE_BRANCH_ERROR)
+
+
+def ensure_active_branch_access(
+    db: Session,
+    user: User,
+    branch_id: int | None,
+    *,
+    allow_unassigned_for_admin: bool = True,
+) -> None:
+    ensure_branch_access(
+        db,
+        user,
+        branch_id,
+        allow_unassigned_for_admin=allow_unassigned_for_admin,
+    )
+    ensure_branch_active(db, branch_id)
 
 
 def scoped_branch_filter(db: Session, user: User):

@@ -14,15 +14,18 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.attendance import AttendanceEvent, AttendanceLog, AttendanceSession
+from app.models.branch import Branch
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import normalize_job_role, normalize_job_roles, normalize_text
+from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS, ensure_can_assign_employee
 
 
 # ── Helpers ──────────────────────────────────────────────────────
 
 VIETNAM_TZ = timezone(timedelta(hours=7))
 PAST_ASSIGNMENT_LOCK_ERROR = "Không thể chỉnh lịch phân ca trước tuần hiện tại"
+INACTIVE_BRANCH_ERROR = "Cửa hàng đã ngừng hoạt động"
 
 
 def current_assignment_edit_start(today: date | None = None) -> date:
@@ -96,6 +99,12 @@ def _employee_role_matches_shift(emp: Employee | None, shift: Shift) -> bool:
 def _ensure_assignable_workday(work_date: date, db: Session, branch_id: int | None = None) -> None:
     from app.services.work_calendar import get_calendar_day
 
+    if branch_id is not None:
+        branch = db.query(Branch).filter_by(id=branch_id).first()
+        if not branch:
+            raise ValueError("Không tìm thấy cửa hàng")
+        if not branch.is_active:
+            raise ValueError(INACTIVE_BRANCH_ERROR)
     cal = get_calendar_day(work_date, db, branch_id)
     if cal.get("day_type") == "off":
         label = cal.get("label") or "ngày nghỉ/đóng cửa"
@@ -208,15 +217,16 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
         raise ValueError(f"Ca #{shift_id} đã tắt, không thể phân công")
     assignment_branch_id = shift.branch_id or (emp.branch_id if emp else None)
     _ensure_assignable_workday(work_date, db, assignment_branch_id)
-    if emp and not _employee_role_matches_shift(emp, shift):
-        role = emp.job_role or emp.position or "chưa xác định"
-        raise ValueError(f"Nhân viên {emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
-
     existing = (
         db.query(ShiftAssignment)
           .filter_by(emp_code=emp_code, work_date=work_date, shift_id=shift_id)
           .first()
     )
+    ensure_can_assign_employee(db, emp_code, work_date, existing)
+    if emp and not _employee_role_matches_shift(emp, shift):
+        role = emp.job_role or emp.position or "chưa xác định"
+        raise ValueError(f"Nhân viên {emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
+
     if existing:
         existing.employee_id = emp.id if emp else existing.employee_id
         existing.branch_id   = assignment_branch_id or existing.branch_id
@@ -331,6 +341,8 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
     a = db.query(ShiftAssignment).filter_by(id=assignment_id).first()
     if not a:
         return None
+    if a.status == LEAVE_ASSIGNMENT_STATUS:
+        raise ValueError("Ca này đã được duyệt nghỉ phép, không thể sửa bằng phân ca")
 
     new_shift_id = data.get("shift_id", a.shift_id)
     new_work_date = data.get("work_date", a.work_date)
@@ -347,6 +359,7 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
     emp = db.query(Employee).filter_by(emp_code=a.emp_code).first()
     new_branch_id = shift.branch_id or (emp.branch_id if emp else a.branch_id)
     _ensure_assignable_workday(new_work_date, db, new_branch_id)
+    ensure_can_assign_employee(db, a.emp_code, new_work_date, a)
     if emp and not _employee_role_matches_shift(emp, shift):
         role = emp.job_role or emp.position or "chưa xác định"
         raise ValueError(f"Nhân viên {a.emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
@@ -387,7 +400,15 @@ def delete_assignment(assignment_id: int, db: Session) -> bool:
     a = db.query(ShiftAssignment).filter_by(id=assignment_id).first()
     if not a:
         return False
+    if a.status == LEAVE_ASSIGNMENT_STATUS:
+        raise ValueError("Ca này đã được duyệt nghỉ phép, không thể xoá khỏi lịch phân ca")
     ensure_assignment_editable_date(a.work_date)
+    if a.branch_id is not None:
+        branch = db.query(Branch).filter_by(id=a.branch_id).first()
+        if not branch:
+            raise ValueError("Không tìm thấy cửa hàng")
+        if not branch.is_active:
+            raise ValueError(INACTIVE_BRANCH_ERROR)
     # Giữ bản ghi để attendance_sessions còn tham chiếu được lịch sử ca.
     # Các query lịch đã lọc status != "cancelled", nên thao tác này vẫn ẩn
     # phân công khỏi UI mà không phá khóa ngoại.
@@ -632,7 +653,7 @@ def find_shift_assignment_for_time(emp_code: str, moment: datetime, db: Session)
           .filter(
               ShiftAssignment.emp_code == emp_code,
               ShiftAssignment.work_date.in_(candidate_dates),
-              ShiftAssignment.status != "cancelled",
+              ShiftAssignment.status.notin_(["cancelled", LEAVE_ASSIGNMENT_STATUS]),
           )
           .all()
     )
@@ -650,6 +671,27 @@ def find_shift_assignment_for_time(emp_code: str, moment: datetime, db: Session)
 
     if best:
         return best[1], best[2]
+    return None, None
+
+
+def find_leave_assignment_for_time(emp_code: str, moment: datetime, db: Session) -> tuple[Optional[ShiftAssignment], Optional[Shift]]:
+    candidate_dates = [moment.date(), moment.date() - timedelta(days=1)]
+    rows = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.emp_code == emp_code,
+              ShiftAssignment.work_date.in_(candidate_dates),
+              ShiftAssignment.status == LEAVE_ASSIGNMENT_STATUS,
+          )
+          .all()
+    )
+    for assignment in rows:
+        shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
+        if not shift:
+            continue
+        _start, _end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+        if checkin_from <= moment <= checkout_until:
+            return assignment, shift
     return None, None
 
 

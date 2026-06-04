@@ -109,6 +109,25 @@ select.fi option{background:var(--panel)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty-msg{text-align:center;padding:28px;color:var(--muted);font-size:12px}
 .notice-box{padding:10px 13px;background:rgba(246,201,14,.06);border:1px solid rgba(246,201,14,.2);border-radius:8px;font-size:11px;color:#f6c90e}
+.scope-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scope-btn{border:1px solid var(--border);background:var(--panel);color:var(--muted);border-radius:8px;padding:10px 12px;cursor:pointer;font-family:var(--font-sans);font-size:12px;font-weight:700;text-align:left}
+.scope-btn.active{border-color:rgba(0,212,170,.42);background:rgba(0,212,170,.1);color:var(--teal)}
+.shift-pick-list{display:grid;gap:8px;max-height:380px;overflow:auto}
+.shift-pick-item{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:10px;cursor:pointer}
+.shift-pick-item input{margin-top:2px}
+.shift-pick-title{font-size:12px;font-weight:800;color:var(--text)}
+.shift-pick-meta{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.45}
+.shift-pick-item.leave{opacity:.62;cursor:not-allowed}
+.work-list{display:grid;gap:10px;padding:12px}
+.work-day{border:1px solid var(--border);border-radius:10px;background:rgba(8,17,31,.42);overflow:hidden}
+.work-day-head{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(90,122,154,.22)}
+.work-date{font-family:var(--font-mono);font-size:12px;font-weight:800;color:var(--text)}
+.work-day-note{font-size:11px;color:var(--muted)}
+.work-shifts{display:grid;gap:8px;padding:10px 12px}
+.work-shift{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid rgba(90,122,154,.28);border-radius:8px;padding:9px;background:rgba(255,255,255,.02)}
+.work-shift-name{font-size:12px;font-weight:800;color:var(--text)}
+.work-shift-meta{font-size:10px;color:var(--muted);margin-top:3px}
+.work-empty{padding:10px 12px;color:var(--muted);font-size:11px}
 @media(max-width:800px){.two-col{grid-template-columns:1fr}.stats-row{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -134,8 +153,8 @@ select.fi option{background:var(--panel)}
 <div class="page">
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('tab-home',this)">Tổng quan</button>
-    <button class="tab-btn" onclick="switchTab('tab-leave',this)">Xin nghỉ / Remote</button>
-    <button class="tab-btn" onclick="switchTab('tab-schedule',this)">Lịch công ty</button>
+    <button class="tab-btn" onclick="switchTab('tab-leave',this)">Xin nghỉ</button>
+    <button class="tab-btn" onclick="switchTab('tab-schedule',this)">Lịch làm việc</button>
   </div>
 
   <!-- TAB: Tổng quan -->
@@ -162,7 +181,7 @@ select.fi option{background:var(--panel)}
       <div>
         <div class="stats-row">
           <div class="stat-box"><div class="stat-num teal" id="stPresent">—</div><div class="stat-lbl">Có mặt</div></div>
-          <div class="stat-box"><div class="stat-num blue" id="stRemote">—</div><div class="stat-lbl">Remote</div></div>
+          <div class="stat-box"><div class="stat-num blue" id="stAssigned">—</div><div class="stat-lbl">Ca phân</div></div>
           <div class="stat-box"><div class="stat-num yellow" id="stLeave">—</div><div class="stat-lbl">Nghỉ phép</div></div>
           <div class="stat-box"><div class="stat-num red" id="stAbsent">—</div><div class="stat-lbl">Vắng KP</div></div>
         </div>
@@ -195,13 +214,13 @@ select.fi option{background:var(--panel)}
     </div>
   </div>
 
-  <!-- TAB: Xin nghỉ / Remote -->
+  <!-- TAB: Xin nghỉ -->
   <div id="tab-leave" class="tab-content">
     <div class="two-col">
       <div>
         <div class="panel">
           <div class="panel-header">
-            <div class="ph-left"><span class="dot"></span>Chọn ngày</div>
+            <div class="ph-left"><span class="dot"></span>Chọn ngày nghỉ</div>
             <div style="display:flex;gap:4px">
               <button class="cal-nav-btn" onclick="calPickerNav(-1)">&#8249;</button>
               <button class="cal-nav-btn" onclick="calPickerNav(1)">&#8250;</button>
@@ -210,7 +229,7 @@ select.fi option{background:var(--panel)}
           <div id="calPickerBody"></div>
           <div class="cal-legend">
             <span class="leg-item"><span class="leg-dot" style="background:var(--teal)"></span>Chọn được</span>
-            <span class="leg-item"><span class="leg-dot" style="background:rgba(90,122,154,.4)"></span>Ngày nghỉ</span>
+            <span class="leg-item"><span class="leg-dot" style="background:rgba(90,122,154,.4)"></span>Ngày không có ca</span>
             <span class="leg-item"><span class="leg-dot" style="background:#f6c90e"></span>Chờ duyệt</span>
             <span class="leg-item"><span class="leg-dot" style="background:var(--teal);opacity:.5"></span>Đã duyệt</span>
           </div>
@@ -222,15 +241,19 @@ select.fi option{background:var(--panel)}
           <div class="panel-body">
             <div class="leave-form">
               <div class="fg">
-                <label class="fl">Loại đơn *</label>
-                <select class="fi" id="leaveType">
-                  <option value="leave">📅 Nghỉ phép</option>
-                  <option value="remote">🏠 Làm remote</option>
-                </select>
+                <label class="fl">Kiểu nghỉ *</label>
+                <div class="scope-switch">
+                  <button type="button" class="scope-btn active" data-scope="day" onclick="setLeaveScope('day')">Nghỉ cả ngày</button>
+                  <button type="button" class="scope-btn" data-scope="shift" onclick="setLeaveScope('shift')">Nghỉ theo ca</button>
+                </div>
               </div>
-              <div class="fg">
+              <div class="fg" id="dayLeaveFields">
                 <label class="fl">Ngày đã chọn <span id="selCount" style="color:var(--teal)">(0/3)</span></label>
                 <div class="dates-chips" id="datesChips"><span style="color:var(--muted);font-size:11px">Bấm vào lịch để chọn ngày...</span></div>
+              </div>
+              <div class="fg" id="shiftLeaveFields" style="display:none">
+                <label class="fl">Ca muốn nghỉ <span id="shiftSelCount" style="color:var(--teal)">(0)</span></label>
+                <div class="shift-pick-list" id="shiftPickList"><span style="color:var(--muted);font-size:11px">Đang tải lịch ca...</span></div>
               </div>
               <div class="fg" id="halfPickerWrap" style="display:none">
                 <label class="fl">Buổi của ngày vừa chọn</label>
@@ -245,8 +268,7 @@ select.fi option{background:var(--panel)}
                 <textarea class="fi" id="leaveReason" rows="3" placeholder="Mô tả lý do..."></textarea>
               </div>
               <div class="notice-box">
-                ⓘ Tối đa 3 ngày/đơn &nbsp;·&nbsp; Chỉ gửi được từ ngày mai trở đi.
-                Xin nhiều hơn 3 ngày vui lòng liên hệ trực tiếp quản lý.
+                Chỉ gửi được từ ngày mai trở đi. Nghỉ theo ca sẽ đánh dấu đúng ca đã chọn sau khi được duyệt.
               </div>
               <button class="btn-submit" id="btnSubmit" onclick="submitLeave()">✉ Gửi đơn</button>
             </div>
@@ -256,7 +278,7 @@ select.fi option{background:var(--panel)}
     </div>
   </div>
 
-  <!-- TAB: Lịch công ty -->
+  <!-- TAB: Lịch làm việc -->
   <div id="tab-schedule" class="tab-content">
     <div class="panel">
       <div class="cal-nav">
@@ -269,16 +291,16 @@ select.fi option{background:var(--panel)}
         <span class="leg-item"><span class="leg-dot" style="background:var(--teal)"></span>Cả ngày</span>
         <span class="leg-item"><span class="leg-dot" style="background:var(--blue)"></span>Nửa ngày</span>
         <span class="leg-item"><span class="leg-dot" style="background:#f6c90e"></span>Ngày lễ</span>
-        <span class="leg-item"><span class="leg-dot" style="background:#a78bfa"></span>Tăng ca</span>
+        <span class="leg-item"><span class="leg-dot" style="background:var(--blue)"></span>Nghỉ phép</span>
         <span class="leg-item"><span class="leg-dot" style="background:rgba(90,122,154,.4)"></span>Nghỉ</span>
       </div>
     </div>
     <div class="panel">
-      <div class="panel-header"><div class="ph-left"><span class="dot"></span>Trạng thái của tôi trong tháng</div></div>
+      <div class="panel-header"><div class="ph-left"><span class="dot"></span>Chi tiết ca trong tháng</div></div>
       <div style="overflow-x:auto">
         <table class="att-table">
-          <thead><tr><th>Ngày</th><th>Loại ngày</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
-          <tbody id="myStatusBody"><tr><td colspan="4" class="empty-msg">Đang tải...</td></tr></tbody>
+          <thead><tr><th>Ngày</th><th>Ca</th><th>Giờ</th><th>Chi nhánh</th><th>Trạng thái</th></tr></thead>
+          <tbody id="myStatusBody"><tr><td colspan="5" class="empty-msg">Đang tải...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -287,17 +309,17 @@ select.fi option{background:var(--panel)}
 
 <div id="toast"></div>
 <script>
-let currentEmp=null,selectedDates=[],lastClickedDate=null;
+let currentEmp=null,selectedDates=[],selectedShiftAssignments=new Set(),shiftAssignmentDates={},lastClickedDate=null,leaveScope='day';
 let pickerOffset=0; // months offset from current month
 let schedYear=new Date().getFullYear(),schedMonth=new Date().getMonth()+1;
-let calCache={},myLeaves=[];
+let calCache={},myLeaves=[],scheduleCache={};
 
 function switchTab(id,btn){
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
-  if(id==='tab-leave')renderCalPicker();
+  if(id==='tab-leave'){renderCalPicker();if(leaveScope==='shift')loadShiftPickList();}
   if(id==='tab-schedule')renderSchedule();
 }
 
@@ -305,6 +327,7 @@ function today(){return new Date().toISOString().slice(0,10);}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);}
 function fmtDate(s){if(!s)return'—';return new Date(s).toLocaleDateString('vi-VN');}
 function fmtTime(s){if(!s)return'—';return new Date(s).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
+function escHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
 let _toastTmr;
 function showToast(msg,type='info'){
@@ -364,7 +387,7 @@ async function loadYearStats(){
     const r=await authFetch(`/api/reports/employee/${currentEmp.emp_code}/stats?year=${new Date().getFullYear()}`);
     const d=await r.json();
     document.getElementById('stPresent').textContent=d.present_days??'0';
-    document.getElementById('stRemote').textContent=d.remote_days??'0';
+    document.getElementById('stAssigned').textContent=d.total_work_days??'0';
     document.getElementById('stLeave').textContent=d.approved_leave??'0';
     document.getElementById('stAbsent').textContent=d.absent_days??'0';
   }catch{}
@@ -451,11 +474,13 @@ function renderLeaveHistory(){
     rejected:'ls-rejected|Từ chối',cancelled:'ls-cancelled|Đã hủy'};
   tbody.innerHTML=myLeaves.map(l=>{
     const[scls,stxt]=(smap[l.status]||'ls-cancelled|?').split('|');
-    const rtype=l.request_type==='remote'?'🏠 Remote':'📅 Nghỉ phép';
-    const dates=l.dates.map(d=>{let s=d.date;if(d.half==='am')s+='(S)';else if(d.half==='pm')s+='(C)';return s;}).join(', ');
+    const rtype=l.scope_label||'Nghỉ phép';
+    const dates=(l.assignment_labels&&l.assignment_labels.length)
+      ? l.assignment_labels.map(escHtml).join('<br>')
+      : l.dates.map(d=>{let s=d.date;if(d.half==='am')s+='(S)';else if(d.half==='pm')s+='(C)';return escHtml(s);}).join(', ');
     return`<tr>
       <td style="font-family:var(--font-mono);font-size:11px">${fmtDate(l.submitted_at)}</td>
-      <td>${rtype}</td>
+      <td>${escHtml(rtype)}</td>
       <td style="font-family:var(--font-mono);font-size:10px">${dates}</td>
       <td style="font-size:11px;color:var(--muted)">${l.reason||'—'}</td>
       <td><span class="s-badge ${scls}">${stxt}</span></td>
@@ -469,7 +494,7 @@ async function cancelLeave(id){
     const r=await authFetch(`/api/leave/${id}`,{method:'DELETE'});
     if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');
     showToast('Đã hủy đơn','success');
-    calCache={};
+    calCache={};scheduleCache={};
     await loadLeaveHistory();
     renderCalPicker();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
@@ -477,6 +502,81 @@ async function cancelLeave(id){
 
 // ── Calendar Picker ──
 function calPickerNav(dir){pickerOffset+=dir;renderCalPicker();}
+
+function setLeaveScope(scope){
+  leaveScope=scope;
+  document.querySelectorAll('.scope-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.scope===scope));
+  document.getElementById('dayLeaveFields').style.display=scope==='day'?'':'none';
+  document.getElementById('shiftLeaveFields').style.display=scope==='shift'?'':'none';
+  document.getElementById('calPickerBody').closest('.panel').style.display=scope==='day'?'':'none';
+  if(scope==='shift')loadShiftPickList();
+}
+
+async function loadPersonalSchedule(from,to){
+  const key=`${from}_${to}`;
+  if(scheduleCache[key])return scheduleCache[key];
+  const r=await authFetch(`/api/me/schedule?from_date=${from}&to_date=${to}`);
+  if(!r.ok)throw new Error((await r.json()).detail||'Không tải được lịch làm việc');
+  const data=await r.json();
+  scheduleCache[key]=data;
+  return data;
+}
+
+async function loadShiftPickList(){
+  const list=document.getElementById('shiftPickList');
+  list.innerHTML='<span style="color:var(--muted);font-size:11px">Đang tải lịch ca...</span>';
+  const start=addDays(today(),1);
+  const end=addDays(today(),31);
+  try{
+    const data=await loadPersonalSchedule(start,end);
+    const items=[];
+    (data.days||[]).forEach(day=>{
+      (day.assignments||[]).forEach(a=>{
+        shiftAssignmentDates[a.id]=day.date;
+        items.push({day,a});
+      });
+    });
+    if(!items.length){
+      list.innerHTML='<span style="color:var(--muted);font-size:11px">Bạn chưa có ca sắp tới để xin nghỉ theo ca.</span>';
+      return;
+    }
+    list.innerHTML=items.map(({day,a})=>{
+      const disabled=a.leave_status||day.day_leave_status||a.status==='leave_approved';
+      const checked=selectedShiftAssignments.has(a.id);
+      const status=disabled?(a.leave_status==='approved'||day.day_leave_status==='approved'?'Đã duyệt nghỉ':'Đang có đơn nghỉ'):'Có thể chọn';
+      return `<label class="shift-pick-item ${disabled?'leave':''}">
+        <input type="checkbox" value="${a.id}" ${checked?'checked':''} ${disabled?'disabled':''} onchange="toggleShiftLeave(${a.id},this.checked,'${day.date}')">
+        <div>
+          <div class="shift-pick-title">${escHtml(fmtDate(day.date))} · ${escHtml(a.shift_name)}</div>
+          <div class="shift-pick-meta">${escHtml(a.work_start)}-${escHtml(a.work_end)} · ${escHtml(a.branch_name||'')} · ${escHtml(status)}</div>
+        </div>
+      </label>`;
+    }).join('');
+    updateShiftSelCount();
+  }catch(e){
+    list.innerHTML=`<span style="color:var(--red);font-size:11px">${escHtml(e.message)}</span>`;
+  }
+}
+
+function toggleShiftLeave(id,checked,dateStr){
+  if(checked){
+    if(selectedShiftAssignments.size>=6){
+      showToast('Tối đa 6 ca mỗi đơn','error');
+      const input=document.querySelector(`#shiftPickList input[value="${id}"]`);
+      if(input)input.checked=false;
+      return;
+    }
+    selectedShiftAssignments.add(id);
+  }else{
+    selectedShiftAssignments.delete(id);
+  }
+  updateShiftSelCount();
+}
+
+function updateShiftSelCount(){
+  const el=document.getElementById('shiftSelCount');
+  if(el)el.textContent=`(${selectedShiftAssignments.size})`;
+}
 
 async function renderCalPicker(){
   const body=document.getElementById('calPickerBody');
@@ -527,7 +627,7 @@ async function renderCalPicker(){
       if(hasPend)cls+=' has-pending';
       if(hasAppr)cls+=' has-approved';
       if(isSel)cls+=' selected';
-      const canSel=!isPast&&!isOff&&!hasPend&&!hasAppr;
+      const canSel=!isPast&&!hasPend&&!hasAppr;
       if(canSel)cls+=' selectable';
       else if(isPast||isOff)cls+=' past-locked';
       const oc=canSel?`onclick="toggleDate('${ds}')"`:'';
@@ -548,7 +648,7 @@ function toggleDate(ds){
     if(selectedDates.length>=3){showToast('Tối đa 3 ngày/đơn','error');return;}
     selectedDates.push({date:ds,half:null});
     lastClickedDate=ds;
-    document.getElementById('halfPickerWrap').style.display='';
+    document.getElementById('halfPickerWrap').style.display='none';
     document.querySelectorAll('.half-btn').forEach(b=>b.classList.remove('active'));
     document.querySelector('.half-btn[data-half="null"]').classList.add('active');
   }
@@ -574,22 +674,36 @@ function renderChips(){
   }).join('');
 }
 async function submitLeave(){
-  if(!selectedDates.length){showToast('Chọn ít nhất 1 ngày','error');return;}
-  const type=document.getElementById('leaveType').value;
+  let payloadDates=[];
+  if(leaveScope==='day'){
+    if(!selectedDates.length){showToast('Chọn ít nhất 1 ngày','error');return;}
+    payloadDates=selectedDates.map(d=>({...d,scope:'day',assignment_ids:[]}));
+  }else{
+    if(!selectedShiftAssignments.size){showToast('Chọn ít nhất 1 ca','error');return;}
+    const byDate={};
+    selectedShiftAssignments.forEach(id=>{
+      const ds=shiftAssignmentDates[id];
+      if(!ds)return;
+      if(!byDate[ds])byDate[ds]=[];
+      byDate[ds].push(id);
+    });
+    payloadDates=Object.entries(byDate).map(([date,ids])=>({date,half:null,scope:'shift',assignment_ids:ids}));
+  }
   const reason=document.getElementById('leaveReason').value.trim();
   const btn=document.getElementById('btnSubmit');
   btn.innerHTML='<div class="spinner"></div> Đang gửi...';btn.disabled=true;
   try{
     const r=await authFetch('/api/leave',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({request_type:type,dates:selectedDates,reason})});
+      body:JSON.stringify({request_type:'leave',leave_scope:leaveScope,dates:payloadDates,reason})});
     const d=await r.json();
     if(!r.ok)throw new Error(d.detail||'Lỗi gửi đơn');
     showToast('Đã gửi đơn thành công!','success');
-    selectedDates=[];lastClickedDate=null;
+    selectedDates=[];selectedShiftAssignments.clear();lastClickedDate=null;
     document.getElementById('leaveReason').value='';
     document.getElementById('halfPickerWrap').style.display='none';
-    renderChips();calCache={};
+    renderChips();updateShiftSelCount();calCache={};scheduleCache={};
     await loadLeaveHistory();renderCalPicker();
+    if(leaveScope==='shift')loadShiftPickList();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
   finally{btn.innerHTML='✉ Gửi đơn';btn.disabled=false;}
 }
@@ -602,13 +716,14 @@ async function renderSchedule(){
   const body=document.getElementById('scheduleBody');
   body.innerHTML='<div class="empty-msg"><div class="spinner" style="margin:0 auto"></div></div>';
   try{
-    const key=`${schedYear}-${schedMonth}`;
-    if(!calCache[key]){const r=await authFetch(`/api/calendar?year=${schedYear}&month=${schedMonth}`);const d=await r.json();calCache[key]=d.days||[];}
-    const calDays=calCache[key];
-    const firstDay=new Date(schedYear,schedMonth-1,1).getDay();
+    const start=`${schedYear}-${String(schedMonth).padStart(2,'0')}-01`;
     const daysInMonth=new Date(schedYear,schedMonth,0).getDate();
+    const end=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
+    const data=await loadPersonalSchedule(start,end);
+    const calDays=data.days||[];
+    const firstDay=new Date(schedYear,schedMonth-1,1).getDay();
     const todayStr=today();
-    const dtCol={full:'var(--teal)',off:'rgba(90,122,154,.3)',holiday:'#f6c90e'};
+    const dtCol={full:'var(--teal)',scheduled:'var(--teal)',off:'rgba(90,122,154,.3)',holiday:'#f6c90e'};
     let html=`<div class="cal-grid" style="padding:8px">
       <div class="cal-dow">CN</div><div class="cal-dow">T2</div><div class="cal-dow">T3</div>
       <div class="cal-dow">T4</div><div class="cal-dow">T5</div><div class="cal-dow">T6</div>
@@ -617,46 +732,55 @@ async function renderSchedule(){
     for(let day=1;day<=daysInMonth;day++){
       const ds=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const cal=calDays.find(c=>c.date===ds)||{day_type:'full',label:''};
-      const col=dtCol[cal.day_type]||'var(--muted)';
+      const dtype=(cal.assignments&&cal.assignments.length)?'scheduled':cal.day_type;
+      const col=dtCol[dtype]||'var(--muted)';
       const isToday=ds===todayStr;
-      const tip=cal.label?`title="${cal.label}"`:'';
+      const tip=cal.label?`title="${escHtml(cal.label)}"`:'';
+      const count=(cal.assignments||[]).length;
+      const leave=cal.day_leave_status==='approved'||(cal.assignments||[]).some(a=>a.leave_status==='approved');
       html+=`<div class="cal-day" style="border:${isToday?'1px solid var(--teal)':'none'};flex-direction:column;gap:1px" ${tip}>
         <span style="color:${col};font-weight:${isToday?700:400}">${day}</span>
-        ${cal.label?`<span style="font-size:7px;color:${col};text-align:center;line-height:1.1">${cal.label.slice(0,10)}</span>`:''}
+        ${count?`<span style="font-size:8px;color:${col};text-align:center;line-height:1.1">${count} ca</span>`:''}
+        ${leave?`<span style="font-size:7px;color:var(--blue);text-align:center;line-height:1.1">Nghỉ</span>`:(cal.label?`<span style="font-size:7px;color:${col};text-align:center;line-height:1.1">${escHtml(cal.label.slice(0,10))}</span>`:'')}
       </div>`;
     }
     html+='</div>';
     body.innerHTML=html;
-    await renderMyStatus();
+    renderMyStatus(data);
   }catch{body.innerHTML='<div class="empty-msg">Lỗi tải lịch</div>';}
 }
-async function renderMyStatus(){
-  if(!currentEmp)return;
+function renderMyStatus(data){
   const tbody=document.getElementById('myStatusBody');
-  tbody.innerHTML='<tr><td colspan="4" class="empty-msg"><div class="spinner" style="margin:0 auto"></div></td></tr>';
   try{
-    const r=await authFetch(`/api/reports/employee/${currentEmp.emp_code}/stats?year=${schedYear}&month=${schedMonth}`);
-    const d=await r.json();
-    const todayStr=today();
-    const sClass={present:'sb-present',late:'sb-late',approved_leave:'sb-leave',approved_leave_half:'sb-leave',
-      approved_remote:'sb-remote',pending_leave:'sb-pending',pending_remote:'sb-pending',
-      absent:'sb-absent',day_off:'sb-off',holiday:'sb-off',future:'sb-off',overtime_absent:'sb-off'};
-    const dtLabel={full:'Ngày làm',off:'Ngày nghỉ',holiday:'Ngày lễ'};
-    const days=(d.days||[]).filter(x=>{
-      const ds=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(x.day).padStart(2,'0')}`;
-      return ds<=todayStr&&x.day_type!=='off'&&x.day_type!=='holiday';
+    const rows=[];
+    (data.days||[]).forEach(day=>{
+      if(!(day.assignments||[]).length){
+        if(day.day_leave_status){
+          rows.push({date:day.date,shift:'Nghỉ cả ngày',time:'—',branch:'—',status:day.day_leave_status});
+        }
+        return;
+      }
+      day.assignments.forEach(a=>{
+        const attendance=a.attendance||{};
+        let status='Chưa đến';
+        let cls='sb-off';
+        if(a.leave_status==='approved'||a.status==='leave_approved'){status='Nghỉ phép';cls='sb-leave';}
+        else if(a.leave_status==='pending'){status='Chờ duyệt nghỉ';cls='sb-pending';}
+        else if(attendance.check_in_at&&attendance.check_out_at){status='Đã hoàn tất';cls='sb-present';}
+        else if(attendance.check_in_at){status='Đã vào ca';cls='sb-present';}
+        else if(attendance.status==='absent'){status='Vắng';cls='sb-absent';}
+        rows.push({date:day.date,shift:a.shift_name,time:`${a.work_start}-${a.work_end}`,branch:a.branch_name||'—',status,cls});
+      });
     });
-    if(!days.length){tbody.innerHTML='<tr><td colspan="4" class="empty-msg">Chưa có dữ liệu trong tháng này</td></tr>';return;}
-    tbody.innerHTML=days.map(x=>{
-      const ds=`${schedYear}-${String(schedMonth).padStart(2,'0')}-${String(x.day).padStart(2,'0')}`;
-      return`<tr>
-        <td style="font-family:var(--font-mono)">${fmtDate(ds)}</td>
-        <td style="font-size:11px;color:var(--muted)">${dtLabel[x.day_type]||x.day_type}</td>
-        <td><span class="s-badge ${sClass[x.status]||'sb-off'}">${x.label||x.status}</span></td>
-        <td style="font-size:11px;color:var(--muted)">${x.detail||''}</td>
-      </tr>`;
-    }).join('');
-  }catch{tbody.innerHTML='<tr><td colspan="4" class="empty-msg">Lỗi tải dữ liệu</td></tr>';}
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="5" class="empty-msg">Chưa có ca trong tháng này</td></tr>';return;}
+    tbody.innerHTML=rows.map(row=>`<tr>
+      <td style="font-family:var(--font-mono)">${fmtDate(row.date)}</td>
+      <td>${escHtml(row.shift)}</td>
+      <td style="font-family:var(--font-mono);font-size:11px">${escHtml(row.time)}</td>
+      <td style="font-size:11px;color:var(--muted)">${escHtml(row.branch)}</td>
+      <td><span class="s-badge ${row.cls||'sb-off'}">${escHtml(row.status)}</span></td>
+    </tr>`).join('');
+  }catch{tbody.innerHTML='<tr><td colspan="5" class="empty-msg">Lỗi tải dữ liệu</td></tr>';}
 }
 
 init();

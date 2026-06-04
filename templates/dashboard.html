@@ -749,7 +749,7 @@ function updateOperationsOverview(){
   const lateCount=allLogs.filter(l=>l.check_type==='check_in'&&l.status&&l.status.toLowerCase().includes('muộn')).length;
   setOpsCard('opsMissingCheckout',missingCheckout,missingCheckout?'Cần nhắc nhân viên ra ca hoặc kiểm tra auto checkout.':'Không có nhân viên đang mở ca.',missingCheckout?'danger':'');
   setOpsCard('opsLate',lateCount,lateCount?'Có lượt vào ca bị đánh dấu đi muộn.':'Chưa ghi nhận lượt đi muộn hôm nay.',lateCount?'warn':'');
-  setOpsCard('opsLeave',pendingLeaveCount,pendingLeaveCount?'Đơn nghỉ phép/remote đang chờ quản lý duyệt.':'Không có đơn chờ duyệt.',pendingLeaveCount?'info':'');
+  setOpsCard('opsLeave',pendingLeaveCount,pendingLeaveCount?'Đơn nghỉ phép đang chờ quản lý duyệt.':'Không có đơn chờ duyệt.',pendingLeaveCount?'info':'');
   const absentNote=absent
     ? 'Có ca đã tới giờ vào nhưng chưa check-in.'
     : (notStarted ? `Không có ca trễ vào. Còn ${notStarted} ca chưa tới giờ.` : 'Tất cả ca đã tới giờ đều có check-in.');
@@ -764,7 +764,7 @@ function renderWorkItems(data){
     {label:'Duyệt chấm công',note:'Vắng, quên checkout hoặc OT đang chờ xác nhận',count:data.reviewCount,state:'warn',url:'/attendance?section=review'},
     {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',url:'/attendance'},
     {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',url:'/attendance'},
-    {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép/remote đang chờ xử lý',count:data.pendingLeaveCount,state:'info',url:'/leave'},
+    {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép đang chờ xử lý',count:data.pendingLeaveCount,state:'info',url:'/leave'},
     {label:'Theo dõi chưa vào ca',note:'Chỉ tính lượt phân ca đã tới giờ vào',count:data.absent,state:'danger',url:'/attendance'}
   ];
   tbody.innerHTML=rows.map(r=>`
@@ -1058,6 +1058,36 @@ async function loadLogs(options={}){
     updateOperationsOverview();
     if(options.refreshAudit===true)refreshAuditPanel();
   }catch(e){showToast('Lỗi tải lịch sử','error');}
+}
+
+async function exportAttendanceHistory(){
+  const {from,to,empCode}=_logRange();
+  if(!from||!to){showToast('Chọn khoảng ngày cần xuất','error');return;}
+  const btn=document.getElementById('btnExportLogs');
+  if(btn){btn.disabled=true;btn.innerHTML='<div class="spinner"></div> Đang xuất...';}
+  try{
+    const qs=`from_date=${encodeURIComponent(from)}&to_date=${encodeURIComponent(to)}${empCode?'&emp_code='+encodeURIComponent(empCode):''}`;
+    const res=await authFetch('/api/attendance/export?'+qs);
+    if(!res.ok){
+      let msg='Không xuất được lịch sử chấm công';
+      try{const data=await res.json();msg=data.detail||data.error||msg;}catch{msg=await res.text()||msg;}
+      throw new Error(msg);
+    }
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`LichSuChamCong_${from}_${to}.xlsx`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    showToast('Đã tải lịch sử chấm công','success');
+  }catch(e){
+    showToast('Lỗi xuất lịch sử: '+e.message,'error');
+  }finally{
+    if(btn){
+      setTimeout(()=>{btn.disabled=false;btn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Xuất lịch sử';},800);
+    }
+  }
 }
 
 function _auditRange(){
@@ -1491,15 +1521,16 @@ function renderLeaveTable(){
   const tbody=document.getElementById('leaveTableBody');
   if(!leaveRequests.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);font-size:12px">Không có đơn nào</td></tr>';return;}
   const smap={pending:'ls-pending|⏳ Chờ duyệt',approved:'ls-approved|✓ Đã duyệt',rejected:'ls-rejected|✕ Từ chối',cancelled:'ls-cancelled|— Đã hủy'};
-  const rtypeLabel={leave:'Nghỉ phép',remote:'Remote'};
   tbody.innerHTML=leaveRequests.map(l=>{
     const [scls,stxt]=(smap[l.status]||'ls-cancelled|?').split('|');
     const dates=l.dates.map(d=>{let s=d.date;if(d.half==='am')s+='(S)';else if(d.half==='pm')s+='(C)';return s;}).join(', ');
     const isPending=l.status==='pending';
-    const typeClass=l.request_type==='remote'?'remote':'leave';
+    const typeClass='leave';
+    const typeLabel=l.scope_label||'Nghỉ phép';
+    const dateLabel=(l.assignment_labels&&l.assignment_labels.length)?l.assignment_labels.map(rosterSafe).join('<br>'):rosterSafe(dates);
     return `<tr><td><div class="lv-person"><span class="lv-person-name">${rosterSafe(l.emp_name)}</span><span class="lv-person-code">${rosterSafe(l.emp_code)}</span></div></td>
-      <td><span class="lv-type ${typeClass}">${rosterSafe(rtypeLabel[l.request_type]||l.request_type)}</span></td>
-      <td><div class="lv-dates">${rosterSafe(dates)}</div></td>
+      <td><span class="lv-type ${typeClass}">${rosterSafe(typeLabel)}</span></td>
+      <td><div class="lv-dates">${dateLabel}</div></td>
       <td class="lv-total">${rosterSafe(l.total_days)}</td>
       <td><div class="lv-reason">${rosterSafe(l.reason||'—')}</div></td>
       <td><span class="lv-submitted">${l.submitted_at?l.submitted_at.slice(0,16).replace('T',' '):'—'}</span></td>
@@ -1513,9 +1544,10 @@ function renderLeaveTable(){
 let _leaveActionId=null;
 function _leaveInfoHtml(id){
   const l=leaveRequests.find(x=>x.id===id);if(!l)return '';
-  const rtypeLabel={leave:'📅 Nghỉ phép',remote:'🏠 Remote'};
+  const rtypeLabel={leave:'Nghỉ phép',remote:'Nghỉ phép'};
   const dates=(l.dates||[]).map(d=>d.date+(d.half?` (${d.half==='am'?'Sáng':'Chiều'})`:'')). join(', ');
-  return `<b>${l.emp_name}</b><br>Loại: ${rtypeLabel[l.request_type]||l.request_type}<br>Ngày: ${dates}<br>${l.reason?'Lý do: '+l.reason:''}`;
+  const assignments=(l.assignment_labels&&l.assignment_labels.length)?`<br>Ca: ${l.assignment_labels.map(rosterSafe).join('<br>')}`:'';
+  return `<b>${l.emp_name}</b><br>Kiểu nghỉ: ${l.scope_label||rtypeLabel[l.request_type]||'Nghỉ phép'}<br>Ngày: ${dates}${assignments}<br>${l.reason?'Lý do: '+l.reason:''}`;
 }
 function approveLeave(id){_leaveActionId=id;document.getElementById('approveLeaveInfo').innerHTML=_leaveInfoHtml(id);document.getElementById('approveLeaveNote').value='';document.getElementById('approveLeaveModal').classList.add('open');setTimeout(()=>document.getElementById('approveLeaveNote').focus(),100);}
 function closeApproveModal(){document.getElementById('approveLeaveModal').classList.remove('open');_leaveActionId=null;}

@@ -17,8 +17,10 @@ from app.models.attendance import (
     AttendanceSession,
 )
 from app.models.shift import Shift, ShiftAssignment
+from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS
 from app.services.shift_service import (
     calc_status_for_shift,
+    find_leave_assignment_for_time,
     find_shift_assignment_for_time,
     shift_window,
 )
@@ -38,6 +40,13 @@ def _employee_job_role(emp: Employee | None) -> str:
 def _employee_role_label(emp: Employee | None, fallback: str = "") -> str:
     role = _employee_job_role(emp)
     return JOB_ROLE_LABELS.get(role, role or fallback or "Chưa xác định")
+
+
+def _branch_active(db, branch_id: int | None) -> bool:
+    if branch_id is None:
+        return True
+    branch = db.query(Branch).filter_by(id=branch_id).first()
+    return bool(branch and branch.is_active)
 
 
 def _checkin_grace_minutes(shift: Shift | None = None) -> int:
@@ -110,6 +119,23 @@ def process_attendance(
                 "voice_message": "Không thể chấm công. Bạn không thuộc cửa hàng này.",
                 "avatar_url": emp.avatar_url or "",
             }
+        effective_branch_id = branch_id if branch_id is not None else emp.branch_id
+        if not _branch_active(db, effective_branch_id):
+            return {
+                "ok": False,
+                "reason": "branch_inactive",
+                "emp_code": emp_code,
+                "name": emp.name,
+                "department": emp.department,
+                "position": emp.position,
+                "job_role": _employee_job_role(emp),
+                "role_label": _employee_role_label(emp, emp.department),
+                "branch_id": effective_branch_id,
+                "confidence": round(confidence, 4),
+                "message": "Cửa hàng đã ngừng hoạt động, không thể chấm công",
+                "voice_message": "Cửa hàng đã ngừng hoạt động, không thể chấm công.",
+                "avatar_url": emp.avatar_url or "",
+            }
 
         now = datetime.now()
 
@@ -152,6 +178,23 @@ def process_attendance(
 
         assignment, shift = find_shift_assignment_for_time(emp_code, now, db)
         if not assignment or not shift:
+            leave_assignment, leave_shift = find_leave_assignment_for_time(emp_code, now, db)
+            if leave_assignment and leave_shift:
+                return {
+                    "ok": False,
+                    "reason": "leave_approved_shift",
+                    "emp_code": emp_code,
+                    "name": emp.name,
+                    "department": emp.department,
+                    "position": emp.position,
+                    "job_role": _employee_job_role(emp),
+                    "role_label": _employee_role_label(emp, emp.department),
+                    "branch_id": leave_assignment.branch_id or emp.branch_id,
+                    "confidence": round(confidence, 4),
+                    "message": f"Ca {leave_shift.name} đã được duyệt nghỉ phép",
+                    "voice_message": "Ca này đã được duyệt nghỉ phép, không thể chấm công.",
+                    "avatar_url": emp.avatar_url or "",
+                }
             check_type = _next_unscheduled_check_type(emp_code, now, db)
             status = "Ngoài phân ca - chưa có ca phân công, chờ quản lý kiểm tra/gắn ca"
             log = AttendanceLog(
@@ -408,7 +451,7 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             db.query(ShiftAssignment)
               .filter(
                   ShiftAssignment.work_date == today,
-                  ShiftAssignment.status != "cancelled",
+                  ShiftAssignment.status.notin_(["cancelled", LEAVE_ASSIGNMENT_STATUS]),
               )
               .all()
         )
@@ -739,6 +782,8 @@ def create_manual_attendance_log(
         emp = db.query(Employee).filter_by(emp_code=emp_code, is_active=True).first()
         if not emp:
             return None
+        if not _branch_active(db, emp.branch_id):
+            raise ValueError("Cửa hàng đã ngừng hoạt động, không thể tạo chấm công")
 
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"):
             try:
@@ -916,7 +961,7 @@ def mark_absent_sessions(auto_time: datetime = None) -> int:
         assignments = (
             db.query(ShiftAssignment)
               .filter(
-                  ShiftAssignment.status != "cancelled",
+                  ShiftAssignment.status.notin_(["cancelled", LEAVE_ASSIGNMENT_STATUS]),
                   ShiftAssignment.work_date <= now.date(),
               )
               .all()
@@ -952,9 +997,12 @@ def mark_absent_sessions(auto_time: datetime = None) -> int:
                 emp = db.query(Employee).filter_by(emp_code=assignment.emp_code).first()
             if not emp:
                 continue
+            effective_branch_id = assignment.branch_id or shift.branch_id or emp.branch_id
+            if not _branch_active(db, effective_branch_id):
+                continue
             db.add(AttendanceSession(
                 employee_id=emp.id,
-                branch_id=assignment.branch_id or shift.branch_id or emp.branch_id,
+                branch_id=effective_branch_id,
                 shift_assignment_id=assignment.id,
                 shift_id=shift.id,
                 work_date=assignment.work_date,

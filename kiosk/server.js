@@ -7,6 +7,28 @@ const kioskTemplate = path.join(root, "templates", "kiosk.html");
 const registerTemplate = path.join(root, "templates", "register.html");
 const staticRoot = path.join(root, "static");
 
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const content = fs.readFileSync(filePath, "utf8");
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match) continue;
+    const key = match[1];
+    let value = match[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadEnvFile(path.join(root, ".env"));
+
 const host = process.env.KIOSK_HOST || "127.0.0.1";
 const port = Number(process.env.KIOSK_PORT || 5500);
 const backend = (process.env.BACKEND_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
@@ -102,5 +124,5 @@ server.listen(port, host, () => {
   console.log(`Kiosk UI: http://${host}:${port}/`);
   console.log(`Register: http://${host}:${port}/register`);
   console.log(`Backend : ${backend}`);
-  if (kioskBranchId) console.log(`Branch  : ${kioskBranchId}`);
+  console.log(`Branch  : ${kioskBranchId || "CHUA CAU HINH - set KIOSK_BRANCH_ID"}`);
 });

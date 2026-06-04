@@ -195,7 +195,7 @@ def _leave_dates_str(req) -> str:
 
 
 def _leave_type_label(req) -> str:
-    return "Làm Remote" if req.request_type == "remote" else "Nghỉ phép"
+    return "Nghỉ phép"
 
 
 def notify_leave_submitted(req):

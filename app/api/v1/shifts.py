@@ -22,10 +22,12 @@ from app.models.user import User
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 from app.services.branch_scope import (
     default_branch_id_for_write,
+    ensure_active_branch_access,
     ensure_branch_access,
     require_branch_manager_or_admin,
     selected_branch_ids,
 )
+from app.services.leave_policy import ensure_can_assign_employee
 from app.services.shift_service import (
     list_shifts, get_shift, create_shift, update_shift, delete_shift,
     assign_shift, bulk_assign_shift, delete_assignment,
@@ -277,7 +279,7 @@ def _require_admin_branch_for_shift_view(user: User, branch_id: int | None) -> N
 def _ensure_shift_assignable_scope(db: Session, user: User, shift_id: int) -> None:
     branch_id = _shift_branch_id(db, shift_id)
     if branch_id is not None:
-        ensure_branch_access(db, user, branch_id)
+        ensure_active_branch_access(db, user, branch_id)
 
 
 def _date_range(from_date: str, to_date: str) -> list[date]:
@@ -360,12 +362,25 @@ def _parse_day_sheet_date(ws) -> date:
     return sheet_date
 
 
-def _required_branch_id_for_assignment_io(db: Session, user: User, branch_id: int | None = None) -> int:
+def _required_branch_id_for_assignment_io(
+    db: Session,
+    user: User,
+    branch_id: int | None = None,
+    *,
+    require_active: bool = True,
+) -> int:
     require_branch_manager_or_admin(db, user)
-    effective_branch_id = default_branch_id_for_write(db, user, branch_id)
+    if require_active:
+        effective_branch_id = default_branch_id_for_write(db, user, branch_id)
+    else:
+        allowed = selected_branch_ids(db, user, branch_id)
+        effective_branch_id = allowed[0] if allowed else None
     if effective_branch_id is None:
         raise HTTPException(400, "Cần chọn cửa hàng để nhập/xuất lịch phân ca")
-    ensure_branch_access(db, user, effective_branch_id, allow_unassigned_for_admin=False)
+    if require_active:
+        ensure_active_branch_access(db, user, effective_branch_id, allow_unassigned_for_admin=False)
+    else:
+        ensure_branch_access(db, user, effective_branch_id, allow_unassigned_for_admin=False)
     return effective_branch_id
 
 
@@ -759,6 +774,7 @@ def _validate_assignment_import_rows(
 
         try:
             _ensure_assignable_workday(work_date, db, shift.branch_id or emp.branch_id)
+            ensure_can_assign_employee(db, emp.emp_code, work_date)
             if not _employee_role_matches_shift(emp, shift):
                 role = emp.job_role or emp.position or "chưa xác định"
                 raise ValueError(f"Vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'")
@@ -802,7 +818,7 @@ def api_create_shift(
     require_branch_manager_or_admin(db, current_user)
     data = body.model_dump()
     data["branch_id"] = default_branch_id_for_write(db, current_user, body.branch_id)
-    ensure_branch_access(db, current_user, data["branch_id"], allow_unassigned_for_admin=True)
+    ensure_active_branch_access(db, current_user, data["branch_id"], allow_unassigned_for_admin=True)
     return create_shift(data, db)
 
 
@@ -840,9 +856,9 @@ def api_update_shift(
     current_user: User = Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
-    ensure_branch_access(db, current_user, _shift_branch_id(db, shift_id))
+    ensure_active_branch_access(db, current_user, _shift_branch_id(db, shift_id))
     if body.branch_id is not None:
-        ensure_branch_access(db, current_user, body.branch_id, allow_unassigned_for_admin=True)
+        ensure_active_branch_access(db, current_user, body.branch_id, allow_unassigned_for_admin=True)
     result = update_shift(shift_id, body.model_dump(exclude_none=True), db)
     if not result:
         raise HTTPException(404, "Không tìm thấy ca làm việc")
@@ -858,7 +874,7 @@ def api_delete_shift(
     current_user: User = Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
-    ensure_branch_access(db, current_user, _shift_branch_id(db, shift_id))
+    ensure_active_branch_access(db, current_user, _shift_branch_id(db, shift_id))
     if not delete_shift(shift_id, db):
         raise HTTPException(404, "Không tìm thấy ca làm việc")
 
@@ -874,7 +890,7 @@ def api_assign_shift(
     """Phân công ca cho 1 nhân viên vào 1 ngày cụ thể."""
     require_branch_manager_or_admin(db, current_user)
     _ensure_shift_assignable_scope(db, current_user, body.shift_id)
-    ensure_branch_access(db, current_user, _employee_branch_id(db, body.emp_code))
+    ensure_active_branch_access(db, current_user, _employee_branch_id(db, body.emp_code))
     work_date = date.fromisoformat(body.work_date)
     _ensure_assignment_dates_editable([work_date])
     try:
@@ -904,7 +920,7 @@ def api_bulk_assign(
         raise HTTPException(400, "Danh sách nhân viên không được rỗng")
     _ensure_shift_assignable_scope(db, current_user, body.shift_id)
     for emp_code in body.emp_codes:
-        ensure_branch_access(db, current_user, _employee_branch_id(db, emp_code))
+        ensure_active_branch_access(db, current_user, _employee_branch_id(db, emp_code))
 
     days  = _date_range(body.from_date, body.to_date)
     _ensure_assignment_dates_editable(days)
@@ -944,7 +960,7 @@ def api_multi_assign(
             continue
         seen.add(code)
         try:
-            ensure_branch_access(db, current_user, _employee_branch_id(db, code))
+            ensure_active_branch_access(db, current_user, _employee_branch_id(db, code))
             assignment = assign_shift(
                 emp_code=code,
                 shift_id=body.shift_id,
@@ -990,7 +1006,7 @@ def api_export_assignments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    branch_id = _required_branch_id_for_assignment_io(db, current_user, branch_id)
+    branch_id = _required_branch_id_for_assignment_io(db, current_user, branch_id, require_active=False)
     try:
         fd = date.fromisoformat(from_date)
         td = date.fromisoformat(to_date)
@@ -1172,7 +1188,7 @@ def api_update_assignment(
     current_user: User = Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
-    ensure_branch_access(db, current_user, _assignment_branch_id(db, assignment_id))
+    ensure_active_branch_access(db, current_user, _assignment_branch_id(db, assignment_id))
     if body.shift_id is not None:
         _ensure_shift_assignable_scope(db, current_user, body.shift_id)
     if body.work_date is not None:
@@ -1200,7 +1216,7 @@ def api_delete_assignment(
     current_user: User = Depends(get_current_user),
 ):
     require_branch_manager_or_admin(db, current_user)
-    ensure_branch_access(db, current_user, _assignment_branch_id(db, assignment_id))
+    ensure_active_branch_access(db, current_user, _assignment_branch_id(db, assignment_id))
     try:
         if not delete_assignment(assignment_id, db):
             raise HTTPException(404, "Không tìm thấy phân công ca")

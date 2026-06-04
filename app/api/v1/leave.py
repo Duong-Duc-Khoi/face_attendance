@@ -1,9 +1,8 @@
 """
 app/api/v1/leave.py
-Endpoints quản lý đơn nghỉ phép / remote.
+Endpoints quản lý đơn nghỉ phép.
 """
 
-import json
 from datetime import date, datetime, timedelta
 from typing import Optional
 
@@ -14,9 +13,17 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest, LeaveRequestDay
+from app.models.shift import ShiftAssignment
 from app.models.user import User
 from app.services.branch_scope import BRANCH_MANAGER_STORE_ROLES, ensure_branch_access, selected_branch_ids
-from app.services.work_calendar import get_calendar_day
+from app.services.leave_policy import (
+    apply_approved_leave_to_assignments,
+    assignment_ids_from_entry,
+    leave_request_scope,
+    leave_scope_label,
+    request_assignment_labels,
+    validate_leave_conflicts,
+)
 from app.services.notify import (
     notify_leave_submitted,
     notify_leave_approved,
@@ -32,6 +39,7 @@ MAX_DAYS_PER_REQUEST = 3   # Nhân viên tối đa 3 ngày/đơn
 # ── Helpers ──────────────────────────────────────────────────────
 
 def _req_dict(req: LeaveRequest) -> dict:
+    scope = leave_request_scope(req)
     return {
         "id":           req.id,
         "emp_code":     req.emp_code,
@@ -40,6 +48,9 @@ def _req_dict(req: LeaveRequest) -> dict:
         "emp_email":    req.emp_email,
         "request_type": req.request_type,
         "dates":        req.get_dates(),
+        "leave_scope":  scope,
+        "scope_label":  leave_scope_label(scope),
+        "assignment_labels": [],
         "total_days":   req.total_days(),
         "reason":       req.reason,
         "status":       req.status,
@@ -48,6 +59,12 @@ def _req_dict(req: LeaveRequest) -> dict:
         "reviewed_by":  req.reviewed_by,
         "note":         req.note,
     }
+
+
+def _req_dict_with_db(db: Session, req: LeaveRequest) -> dict:
+    data = _req_dict(req)
+    data["assignment_labels"] = request_assignment_labels(db, req)
+    return data
 
 
 def _get_emp(emp_code: str, db: Session) -> Optional[Employee]:
@@ -101,6 +118,31 @@ def _ensure_manager_can_review(db: Session, current_user: User, req: LeaveReques
         raise HTTPException(403, f"Cửa hàng trưởng/phó không thể {action} đơn của quản lý khác")
 
 
+def _validate_leave_assignment_ids(
+    db: Session,
+    emp: Employee,
+    work_date: date,
+    assignment_ids: list[int],
+) -> list[int]:
+    if not assignment_ids:
+        raise HTTPException(400, "Vui lòng chọn ít nhất một ca cần nghỉ")
+    rows = (
+        db.query(ShiftAssignment)
+        .filter(
+            ShiftAssignment.id.in_(assignment_ids),
+            ShiftAssignment.emp_code == emp.emp_code,
+            ShiftAssignment.work_date == work_date,
+            ShiftAssignment.status != "cancelled",
+        )
+        .all()
+    )
+    found = {row.id for row in rows}
+    missing = [str(assignment_id) for assignment_id in assignment_ids if assignment_id not in found]
+    if missing:
+        raise HTTPException(400, "Có ca không hợp lệ hoặc không thuộc lịch của bạn: " + ", ".join(missing))
+    return sorted(found)
+
+
 # ── POST /api/leave — Gửi đơn ────────────────────────────────────
 
 @router.post("")
@@ -108,6 +150,11 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)):
 
     request_type = payload.get("request_type", "leave")
+    if request_type != "leave":
+        raise HTTPException(400, "Hiện chỉ hỗ trợ đơn nghỉ phép, không còn tạo đơn làm từ xa")
+    leave_scope = payload.get("leave_scope", "day")
+    if leave_scope not in ("day", "shift"):
+        raise HTTPException(400, "leave_scope phải là 'day' hoặc 'shift'")
     dates_raw    = payload.get("dates", [])   # [{"date":"2026-05-12","half":null}, ...]
     reason       = payload.get("reason", "").strip()
 
@@ -146,18 +193,21 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
                 f"Chỉ được gửi đơn từ ngày {min_date.isoformat()} trở đi "
                 f"(tối thiểu 1 ngày trước)")
 
-        # Kiểm tra ngày có phải ngày làm không
-        cal = get_calendar_day(d, db, emp.branch_id)
-        if cal["day_type"] in ("off", "holiday"):
-            lbl = "ngày nghỉ" if cal["day_type"] == "off" else "ngày lễ"
-            raise HTTPException(400,
-                f"{d_str} là {lbl} ({cal['label'] or 'theo lịch công ty'}), "
-                "không cần gửi đơn")
-
         if half not in (None, "am", "pm"):
             raise HTTPException(400, f"Giá trị 'half' không hợp lệ: {half}")
 
-        validated_dates.append({"date": d_str, "half": half})
+        normalized = {"date": d_str, "half": half, "scope": leave_scope}
+        if leave_scope == "shift":
+            assignment_ids = _validate_leave_assignment_ids(
+                db,
+                emp,
+                d,
+                assignment_ids_from_entry(entry),
+            )
+            normalized["assignment_ids"] = assignment_ids
+        else:
+            normalized["assignment_ids"] = []
+        validated_dates.append(normalized)
 
     # Giới hạn số ngày (chỉ áp dụng nhân viên/manager thường)
     if not is_admin_override and len(validated_dates) > MAX_DAYS_PER_REQUEST:
@@ -165,20 +215,10 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
             f"Tối đa {MAX_DAYS_PER_REQUEST} ngày/đơn. "
             "Xin nhiều hơn vui lòng liên hệ trực tiếp quản lý.")
 
-    # Kiểm tra trùng đơn
-    existing = db.query(LeaveRequest).filter(
-        LeaveRequest.emp_code == emp.emp_code,
-        LeaveRequest.status.in_(["pending", "approved"]),
-    ).all()
-
-    existing_dates = set()
-    for req in existing:
-        existing_dates.update(req.date_strings())
-
-    conflicts = [d["date"] for d in validated_dates if d["date"] in existing_dates]
-    if conflicts:
-        raise HTTPException(400,
-            f"Đã có đơn (đang chờ duyệt hoặc đã duyệt) cho ngày: {', '.join(conflicts)}")
+    try:
+        validate_leave_conflicts(db, emp.emp_code, validated_dates, leave_scope=leave_scope)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
     # Tạo đơn
     req = LeaveRequest(
@@ -213,7 +253,11 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
         except Exception as e:
             print(f"[leave] notify_submitted lỗi: {e}")
 
-    return {"success": True, "request": _req_dict(req)}
+    if is_admin_override:
+        apply_approved_leave_to_assignments(db, req, current_user.email)
+        db.commit()
+
+    return {"success": True, "request": _req_dict_with_db(db, req)}
 
 
 # ── GET /api/leave — Danh sách đơn ──────────────────────────────
@@ -249,7 +293,7 @@ def list_leaves(
         q = q.filter(LeaveRequest.request_type == request_type)
 
     reqs = q.order_by(LeaveRequest.submitted_at.desc()).all()
-    return [_req_dict(r) for r in reqs]
+    return [_req_dict_with_db(db, r) for r in reqs]
 
 
 # ── GET /api/leave/pending-count ─────────────────────────────────
@@ -285,6 +329,7 @@ def approve_leave(req_id: int, payload: dict = {},
     req.reviewed_at = datetime.now()
     req.reviewed_by = current_user.email
     req.note        = payload.get("note", "")
+    apply_approved_leave_to_assignments(db, req, current_user.email)
     db.commit()
     db.refresh(req)
 
@@ -293,7 +338,7 @@ def approve_leave(req_id: int, payload: dict = {},
     except Exception as e:
         print(f"[leave] notify_approved lỗi: {e}")
 
-    return {"success": True, "request": _req_dict(req)}
+    return {"success": True, "request": _req_dict_with_db(db, req)}
 
 
 # ── PUT /api/leave/{id}/reject ──────────────────────────────────
@@ -327,7 +372,7 @@ def reject_leave(req_id: int, payload: dict = {},
     except Exception as e:
         print(f"[leave] notify_rejected lỗi: {e}")
 
-    return {"success": True, "request": _req_dict(req)}
+    return {"success": True, "request": _req_dict_with_db(db, req)}
 
 
 # ── DELETE /api/leave/{id} — Nhân viên hủy đơn ─────────────────

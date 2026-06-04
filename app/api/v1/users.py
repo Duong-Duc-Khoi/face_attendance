@@ -14,22 +14,27 @@ Endpoints:
 
 from datetime import date, datetime
 import re
+import secrets
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import hash_password
 from app.models.branch import Branch
 from app.models.employee import Employee
 from app.models.user import User
 from app.schemas.employee import STORE_ROLE_LABELS, normalize_store_role
 from app.services.branch_scope import ensure_branch_access, scoped_branch_filter, selected_branch_ids
 from app.services.auth_service import (
+    create_password_reset_token,
     require_admin,
     require_manager,
     send_approval_notification,
+    send_password_reset_email,
 )
 from app.services.employee_branch_history import transfer_employee_to_branch
 
@@ -260,8 +265,80 @@ class ApproveUserRequest(BaseModel):
     branch_id: Optional[int] = None
     store_role: Optional[str] = None
 
+class CreateDashboardUserRequest(BaseModel):
+    email: str
+    full_name: str
+    role: str
+    branch_id: Optional[int] = None
+    store_role: Optional[str] = None
+
 class SetActiveRequest(BaseModel):
     is_active: bool
+
+
+def _normalize_email(value: str | None) -> str:
+    email = (value or "").strip().lower()
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise HTTPException(400, "Email không hợp lệ")
+    return email
+
+
+# ── POST /api/users ──────────────────────────────────────────────
+@router.post("")
+def create_dashboard_user(
+    req: CreateDashboardUserRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Admin tạo tài khoản dùng đăng nhập dashboard quản lý."""
+    email = _normalize_email(req.email)
+    full_name = (req.full_name or "").strip()
+    if not full_name:
+        raise HTTPException(400, "Vui lòng nhập họ tên")
+
+    role = (req.role or "").strip()
+    if role not in ("admin", "manager"):
+        raise HTTPException(400, "Chỉ được tạo tài khoản Admin hoặc Quản lý cửa hàng")
+
+    existing_user = db.query(User).filter(func.lower(User.email) == email).first()
+    if existing_user:
+        raise HTTPException(400, "Email này đã có tài khoản")
+
+    existing_emp = db.query(Employee).filter(func.lower(Employee.email) == email).first()
+    if existing_emp:
+        raise HTTPException(400, "Email này đã thuộc hồ sơ nhân viên. Hãy duyệt/gắn role từ tài khoản hiện có")
+
+    if role == "manager":
+        store_role = normalize_store_role(req.store_role)
+        if store_role not in MANAGEMENT_STORE_ROLES:
+            raise HTTPException(400, "Vui lòng chọn Cửa hàng trưởng hoặc Cửa hàng phó")
+        if req.branch_id is None:
+            raise HTTPException(400, "Vui lòng chọn chi nhánh quản lý")
+
+    user = User(
+        email=email,
+        full_name=full_name,
+        hashed_password=hash_password(secrets.token_urlsafe(32)),
+        role=role,
+        is_active=True,
+        is_email_verified=True,
+        is_approved=True,
+    )
+    db.add(user)
+    db.flush()
+
+    _apply_role_and_management(db, user, role, req.branch_id, req.store_role)
+    db.commit()
+    db.refresh(user)
+
+    reset_token = create_password_reset_token(user.id, db)
+    password_reset_sent = send_password_reset_email(user.email, user.full_name, reset_token)
+
+    return {
+        "success": True,
+        "user": _user_dict(user, db),
+        "password_reset_sent": password_reset_sent,
+    }
 
 
 # ── GET /api/users ───────────────────────────────────────────────

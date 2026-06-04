@@ -1,5 +1,6 @@
 """Branch management endpoints."""
 
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.branch import Branch
+from app.models.shift import ShiftAssignment
 from app.services.branch_scope import require_admin, require_branch_manager_or_admin, scoped_branch_filter
 
 router = APIRouter(prefix="/api/branches", tags=["branches"])
@@ -97,6 +99,8 @@ def api_update_branch(
     branch = db.query(Branch).filter_by(id=branch_id).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Không tìm thấy cửa hàng")
+    was_active = bool(branch.is_active)
+    cancelled_assignments = 0
     data = body.model_dump(exclude_unset=True)
     if "name" in data and data["name"] is not None:
         name = str(data["name"]).strip()
@@ -111,6 +115,26 @@ def api_update_branch(
         if field in ("address", "phone") and value is not None:
             value = str(value).strip()
         setattr(branch, field, value)
+    if was_active and body.is_active is False:
+        today = date.today()
+        assignments = (
+            db.query(ShiftAssignment)
+            .filter(
+                ShiftAssignment.branch_id == branch.id,
+                ShiftAssignment.work_date >= today,
+                ShiftAssignment.status != "cancelled",
+            )
+            .all()
+        )
+        for assignment in assignments:
+            assignment.status = "cancelled"
+            suffix = "Tự hủy vì cửa hàng ngừng hoạt động"
+            assignment.note = f"{assignment.note} | {suffix}" if assignment.note else suffix
+        cancelled_assignments = len(assignments)
     db.commit()
     db.refresh(branch)
-    return {"success": True, "branch": _branch_to_dict(branch)}
+    return {
+        "success": True,
+        "branch": _branch_to_dict(branch),
+        "cancelled_assignments": cancelled_assignments,
+    }

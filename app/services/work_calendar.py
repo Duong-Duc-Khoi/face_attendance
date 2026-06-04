@@ -15,6 +15,7 @@ from app.models.employee import Employee
 from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
 from app.services.employee_branch_history import branch_for_employee_on
+from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS, leave_entry_scope
 from app.services.shift_service import shift_window
 
 
@@ -168,7 +169,6 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
 
     Trả về dict:
       status: present | late | approved_leave | approved_leave_half |
-              approved_remote | pending_leave | pending_remote |
               absent | day_off | holiday | future
       work_value: float — số công (1.0 / 0.5 / 0)
       label: str — nhãn hiển thị
@@ -192,7 +192,7 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
     cal = get_calendar_day(d, db, branch_id)
     day_type = "scheduled" if total_shifts else cal["day_type"]
 
-    # 2. Lấy đơn nghỉ/remote có hiệu lực trong ngày
+    # 2. Lấy đơn nghỉ có hiệu lực trong ngày. Dữ liệu remote cũ được hiển thị như nghỉ phép.
     date_str = d.isoformat()
     leave_requests = db.query(LeaveRequest).filter(
         LeaveRequest.emp_code == emp_code,
@@ -200,27 +200,23 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
     ).all()
 
     active_leave  = None   # approved leave
-    active_remote = None   # approved remote
     pending_leave = None
-    pending_remote = None
 
     for req in leave_requests:
         dates_info = req.get_dates()
         day_entry = next((x for x in dates_info if x["date"] == date_str), None)
         if not day_entry:
             continue
+        if leave_entry_scope(day_entry) == "shift":
+            continue
         half = day_entry.get("half")  # None | "am" | "pm"
 
         if req.status == "approved":
-            if req.request_type == "leave":
+            if req.request_type in ("leave", "remote"):
                 active_leave = (req, half)
-            elif req.request_type == "remote":
-                active_remote = (req, half)
         elif req.status == "pending":
-            if req.request_type == "leave":
+            if req.request_type in ("leave", "remote"):
                 pending_leave = (req, half)
-            elif req.request_type == "remote":
-                pending_remote = (req, half)
 
     if not total_shifts:
         if active_leave:
@@ -245,12 +241,20 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
         shift_states.append({
             "assignment": assignment,
             "shift": shift,
+            "is_leave": assignment.status == LEAVE_ASSIGNMENT_STATUS,
             "shift_start": shift_start,
             "check_in_at": check_in_at,
             "check_out_at": check_out_at,
             "late_minutes": raw_late if is_late else 0,
             "is_late": is_late,
         })
+
+    leave_items = [s for s in shift_states if s["is_leave"]]
+    if leave_items and len(leave_items) == total_shifts and not any(s["check_in_at"] for s in shift_states):
+        return {"status": "approved_leave", "work_value": 0.0,
+                "label": "Nghỉ phép", "detail": f"{len(leave_items)}/{total_shifts} ca nghỉ phép",
+                "day_type": day_type,
+                "total_shifts": total_shifts}
 
     checked_in = [s for s in shift_states if s["check_in_at"]]
     late_items = [s for s in checked_in if s["is_late"]]
@@ -264,7 +268,7 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
                     "total_shifts": total_shifts}
 
         return {"status": "present", "work_value": len(checked_in),
-                "label": "Có mặt" + (" (Remote)" if active_remote else ""),
+                "label": "Có mặt",
                 "detail": f"{len(checked_in)}/{total_shifts} ca đã vào",
                 "day_type": day_type,
                 "total_shifts": total_shifts}
@@ -283,16 +287,6 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
                 "day_type": day_type,
                 "total_shifts": total_shifts}
 
-    # 6b. Remote approved
-    if active_remote:
-        req, half = active_remote
-        work_val = 0.5 if half in ("am", "pm") else total_shifts
-        return {"status": "approved_remote", "work_value": work_val,
-                "label": "🏠 Remote" + (" ½ ngày" if half else ""),
-                "detail": req.reason or "",
-                "day_type": day_type,
-                "total_shifts": total_shifts}
-
     if d == today and all(now < s["shift_start"] for s in shift_states):
         return {"status": "future", "work_value": 0.0,
                 "label": "Chưa đến giờ vào ca",
@@ -306,14 +300,6 @@ def get_day_status(emp_code: str, d: date, db: Session) -> dict:
         return {"status": "pending_leave", "work_value": 0.0,
                 "label": "⏳ Chờ duyệt nghỉ",
                 "detail": "Đơn chưa được duyệt",
-                "day_type": day_type,
-                "total_shifts": total_shifts}
-
-    # 6d. Đơn pending remote → absent (không điểm danh, chưa duyệt)
-    if pending_remote:
-        return {"status": "absent", "work_value": 0.0,
-                "label": "Vắng mặt",
-                "detail": "Đơn remote chưa được duyệt",
                 "day_type": day_type,
                 "total_shifts": total_shifts}
 
@@ -356,8 +342,6 @@ def get_employee_stats(emp_code: str, year: int, db: Session) -> dict:
                 late_days += 1
             elif s in ("approved_leave", "approved_leave_half"):
                 approved_leave += 0.5 if s == "approved_leave_half" else shift_count
-            elif s == "approved_remote":
-                remote_days += st["work_value"]
             elif s == "absent":
                 absent_days += shift_count
 

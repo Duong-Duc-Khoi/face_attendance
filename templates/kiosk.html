@@ -117,7 +117,16 @@
     margin-top: 4px; letter-spacing: 0.08em;
   }
 
-  .status-pill {
+  .header-status-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 260px;
+  }
+
+  .status-pill,
+  .branch-pill {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 14px;
     border: 1px solid var(--border);
@@ -125,6 +134,36 @@
     font-size: 12px; color: var(--muted);
     font-family: var(--font-mono);
     letter-spacing: 0.06em;
+  }
+  .branch-pill {
+    max-width: min(420px, 42vw);
+    justify-content: center;
+    border-color: rgba(0,212,170,.35);
+    color: var(--text);
+    background: rgba(0,212,170,.08);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .branch-pill.warn {
+    border-color: rgba(255,77,106,.55);
+    background: rgba(255,77,106,.1);
+    color: #ffd6de;
+  }
+  .branch-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 8px var(--teal);
+    flex: 0 0 auto;
+  }
+  .branch-pill.warn .branch-dot {
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+  }
+  .branch-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .status-dot {
     width: 7px; height: 7px;
@@ -653,9 +692,15 @@
       </div>
     </div>
 
-    <div class="status-pill">
-      <span class="status-dot"></span>
-      <span id="sys-status">HỆ THỐNG HOẠT ĐỘNG</span>
+    <div class="header-status-stack">
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="sys-status">HỆ THỐNG HOẠT ĐỘNG</span>
+      </div>
+      <div class="branch-pill warn" id="kioskBranchPill" title="Cửa hàng gắn với kiosk này">
+        <span class="branch-dot"></span>
+        <span class="branch-text" id="kioskBranchText">Cửa hàng: chưa cấu hình</span>
+      </div>
     </div>
 
     <div class="clock-block">
@@ -955,7 +1000,7 @@ function playAttendanceSuccess(data) {
   if (!canPlayNotificationSound(key, 2500)) return;
 
   playAttendanceSound(normalizedType);
-  const action = normalizedType === 'check_out' ? 'Check out' : 'Check in';
+  const action = normalizedType === 'check_out' ? 'chếch ao' : 'Chếch in';
   speakNotification(`${action} thành công.`);
 }
 
@@ -1001,7 +1046,7 @@ function buildCameraNotice(data) {
     if (isCooldown) {
       return {
         tone: 'error',
-        title: isOut ? 'Bạn đã check out trước đó' : 'Bạn đã check in trước đó',
+        title: isOut ? 'Bạn đã check ao trước đó' : 'Bạn đã check in trước đó',
         detail: data.message || `Vui lòng chờ đủ ${data.cooldown_minutes || 5} phút rồi thử lại`,
       };
     }
@@ -1021,7 +1066,7 @@ function buildCameraNotice(data) {
   }
 
   return {
-    tone: isOut ? 'checkout' : 'checkin',
+    tone: isOut ? 'chếch ao' : 'chếch in',
     title: isOut ? 'Check out thành công' : 'Check in thành công',
     detail: namePart,
   };
@@ -1156,10 +1201,15 @@ function addLogItem(data) {
 }
 
 // ── Backend endpoint helpers ──
-const backendParam = window.KIOSK_BACKEND_URL || new URLSearchParams(location.search).get('backend') || '';
+const kioskQueryParams = new URLSearchParams(location.search);
+const backendParam = window.KIOSK_BACKEND_URL || kioskQueryParams.get('backend') || '';
 const backendBase = backendParam.replace(/\/+$/, '');
-const kioskBranchId = window.KIOSK_BRANCH_ID || new URLSearchParams(location.search).get('branch_id') || localStorage.getItem('kiosk_branch_id') || '';
-if (kioskBranchId) localStorage.setItem('kiosk_branch_id', kioskBranchId);
+const kioskBranchFromConfig = window.KIOSK_BRANCH_ID || '';
+const kioskBranchFromUrl = kioskQueryParams.get('branch_id') || '';
+const kioskBranchFromStorage = localStorage.getItem('kiosk_branch_id') || '';
+const kioskBranchId = kioskBranchFromConfig || kioskBranchFromUrl || kioskBranchFromStorage || '';
+const kioskBranchSource = kioskBranchFromConfig ? 'Cấu hình máy kiosk' : (kioskBranchFromUrl ? 'URL kiosk' : (kioskBranchFromStorage ? 'Đã lưu trên trình duyệt' : 'Chưa cấu hình'));
+if (kioskBranchFromConfig || kioskBranchFromUrl) localStorage.setItem('kiosk_branch_id', kioskBranchId);
 function withBranchParam(path) {
   if (!kioskBranchId) return path;
   const joiner = path.includes('?') ? '&' : '?';
@@ -1172,6 +1222,35 @@ function backendAssetUrl(path) {
   if (!path) return '';
   if (/^(https?:|data:|blob:)/i.test(path)) return path;
   return apiUrl(path.startsWith('/') ? path : `/${path}`);
+}
+function setKioskBranchPill(text, detail, warn=false) {
+  const pill = document.getElementById('kioskBranchPill');
+  const label = document.getElementById('kioskBranchText');
+  if (!pill || !label) return;
+  label.textContent = text;
+  pill.title = detail || text;
+  pill.classList.toggle('warn', !!warn);
+}
+async function loadKioskBranchInfo() {
+  if (!kioskBranchId) {
+    setKioskBranchPill('Cửa hàng: chưa cấu hình', 'Set KIOSK_BRANCH_ID hoặc mở kiosk với ?branch_id=ID', true);
+    document.getElementById('sys-status').textContent = 'KIOSK CHƯA CHỌN CỬA HÀNG';
+    return;
+  }
+  setKioskBranchPill(`Cửa hàng #${kioskBranchId}`, `${kioskBranchSource} · backend ${backendBase || location.origin}`, false);
+  try {
+    const res = await fetch(apiUrl('/api/branches/public'));
+    if (!res.ok) throw new Error('Không tải được danh sách cửa hàng');
+    const branches = await res.json();
+    const branch = Array.isArray(branches) ? branches.find(item => String(item.id) === String(kioskBranchId)) : null;
+    if (!branch) {
+      setKioskBranchPill(`Cửa hàng #${kioskBranchId} không tồn tại hoặc đã tắt`, `${kioskBranchSource} · kiểm tra lại KIOSK_BRANCH_ID`, true);
+      return;
+    }
+    setKioskBranchPill(`Cửa hàng: ${branch.name || ('#' + kioskBranchId)} (#${kioskBranchId})`, `${kioskBranchSource} · backend ${backendBase || location.origin}`, false);
+  } catch(e) {
+    setKioskBranchPill(`Cửa hàng #${kioskBranchId} · chưa kiểm tra được tên`, `${kioskBranchSource} · ${e.message}`, false);
+  }
 }
 function wsUrl(path) {
   path = withBranchParam(path);
@@ -1331,6 +1410,9 @@ async function toggleCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Trình duyệt không hỗ trợ camera');
     }
+    if (!kioskBranchId) {
+      throw new Error('Kiosk chưa được cấu hình cửa hàng');
+    }
     const ws = await connectKioskWS();
     browserStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -1353,7 +1435,7 @@ async function toggleCamera() {
     }
   } catch(e) {
     console.warn(e);
-    document.getElementById('wsStatus').textContent = 'CAMERA/WS: LỖI KẾT NỐI';
+    document.getElementById('wsStatus').textContent = e.message === 'Kiosk chưa được cấu hình cửa hàng' ? 'KIOSK CHƯA CẤU HÌNH CỬA HÀNG' : 'CAMERA/WS: LỖI KẾT NỐI';
     document.getElementById('wsStatus').style.color = 'var(--red)';
     stopCameraLease();
   } finally {
@@ -1386,6 +1468,7 @@ function updateCamUI() {
 
 // Load lịch sử hôm nay từ DB khi mở trang
 async function loadTodayHistory() {
+  if (!kioskBranchId) return;
   try {
     const today = new Date().toISOString().slice(0, 10);
     const res   = await fetch(apiUrl(withBranchParam(`/api/attendance?date=${today}`)));
@@ -1416,6 +1499,7 @@ async function loadTodayHistory() {
 
 hideCameraFeed();
 updateCamUI();
-document.getElementById('wsStatus').textContent = 'WS: CHƯA KẾT NỐI - BẬT CAMERA';
+loadKioskBranchInfo();
+document.getElementById('wsStatus').textContent = kioskBranchId ? 'WS: CHƯA KẾT NỐI - BẬT CAMERA' : 'KIOSK CHƯA CẤU HÌNH CỬA HÀNG';
 setTimeout(loadTodayHistory, 500);</script>
 </html>
