@@ -19,6 +19,7 @@ from app.api.v1.branches import router as branches_router
 from app.api.v1.calendar import router as calendar_router
 from app.api.v1.camera import router as camera_router
 from app.api.v1.employee_roles import router as employee_roles_router
+from app.api.v1.face_sessions import router as face_sessions_router
 from app.api.v1.integrations import router as integrations_router
 from app.api.v1.leave import router as leave_router
 from app.api.v1.me import router as me_router
@@ -54,6 +55,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(employees.router)
 app.include_router(employee_roles_router)
+app.include_router(face_sessions_router)
 app.include_router(branches_router)
 app.include_router(reports.router)
 app.include_router(me_router)

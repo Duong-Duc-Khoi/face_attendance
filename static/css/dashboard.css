@@ -1,27 +1,38 @@
 /* ── Dashboard layout ── */
-html,body{min-height:100vh}
+html,body{min-height:100dvh}
 
 /* ── Stats row ── */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px}
-.stat-label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.stat-card{
+  position:relative;overflow:hidden;
+  background:linear-gradient(180deg,rgba(22,40,65,.96),rgba(9,18,32,.96));
+  border:1px solid var(--border-soft);
+  border-radius:10px;
+  padding:20px 24px;
+  box-shadow:var(--shadow-panel);
+}
+.stat-card::before{
+  content:"";position:absolute;inset:0 0 auto;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent);
+}
+.stat-label{font-size:11px;color:#9eb5d0;letter-spacing:.045em;text-transform:none;margin-bottom:8px;font-weight:700}
 .stat-value{font-family:var(--font-mono);font-size:32px;font-weight:700;line-height:1}
 .stat-value.teal{color:var(--teal)}
 .stat-value.blue{color:var(--blue)}
 .stat-value.red{color:var(--red)}
 .stat-value.yellow{color:var(--yellow)}
-.stat-sub{font-size:11px;color:var(--muted);margin-top:6px}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45}
 
 /* ── 2-col grid ── */
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 
 /* ── Filter bar (inline table toolbar) ── */
-.filter-bar{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.filter-bar{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-soft);background:rgba(8,17,31,.48)}
 
 /* ── Employee cell ── */
 .emp-avatar{
   width:32px;height:32px;border-radius:50%;object-fit:cover;
-  background:var(--panel);border:1.5px solid var(--border);
+  background:var(--panel);border:1px solid var(--border-strong);
   font-size:12px;font-weight:700;color:var(--teal);
   display:inline-flex;align-items:center;justify-content:center;
   flex-shrink:0;overflow:hidden;
@@ -41,26 +52,40 @@ html,body{min-height:100vh}
 
 /* ── Modal ── */
 .modal-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;
+  position:fixed;inset:0;background:rgba(3,8,15,.72);z-index:200;
   display:flex;align-items:center;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .28s var(--ease-out);backdrop-filter:blur(8px);
 }
 .modal-overlay.open{opacity:1;pointer-events:all}
 .modal{
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  background:linear-gradient(180deg,rgba(22,40,65,.98),rgba(9,18,32,.98));
+  border:1px solid var(--border-soft);border-radius:10px;
   padding:28px;min-width:440px;max-width:520px;
-  transform:translateY(16px);transition:transform .2s;
+  box-shadow:0 24px 70px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);
+  transform:translateY(18px) scale(.985);
+  transition:transform .32s var(--ease-out);
 }
-.modal-overlay.open .modal{transform:translateY(0)}
+.modal-overlay.open .modal{transform:translateY(0) scale(1)}
 .modal-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
 
 /* ── Form inside modal ── */
 .form-group{margin-bottom:14px}
 .form-label{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
 .form-input{
-  width:100%;background:var(--panel);border:1px solid var(--border);
+  width:100%;background:rgba(8,17,31,.62);border:1px solid var(--border-soft);
   color:var(--text);font-family:var(--font-sans);font-size:13px;
-  padding:9px 13px;border-radius:7px;outline:none;transition:border-color .2s;
+  padding:9px 13px;border-radius:7px;outline:none;
+  transition:border-color .24s var(--ease-out),box-shadow .24s var(--ease-out),background-color .24s var(--ease-out);
 }
-.form-input:focus{border-color:var(--teal)}
+.form-input:focus{border-color:rgba(0,212,170,.58);background:rgba(14,29,49,.78);box-shadow:0 0 0 3px rgba(0,212,170,.1)}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+@media(max-width:760px){
+  .stats-row{grid-template-columns:1fr 1fr;gap:12px}
+  .modal{min-width:0;width:min(520px,calc(100vw - 28px));padding:22px}
+  .form-row{grid-template-columns:1fr}
+}
+
+@media(max-width:520px){
+  .stats-row{grid-template-columns:1fr}
+}

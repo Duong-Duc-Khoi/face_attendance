@@ -11,19 +11,25 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 <style>
-html,body{min-height:100vh}
+html,body{min-height:100dvh}
 
 .page{position:relative;z-index:1;max-width:1300px;margin:0 auto;
-  padding:24px 20px;display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
+  padding:24px 20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,380px);gap:20px;align-items:start}
 
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.panel-header{padding:12px 18px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:9px;font-size:11px;font-weight:600;
-  letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.panel-header .dot{width:5px;height:5px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal)}
+.panel{
+  background:linear-gradient(180deg,rgba(22,40,65,.96),rgba(9,18,32,.96));
+  border:1px solid var(--border-soft);
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:var(--shadow-panel);
+}
+.panel-header{padding:13px 18px;border-bottom:1px solid var(--border-soft);
+  display:flex;align-items:center;gap:9px;font-size:11px;font-weight:700;
+  letter-spacing:.045em;text-transform:none;color:#a8bdd5;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01))}
+.panel-header .dot{width:5px;height:5px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(0,212,170,.1),0 0 10px rgba(0,212,170,.42)}
 .panel-body{padding:16px}
 
-.cam-wrap{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:16/10;width:100%}
+.cam-wrap{position:relative;background:#02050a;border:1px solid var(--border-soft);border-radius:10px;overflow:hidden;aspect-ratio:16/10;width:100%;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
 .cam-feed{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
 .mesh-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1);opacity:.5}
 .zone-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
@@ -100,11 +106,12 @@ html,body{min-height:100vh}
 @keyframes flashC{0%{opacity:.75}100%{opacity:0}}
 .flash{position:absolute;inset:0;background:#fff;pointer-events:none;animation:flashC .22s ease-out forwards}
 
-.progbar{height:3px;background:var(--border);border-radius:2px;margin-top:10px;overflow:hidden}
-.progfill{height:100%;background:linear-gradient(90deg,var(--teal),#00ff99);border-radius:2px;transition:width .45s ease;box-shadow:0 0 8px var(--teal);width:0}
+.progbar{height:3px;background:rgba(124,154,188,.18);border-radius:2px;margin-top:10px;overflow:hidden}
+.progfill{height:100%;background:linear-gradient(90deg,var(--teal),#00ff99);border-radius:2px;transition:width .45s var(--ease-out);box-shadow:0 0 8px var(--teal);width:0}
 
 .pose-strip{display:flex;gap:8px}
-.pcard{flex:1;background:var(--panel);border:1.5px solid var(--border);border-radius:9px;padding:9px 6px;text-align:center;transition:all .3s;position:relative;overflow:hidden}
+.pcard{flex:1;background:rgba(8,17,31,.58);border:1px solid var(--border-soft);border-radius:8px;padding:9px 6px;text-align:center;transition:border-color .3s var(--ease-out),background-color .3s var(--ease-out),transform .3s var(--ease-press);position:relative;overflow:hidden}
+.pcard:hover{transform:translateY(-1px)}
 .pcard.active{border-color:var(--yellow);background:rgba(246,201,14,.06)}
 .pcard.done  {border-color:var(--teal);background:var(--teal-glow)}
 @keyframes cpulse{0%{box-shadow:0 0 0 0 rgba(0,255,153,.5)}100%{box-shadow:0 0 0 10px rgba(0,255,153,0)}}
@@ -122,40 +129,41 @@ html,body{min-height:100vh}
 .si{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .si.active{color:var(--teal)}.si.done{color:var(--teal-dim)}
 .sn{width:17px;height:17px;border-radius:50%;border:1.5px solid currentColor;display:grid;place-items:center;font-size:9px;flex-shrink:0}
-.sl{flex:1;height:1px;background:var(--border)}
+.sl{flex:1;height:1px;background:var(--border-soft)}
 .fg{margin-bottom:12px}
-.fl{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.09em;text-transform:uppercase;margin-bottom:5px}
-.fi{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:13px;padding:9px 13px;border-radius:8px;transition:border-color .2s;outline:none}
-.fi:focus{border-color:var(--teal)}.fi::placeholder{color:var(--muted)}
+.fl{display:block;font-size:10px;font-weight:700;color:#9eb5d0;letter-spacing:.045em;text-transform:none;margin-bottom:5px}
+.fi{width:100%;background:rgba(8,17,31,.62);border:1px solid var(--border-soft);color:var(--text);font-family:var(--font-sans);font-size:13px;padding:9px 13px;border-radius:8px;transition:border-color .24s var(--ease-out),box-shadow .24s var(--ease-out),background-color .24s var(--ease-out);outline:none}
+.fi:focus{border-color:rgba(0,212,170,.58);background:rgba(14,29,49,.78);box-shadow:0 0 0 3px rgba(0,212,170,.1)}.fi::placeholder{color:var(--muted-dim)}
 .fi-icon{position:relative}
 .fi-icon .fi{padding-right:42px}
 .eye{
   position:absolute;right:12px;top:50%;transform:translateY(-50%);
   width:22px;height:22px;display:grid;place-items:center;
   color:var(--muted);font-size:14px;line-height:1;cursor:pointer;
-  user-select:none;transition:color .18s;
+  user-select:none;transition:color .24s var(--ease-out);
 }
 .eye:hover{color:var(--text)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .fr.single{grid-template-columns:1fr}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 18px;border-radius:8px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;letter-spacing:.03em;text-decoration:none}
-.btn-t{background:var(--teal);color:#000}
-.btn-t:hover:not(:disabled){background:#00f0c0;transform:translateY(-1px)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:9px 18px;border-radius:8px;font-family:var(--font-sans);font-size:13px;font-weight:800;cursor:pointer;border:1px solid transparent;transition:transform .28s var(--ease-press),background-color .28s var(--ease-out),border-color .28s var(--ease-out),color .28s var(--ease-out),box-shadow .28s var(--ease-out);letter-spacing:.03em;text-decoration:none}
+.btn-t{background:linear-gradient(180deg,#39e7c5,var(--teal));color:#03120f;box-shadow:0 12px 28px rgba(0,212,170,.18),inset 0 1px 0 rgba(255,255,255,.35)}
+.btn-t:hover:not(:disabled){background:linear-gradient(180deg,#5ff3d7,#02d8ae);transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.985)}
 .btn-t:disabled{background:var(--teal-dim);color:#003;cursor:not-allowed}
-.btn-o{background:transparent;color:var(--muted);border:1px solid var(--border)}
-.btn-o:hover{color:var(--text);border-color:var(--blue)}
+.btn-o{background:rgba(255,255,255,.025);color:#b6c7da;border:1px solid var(--border-soft)}
+.btn-o:hover{color:var(--text);border-color:rgba(58,143,255,.48);background:rgba(58,143,255,.08)}
 .voice-btn.active{color:#00110d;background:var(--yellow);border-color:var(--yellow)}
 .btn-full{width:100%;padding:12px}
-.tipbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 14px;margin-bottom:14px}
-.tipbox-t{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.tipbox{background:rgba(8,17,31,.58);border:1px solid var(--border-soft);border-radius:8px;padding:11px 14px;margin-bottom:14px}
+.tipbox-t{font-size:10px;color:#9eb5d0;font-weight:700;text-transform:none;letter-spacing:.045em;margin-bottom:5px}
 .tipbox ul{font-size:11px;color:var(--muted);padding-left:14px;line-height:2.1}
 .sc{text-align:center;padding:30px 18px;display:none}
 .sc-icon{width:62px;height:62px;border-radius:50%;background:var(--teal-glow);border:2px solid var(--teal);display:grid;place-items:center;margin:0 auto 12px;font-size:26px;color:var(--teal)}
 .sc-name{font-size:18px;font-weight:700;margin-bottom:3px}
 .sc-sub{font-size:12px;color:var(--muted)}
-.spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--teal);animation:spin .7s linear infinite;flex-shrink:0}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(124,154,188,.24);border-top-color:var(--teal);animation:spin .7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
-#toast{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--panel);border:1px solid var(--border);padding:10px 16px;border-radius:9px;font-size:12px;max-width:290px;transform:translateY(14px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px}
+#toast{position:fixed;bottom:20px;right:20px;z-index:999;background:rgba(16,31,52,.94);border:1px solid var(--border-soft);box-shadow:0 18px 44px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.06);padding:10px 16px;border-radius:8px;font-size:12px;max-width:320px;transform:translateY(14px);opacity:0;transition:transform .34s var(--ease-out),opacity .34s var(--ease-out),border-color .24s var(--ease-out);display:flex;align-items:center;gap:8px}
 #toast.show{transform:translateY(0);opacity:1}
 #toast.success{border-color:var(--teal)}
 #toast.error  {border-color:var(--red)}
@@ -163,11 +171,59 @@ html,body{min-height:100vh}
 /* Confidence bar */
 .conf-row{display:flex;gap:6px;margin-top:6px;align-items:center}
 .conf-label{font-size:9px;font-family:var(--font-mono);color:var(--muted);width:36px;flex-shrink:0}
-.conf-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
-.conf-fill{height:100%;border-radius:2px;transition:width .15s ease,background .2s}
+.conf-bar{flex:1;height:4px;background:rgba(124,154,188,.18);border-radius:2px;overflow:hidden}
+.conf-fill{height:100%;border-radius:2px;transition:width .15s var(--ease-out),background-color .2s var(--ease-out)}
 .hint{font-size:11px;margin-top:3px;min-height:15px}
 .hint.ok{color:var(--teal)}
 .hint.err{color:var(--red)}
+.ticket-card{display:none;background:rgba(8,17,31,.58);border:1px solid var(--border-soft);border-radius:8px;padding:13px;margin-bottom:14px}
+.ticket-head{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.ticket-avatar{width:54px;height:54px;border-radius:8px;background:var(--surface);border:1px solid var(--border-soft);display:grid;place-items:center;overflow:hidden;color:var(--teal);font-weight:700}
+.ticket-avatar img{width:100%;height:100%;object-fit:cover}
+.ticket-name{font-size:15px;font-weight:700}
+.ticket-code{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:3px}
+.ticket-grid{display:grid;gap:7px;font-size:12px;color:var(--muted)}
+.ticket-grid b{color:var(--text);font-weight:600}
+.ticket-note{margin-top:12px;padding:9px 10px;border-radius:8px;background:rgba(246,201,14,.07);border:1px solid rgba(246,201,14,.25);color:var(--yellow);font-size:11px;line-height:1.6}
+
+@media(max-width:1040px){
+  .page{
+    grid-template-columns:1fr;
+    max-width:960px;
+    padding:20px 16px;
+  }
+  .cam-wrap{
+    aspect-ratio:16 / 9;
+  }
+  .pose-strip{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+  }
+}
+
+@media(max-width:700px){
+  .page{padding:16px 12px;gap:14px}
+  .panel-body{padding:14px}
+  .fr{grid-template-columns:1fr}
+  .step-row{
+    display:grid;
+    grid-template-columns:auto 1fr auto 1fr auto;
+    gap:5px;
+    align-items:center;
+  }
+  .si{font-size:9px;min-width:0}
+  .sn{width:18px;height:18px}
+  .pose-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pcard{min-height:74px}
+  .face-guide{
+    width:min(210px,58vw);
+    height:min(276px,76vw);
+  }
+  .arr{width:56px;height:56px;font-size:40px}
+  #submitRow{flex-direction:column}
+  #submitRow .btn{width:100%}
+  #toast{left:12px;right:12px;bottom:14px;max-width:none}
+}
 </style>
 </head>
 <body>
@@ -270,6 +326,7 @@ html,body{min-height:100vh}
     <div class="panel">
       <div class="panel-header"><span class="dot"></span> Thông tin nhân viên</div>
       <div class="panel-body" id="formBody">
+        <div class="ticket-card" id="ticketCard"></div>
         <div class="fr single">
           <div class="fg"><label class="fl">Họ và tên *</label>
             <input class="fi" id="empName" placeholder="Nguyễn Văn A"></div>
@@ -322,7 +379,7 @@ html,body{min-height:100vh}
           </div>
         </div>
 
-        <div class="tipbox">
+        <div class="tipbox" id="tipBox">
           <div class="tipbox-t">Cách hoạt động</div>
           <ul>
             <li>Bật camera tại quầy quản lý → đặt mặt nhân viên vào khung trắng</li>
@@ -333,11 +390,11 @@ html,body{min-height:100vh}
           </ul>
         </div>
 
-        <div style="display:flex;gap:9px">
+        <div id="submitRow" style="display:flex;gap:9px">
           <button class="btn btn-t btn-full" id="btnSubmit" onclick="submitRegister()" disabled>
             ✦ Lưu hồ sơ khuôn mặt
           </button>
-          <button class="btn btn-o" onclick="resetAll()" style="padding:0 14px;white-space:nowrap">Làm lại</button>
+          <button class="btn btn-o" id="btnReset" onclick="resetAll()" style="padding:0 14px;white-space:nowrap">Làm lại</button>
         </div>
       </div>
 
@@ -345,15 +402,15 @@ html,body{min-height:100vh}
         <div class="sc-icon">✉</div>
         <div class="sc-name" id="scName">—</div>
         <div class="sc-sub" id="scSub" style="line-height:1.7;max-width:320px;margin:0 auto">Đăng ký thành công!</div>
-        <div style="margin-top:16px;padding:14px 18px;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:9px;font-size:12px;color:var(--muted);line-height:1.8;max-width:320px;margin-left:auto;margin-right:auto">
+        <div id="nextStepsBox" style="margin-top:16px;padding:14px 18px;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:9px;font-size:12px;color:var(--muted);line-height:1.8;max-width:320px;margin-left:auto;margin-right:auto">
           <div style="font-weight:700;color:var(--teal);margin-bottom:6px">Điều gì xảy ra tiếp theo?</div>
           <div>1. Kiểm tra email và xác minh tài khoản</div>
           <div>2. Quản lý duyệt tài khoản nhân viên</div>
           <div>3. Nhân viên có thể chấm công tại kiosk sau khi hồ sơ được duyệt</div>
         </div>
         <div style="display:flex;gap:9px;justify-content:center;margin-top:18px;flex-wrap:wrap">
-          <button class="btn btn-t" onclick="resetAll()">Đăng ký tiếp</button>
-          <a href="/" class="btn btn-o">Về kiosk</a>
+          <button class="btn btn-t" id="successPrimaryBtn" onclick="resetAll()">Đăng ký tiếp</button>
+          <a href="/" class="btn btn-o" id="successKioskLink">Về kiosk</a>
         </div>
       </div>
     </div>
@@ -362,17 +419,100 @@ html,body{min-height:100vh}
 <div id="toast"></div>
 
 <script>
-const backendParam = window.KIOSK_BACKEND_URL || new URLSearchParams(location.search).get('backend') || '';
+const registerParams = new URLSearchParams(location.search);
+const faceTicket = registerParams.get('ticket') || '';
+let ticketSession = null;
+const backendParam = window.KIOSK_BACKEND_URL || registerParams.get('backend') || '';
 const backendBase = backendParam.replace(/\/+$/, '');
-const preferredBranchId = window.KIOSK_BRANCH_ID || new URLSearchParams(location.search).get('branch_id') || localStorage.getItem('register_branch_id') || '';
+const preferredBranchId = window.KIOSK_BRANCH_ID || registerParams.get('branch_id') || localStorage.getItem('register_branch_id') || '';
 if (preferredBranchId) localStorage.setItem('register_branch_id', preferredBranchId);
 function apiUrl(path) {
   return backendBase ? `${backendBase}${path}` : path;
+}
+function backendAssetUrl(path) {
+  if (!path) return '';
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  return apiUrl(path.startsWith('/') ? path : `/${path}`);
 }
 function esc(value){
   return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[ch]));
+}
+
+function ticketSubmitLabel(){
+  const action = ticketSession?.action || 'register_face';
+  return action === 'update_face'
+    ? `✦ Đăng ký lại khuôn mặt cho ${ticketSession.employee?.emp_code || 'nhân viên'}`
+    : `✦ Đăng ký khuôn mặt cho ${ticketSession.employee?.emp_code || 'nhân viên'}`;
+}
+
+function applyTicketMode(data){
+  ticketSession = data;
+  document.title = `${data.action_label || 'Đăng ký khuôn mặt'} — FaceAttend`;
+  document.querySelectorAll('#formBody > .fr').forEach(el => { el.style.display = 'none'; });
+  const emp = data.employee || {};
+  const branch = emp.branch || {};
+  const avatar = emp.avatar_url
+    ? `<img src="${esc(backendAssetUrl(emp.avatar_url))}" alt="${esc(emp.name || '')}">`
+    : esc((emp.name || '?').slice(0, 1).toUpperCase());
+  const card = document.getElementById('ticketCard');
+  card.style.display = 'block';
+  card.innerHTML = `
+    <div class="ticket-head">
+      <div class="ticket-avatar">${avatar}</div>
+      <div>
+        <div class="ticket-name">${esc(emp.name || 'Nhân viên')}</div>
+        <div class="ticket-code">${esc(emp.emp_code || '')} · ${esc(data.action_label || 'Đăng ký khuôn mặt')}</div>
+      </div>
+    </div>
+    <div class="ticket-grid">
+      <div>Chi nhánh: <b>${esc(branch.name || ('#' + (emp.branch_id || '')))}</b></div>
+      <div>Trạng thái dữ liệu khuôn mặt: <b>${emp.has_face ? 'Đã đăng ký khuôn mặt' : 'Chưa đăng ký khuôn mặt'}</b></div>
+      <div>Phiên hết hạn lúc: <b>${esc(data.expires_at ? new Date(data.expires_at).toLocaleTimeString('vi-VN') : '')}</b></div>
+    </div>
+    <div class="ticket-note">Phiên này chỉ cập nhật dữ liệu nhận diện cho nhân viên đã chọn. Không tạo nhân viên mới và không đổi tài khoản/hồ sơ.</div>
+  `;
+  document.getElementById('tipBox').innerHTML = `
+    <div class="tipbox-t">Cách hoạt động</div>
+    <ul>
+      <li>Kiểm tra đúng tên và mã nhân viên trước khi chụp</li>
+      <li>Làm theo mũi tên: thẳng → trái → phải → lên → xuống</li>
+      <li>Khi khuôn mặt đúng góc và nét → <strong style="color:var(--teal)">tự động chụp</strong></li>
+      <li>Ảnh mới sẽ ghi đè dữ liệu nhận diện cũ nếu nhân viên đã đăng ký trước đó</li>
+    </ul>
+  `;
+  document.getElementById('btnSubmit').textContent = ticketSubmitLabel();
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnReset').textContent = 'Chụp lại';
+  document.getElementById('scSub').textContent = '';
+  document.getElementById('nextStepsBox').style.display = 'none';
+  document.getElementById('successPrimaryBtn').style.display = 'none';
+}
+
+function setTicketError(message){
+  document.querySelectorAll('#formBody > .fr').forEach(el => { el.style.display = 'none'; });
+  const card = document.getElementById('ticketCard');
+  card.style.display = 'block';
+  card.innerHTML = `<div class="ticket-note" style="margin-top:0;color:var(--red);border-color:rgba(255,77,106,.35);background:rgba(255,77,106,.07)">${esc(message)}</div>`;
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnSubmit').disabled = true;
+}
+
+async function initTicketMode(){
+  document.getElementById('btnSubmit').textContent = 'Đang tải phiên đăng ký...';
+  document.getElementById('btnSubmit').disabled = true;
+  document.getElementById('btnStart').disabled = true;
+  try{
+    const res = await fetch(apiUrl(`/api/face-sessions/${encodeURIComponent(faceTicket)}`));
+    const data = await res.json();
+    if(!res.ok)throw new Error(data.detail || 'Phiên đăng ký khuôn mặt không hợp lệ');
+    applyTicketMode(data);
+    showToast('Đã nhận phiên đăng ký từ dashboard','success');
+  }catch(e){
+    setTicketError(e.message);
+    showToast('Lỗi: '+e.message,'error');
+  }
 }
 
 async function loadRegisterBranches(){
@@ -555,7 +695,8 @@ function buildCards(){
   });
 }
 buildCards();
-loadRegisterBranches();
+if(faceTicket) initTicketMode();
+else loadRegisterBranches();
 
 // ── Start camera ──
 async function startCamera(){
@@ -928,8 +1069,8 @@ function nextPose(){ return POSES.find(p=>!captured[p.id])||null; }
 
 function allDone(){
   document.getElementById('instrMain').textContent='✓ Đã chụp đủ 5 góc!';
-  document.getElementById('instrSub').textContent='Điền thông tin và nhấn Đăng ký';
-  speakGuide('Vui lòng điền thông tin và nhấn đăng ký.', 'all-done', {force:true});
+  document.getElementById('instrSub').textContent=faceTicket?'Kiểm tra đúng nhân viên rồi gửi ảnh khuôn mặt':'Điền thông tin và nhấn Đăng ký';
+  speakGuide(faceTicket?'Vui lòng kiểm tra đúng nhân viên rồi gửi ảnh khuôn mặt.':'Vui lòng điền thông tin và nhấn đăng ký.', 'all-done', {force:true});
   setArrows([]);document.getElementById('faceGuide').className='face-guide s-lock';
   document.getElementById('btnSubmit').disabled=false;
   setStep(3);cancelLock();
@@ -981,6 +1122,7 @@ function checkRegConfirm() {
 }
 
 async function submitRegister(){
+  if(faceTicket)return submitTicketRegister();
   const empName=document.getElementById('empName').value.trim();
   const empEmail=document.getElementById('empEmail').value.trim();
   const empPassword=document.getElementById('empPassword').value;
@@ -1024,6 +1166,34 @@ async function submitRegister(){
     showToast('Đăng ký thành công!','success');
   }catch(e){btn.textContent='✦ Lưu hồ sơ khuôn mặt';btn.disabled=false;showToast('Lỗi: '+e.message,'error');}
 }
+
+async function submitTicketRegister(){
+  if(!ticketSession){showToast('Phiên đăng ký khuôn mặt chưa sẵn sàng','error');return;}
+  const frames=Object.values(captured);
+  if(frames.length<3){showToast('Cần chụp ít nhất 3 góc','error');return;}
+  const btn=document.getElementById('btnSubmit');
+  btn.innerHTML='<div class="spinner"></div> Đang cập nhật...';btn.disabled=true;
+  try{
+    const res=await fetch(apiUrl(`/api/face-sessions/${encodeURIComponent(faceTicket)}/complete`),{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({frames})
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.detail||'Lỗi không xác định');
+    if(mpCam)mpCam.stop();if(stream)stream.getTracks().forEach(t=>t.stop());
+    setStep(3);
+    const emp=data.employee||ticketSession.employee||{};
+    document.getElementById('formBody').style.display='none';
+    document.getElementById('successCard').style.display='block';
+    document.getElementById('scName').textContent=`${emp.name||''} · ${emp.emp_code||''}`;
+    document.getElementById('scSub').textContent=data.message||'Đã cập nhật khuôn mặt thành công.';
+    document.getElementById('nextStepsBox').style.display='none';
+    document.getElementById('successPrimaryBtn').style.display='none';
+    showToast('Đã cập nhật khuôn mặt','success');
+  }catch(e){
+    btn.textContent=ticketSubmitLabel();btn.disabled=false;showToast('Lỗi: '+e.message,'error');
+  }
+}
 // ── Reset ──
 function resetAll(){
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -1039,6 +1209,7 @@ function resetAll(){
   document.getElementById('btnStart').innerHTML='▶ Bật Camera';
   document.getElementById('btnStart').disabled=false;document.getElementById('btnStart').style.display='';
   document.getElementById('btnSubmit').disabled=true;
+  document.getElementById('btnSubmit').textContent=faceTicket?ticketSubmitLabel():'✦ Lưu hồ sơ khuôn mặt';
   document.getElementById('hudRec').style.display='none';document.getElementById('detectBadge').style.display='none';
   document.getElementById('camStatus').textContent='OFFLINE';document.getElementById('camStatus').style.color='';
   document.getElementById('confPanel').style.display='none';

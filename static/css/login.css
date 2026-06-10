@@ -1,25 +1,28 @@
 /* ── Step tabs ── */
 .step-tabs{
   display:flex;gap:0;margin-bottom:28px;border-radius:8px;overflow:hidden;
-  border:1px solid var(--border);
+  border:1px solid var(--border-soft);
+  background:rgba(8,17,31,.54);
 }
 .stab{
   flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;
   letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
-  background:var(--panel);cursor:default;transition:all .2s;
+  background:transparent;cursor:default;
+  transition:background-color .24s var(--ease-out),color .24s var(--ease-out);
 }
-.stab.active{background:var(--teal);color:#000}
+.stab.active{background:linear-gradient(180deg,#39e7c5,var(--teal));color:#03120f}
 .stab.done{background:rgba(0,212,170,.12);color:var(--teal)}
 
 /* ── OTP input boxes ── */
 .otp-row{display:flex;gap:10px;justify-content:center;margin-bottom:6px}
 .otp-box{
-  width:48px;height:58px;background:var(--panel);border:1.5px solid var(--border);
+  width:48px;height:58px;background:rgba(8,17,31,.62);border:1px solid var(--border-soft);
   color:var(--text);font-family:var(--font-mono);font-size:22px;font-weight:700;
   text-align:center;border-radius:10px;outline:none;
-  transition:all .2s;caret-color:var(--teal);
+  transition:border-color .24s var(--ease-out),box-shadow .24s var(--ease-out),background-color .24s var(--ease-out),transform .24s var(--ease-press);
+  caret-color:var(--teal);
 }
-.otp-box:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,212,170,.15)}
+.otp-box:focus{border-color:rgba(0,212,170,.58);box-shadow:0 0 0 3px rgba(0,212,170,.12);background:rgba(14,29,49,.78);transform:translateY(-1px)}
 .otp-box.filled{border-color:var(--teal);color:var(--teal)}
 .otp-box.err{border-color:var(--red);animation:shake .3s}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
@@ -40,8 +43,8 @@
 }
 .text-link:hover{text-decoration:underline}
 .reset-note{
-  background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.22);
-  color:var(--muted);border-radius:9px;padding:12px 14px;
+  background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.24);
+  color:#b6c7da;border-radius:8px;padding:12px 14px;
   font-size:12px;line-height:1.65;margin-bottom:16px;
 }
 .reset-note strong{color:var(--text)}

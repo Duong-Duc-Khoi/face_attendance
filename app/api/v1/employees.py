@@ -9,7 +9,7 @@ Thay đổi:
 
 import base64
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 import re
 from typing import Optional
@@ -17,12 +17,13 @@ from typing import Optional
 import cv2
 import numpy as np
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.branch import Branch
 from app.models.employee import Employee
+from app.models.face_enrollment import FaceEnrollmentSession
 from app.models.user import User
 from app.schemas.employee import (
     EmployeeUpdate,
@@ -39,6 +40,13 @@ from app.services.face_engine import face_engine
 from app.core.security import hash_password, get_current_user
 from app.services.auth_service import create_verify_token, send_verification_email
 from app.services.employee_branch_history import transfer_employee_to_branch
+from app.services.face_enrollment import (
+    FACE_SESSION_ACTIVE_STATUSES,
+    FACE_SESSION_TTL_MINUTES,
+    face_action_label,
+    generate_face_ticket,
+)
+from app.services.kiosk_registry import list_online_kiosks, send_to_kiosk
 from app.services.branch_scope import (
     BRANCH_MANAGER_STORE_ROLES,
     default_branch_id_for_write,
@@ -57,8 +65,8 @@ class TransferBranchRequest(BaseModel):
     note: Optional[str] = ""
 
 
-class FaceUpdateRequest(BaseModel):
-    frames: list[str] = Field(default_factory=list)
+class FaceSessionCreateRequest(BaseModel):
+    kiosk_id: Optional[str] = None
 
 
 # ── Helper ───────────────────────────────────────────────────────
@@ -103,20 +111,6 @@ def _clean_phone(value: str | None) -> str:
     if len(phone) > 20:
         raise HTTPException(400, "Số điện thoại tối đa 20 ký tự")
     return phone
-
-
-def _decode_base64_frames(frames: list[str]) -> list:
-    cv_images = []
-    for b64 in frames:
-        try:
-            img_bytes = base64.b64decode(str(b64).split(",")[-1])
-            nparr = np.frombuffer(img_bytes, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            if img is not None:
-                cv_images.append(img)
-        except Exception:
-            continue
-    return cv_images
 
 
 def _ensure_store_role_slot(
@@ -604,10 +598,10 @@ def transfer_employee_branch(
     }
 
 
-@router.post("/{emp_id}/face")
-def update_employee_face(
+@router.post("/{emp_id}/face-session")
+async def create_employee_face_session(
     emp_id: int,
-    payload: FaceUpdateRequest,
+    body: FaceSessionCreateRequest | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -616,26 +610,75 @@ def update_employee_face(
     if not emp:
         raise HTTPException(404, "Nhân viên không tồn tại")
     _require_employee_access(db, current_user, emp)
-    if not payload.frames:
-        raise HTTPException(400, "Không có ảnh khuôn mặt nào")
+    if not emp.branch_id:
+        raise HTTPException(400, "Nhân viên chưa thuộc chi nhánh nào")
 
-    cv_images = _decode_base64_frames(payload.frames)
-    if not cv_images:
-        raise HTTPException(400, "Không có ảnh hợp lệ")
+    now = datetime.now()
+    (
+        db.query(FaceEnrollmentSession)
+        .filter(
+            FaceEnrollmentSession.employee_id == emp.id,
+            FaceEnrollmentSession.status.in_(FACE_SESSION_ACTIVE_STATUSES),
+        )
+        .update({"status": "cancelled", "updated_at": now}, synchronize_session=False)
+    )
 
-    result = face_engine.register(emp.emp_code, cv_images)
-    if not result["success"]:
-        raise HTTPException(400, result["message"])
-
-    emp.face_path = f"data/faces/{emp.emp_code}"
-    emp.avatar_url = f"/data/faces/{emp.emp_code}/0.jpg"
-    emp.updated_at = datetime.now()
+    ticket, token_hash = generate_face_ticket()
+    action = "update_face" if emp.emp_code in face_engine.embeddings else "register_face"
+    kiosk_id = (body.kiosk_id if body else None) or ""
+    session = FaceEnrollmentSession(
+        employee_id=emp.id,
+        branch_id=emp.branch_id,
+        token_hash=token_hash,
+        action=action,
+        status="pending",
+        kiosk_id=kiosk_id,
+        created_by_id=current_user.id,
+        expires_at=now + timedelta(minutes=FACE_SESSION_TTL_MINUTES),
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(session)
     db.commit()
-    db.refresh(emp)
+    db.refresh(session)
+
+    online = await list_online_kiosks(emp.branch_id)
+    selected = None
+    if kiosk_id:
+        selected = next((row for row in online if row["kiosk_id"] == kiosk_id), None)
+    elif len(online) == 1:
+        selected = online[0]
+        session.kiosk_id = selected["kiosk_id"]
+        db.commit()
+        db.refresh(session)
+
+    register_path = f"/register?ticket={ticket}&branch_id={emp.branch_id}"
+    sent = False
+    if selected:
+        sent = await send_to_kiosk(selected["kiosk_id"], {
+            "type": "open_register_ticket",
+            "ticket": ticket,
+            "register_path": register_path,
+            "action": action,
+            "action_label": face_action_label(action),
+            "employee": _emp_dict(emp),
+        })
+
     return {
         "success": True,
+        "ticket": ticket,
+        "register_path": register_path,
+        "sent_to_kiosk": sent,
+        "kiosk": selected,
+        "online_kiosks": online,
+        "session": {
+            "id": session.id,
+            "action": action,
+            "action_label": face_action_label(action),
+            "status": session.status,
+            "expires_at": session.expires_at.isoformat(),
+        },
         "employee": _emp_dict(emp),
-        "message": f"Đã cập nhật khuôn mặt cho {emp.name} ({emp.emp_code})",
     }
 
 

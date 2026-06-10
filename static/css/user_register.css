@@ -1,7 +1,7 @@
 /* ── Layout overrides for register page ── */
 html,body{padding:24px 0}
 .wrap{max-width:460px}
-.logo-icon{width:48px;height:48px;border-radius:13px;margin-bottom:10px}
+.logo-icon{width:48px;height:48px;border-radius:10px;margin-bottom:10px}
 .logo-name{font-size:14px}
 
 .card-title{font-size:18px;font-weight:700;margin-bottom:6px}
@@ -17,8 +17,8 @@ html,body{padding:24px 0}
 .hint.err{color:var(--red)}
 
 /* ── Password strength bar ── */
-.pw-bar{height:3px;border-radius:2px;margin-top:6px;background:var(--border);overflow:hidden}
-.pw-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;width:0}
+.pw-bar{height:3px;border-radius:2px;margin-top:6px;background:rgba(124,154,188,.18);overflow:hidden}
+.pw-fill{height:100%;border-radius:2px;transition:width .3s var(--ease-out),background-color .3s var(--ease-out);width:0}
 
 /* ── Password requirements list ── */
 .req-list{margin-top:8px;display:flex;flex-direction:column;gap:3px}
@@ -33,18 +33,18 @@ html,body{padding:24px 0}
 .success-sub{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
 
 .email-badge{
-  display:inline-block;background:var(--panel);border:1px solid var(--border);
+  display:inline-block;background:rgba(8,17,31,.62);border:1px solid var(--border-soft);
   border-radius:20px;padding:4px 16px;font-size:12px;
   font-family:var(--font-mono);color:var(--teal);margin-bottom:20px;
 }
 
 .check-steps{
-  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  background:rgba(8,17,31,.62);border:1px solid var(--border-soft);border-radius:8px;
   padding:16px;text-align:left;margin-bottom:20px;
 }
 .cs{
   display:flex;align-items:flex-start;gap:10px;font-size:12px;color:var(--muted);
-  padding:5px 0;border-bottom:1px solid rgba(26,47,80,.5);
+  padding:5px 0;border-bottom:1px solid rgba(124,154,188,.13);
 }
 .cs:last-child{border-bottom:none}
 .cs-num{

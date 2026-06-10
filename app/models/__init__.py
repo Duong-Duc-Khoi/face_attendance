@@ -8,6 +8,7 @@ from app.models.branch import Branch
 from app.models.employee import Employee
 from app.models.employee_branch_history import EmployeeBranchHistory
 from app.models.employee_role import EmployeeRole
+from app.models.face_enrollment import FaceEnrollmentSession
 from app.models.attendance import (
     AttendanceAuditFinding,
     AttendanceAuditRun,
@@ -25,6 +26,7 @@ from app.models.shift import Shift, ShiftAssignment, ShiftPlanDraft, ShiftPlanDr
 from app.models.integration import AIProviderSetting
 __all__ = [
     "Base", "Branch", "Employee", "EmployeeBranchHistory", "EmployeeRole",
+    "FaceEnrollmentSession",
     "AttendanceSession", "AttendanceEvent", "AttendanceEvidence",
     "AttendanceAuditRun", "AttendanceAuditFinding", "AttendanceCorrectionAudit",
     "AttendanceLog", "AttendancePeriodLock",

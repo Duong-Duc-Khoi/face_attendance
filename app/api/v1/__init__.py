@@ -1,1 +1,1 @@
-from app.api.v1 import employees, reports
+from app.api.v1 import employees, face_sessions, reports

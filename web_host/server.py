@@ -92,14 +92,6 @@ async def employees_page(request: Request):
     )
 
 
-@app.get("/employees/{emp_id}/face")
-async def employee_face_page(request: Request, emp_id: int):
-    return templates.TemplateResponse(
-        "face_update.html",
-        _template_context(request, emp_id=emp_id),
-    )
-
-
 @app.get("/branches")
 async def branches_page(request: Request):
     return templates.TemplateResponse("branches.html", _template_context(request))

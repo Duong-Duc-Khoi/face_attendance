@@ -610,6 +610,7 @@ let auditFindings=[],manualReviewLogs=[],auditVisionConfigured=false,auditProvid
 let attendanceReviewItems=[],attendanceReviewCount=0;
 let dashboardSummary={},pendingLeaveCount=0;
 const ACTIVE_PAGE='{{ active_page|default("overview") }}';
+const KIOSK_URL='{{ kiosk_url }}';
 
 // ── Init ──
 (async function init(){
@@ -1020,7 +1021,8 @@ function renderEmployees(list){
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="7" class="empty">Không có nhân viên nào</td></tr>';return;}
   tbody.innerHTML=filtered.map(e=>{
     const hasFace=!!e.has_face;
-    const faceStatus=`<span class="emp-face-status ${hasFace?'ok':'missing'}">${hasFace?'Đã có mặt':'Chưa có mặt'}</span>`;
+    const faceStatus=`<span class="emp-face-status ${hasFace?'ok':'missing'}">${hasFace?'Đã đăng ký khuôn mặt':'Chưa đăng ký khuôn mặt'}</span>`;
+    const faceBtnLabel=hasFace?'Đăng ký lại khuôn mặt':'Đăng ký khuôn mặt';
     const deleteBtn=canSoftDeleteEmployee(e)
       ? `<button class="btn btn-red" onclick="deleteEmployee(${e.id})" style="padding:5px 10px">Xóa</button>`
       : '';
@@ -1036,7 +1038,7 @@ function renderEmployees(list){
       <td>${rosterSafe(employmentLabel(e.employment_type))}</td>
       <td><span class="badge ${e.is_active?'badge-active':'badge-inactive'}">${e.is_active?'● Đang làm':'○ Đã nghỉ'}</span></td>
       <td style="text-align:right"><div style="display:flex;gap:6px;justify-content:flex-end">
-        <button class="btn btn-outline" onclick="openFaceUpdate(${e.id})" style="padding:5px 10px">Cập nhật mặt</button>
+        <button class="btn btn-outline" onclick="startFaceEnrollment(${e.id})" style="padding:5px 10px">${faceBtnLabel}</button>
         <button class="btn btn-outline" onclick="openEditModal(${e.id})" style="padding:5px 10px">Sửa</button>
         ${deleteBtn}
       </div></td>
@@ -1056,8 +1058,57 @@ function filterEmployees(){
   renderEmployees(f);
 }
 
-function openFaceUpdate(id){
-  window.location.href=`/employees/${id}/face`;
+function _kioskRegisterUrl(path){
+  const base=(KIOSK_URL||'').replace(/\/+$/,'');
+  return base+(path||'/register');
+}
+
+async function _selectKioskForEmployee(emp){
+  if(!emp.branch_id)return '';
+  try{
+    const res=await authFetch(`/api/kiosks/online?branch_id=${encodeURIComponent(emp.branch_id)}`);
+    if(!res.ok)return '';
+    const data=await res.json();
+    const kiosks=data.kiosks||[];
+    if(kiosks.length===1)return kiosks[0].kiosk_id;
+    if(kiosks.length>1){
+      const lines=kiosks.map((k,i)=>`${i+1}. ${k.kiosk_id}`).join('\n');
+      const choice=prompt(`Có nhiều kiosk đang mở cho chi nhánh này:\n${lines}\n\nNhập số kiosk muốn gửi phiên đăng ký:`,`1`);
+      if(choice===null)return null;
+      const idx=Number(choice)-1;
+      if(kiosks[idx])return kiosks[idx].kiosk_id;
+      showToast('Kiosk được chọn không hợp lệ','error');
+      return null;
+    }
+  }catch(e){}
+  return '';
+}
+
+async function startFaceEnrollment(id){
+  const emp=employees.find(e=>Number(e.id)===Number(id));if(!emp)return;
+  const actionLabel=emp.has_face?'Đăng ký lại khuôn mặt':'Đăng ký khuôn mặt';
+  if(!confirm(`${actionLabel} cho ${emp.name} (${emp.emp_code})?\n\nKiosk phải đang mở màn chấm công của cùng chi nhánh.`))return;
+  const kioskId=await _selectKioskForEmployee(emp);
+  if(kioskId===null)return;
+  try{
+    const body=kioskId?{kiosk_id:kioskId}:{};
+    const res=await authFetch(`/api/employees/${id}/face-session`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.detail||'Không tạo được phiên đăng ký khuôn mặt');
+    const fallbackUrl=_kioskRegisterUrl(data.register_path);
+    if(data.sent_to_kiosk){
+      showToast(`Đã gửi phiên ${actionLabel.toLowerCase()} sang kiosk`,'success');
+    }else{
+      showToast('Không thấy kiosk đang mở. Dùng link dự phòng trên kiosk.','error');
+      prompt('Mở link này trên máy kiosk để tiếp tục:',fallbackUrl);
+    }
+  }catch(e){
+    showToast('Lỗi: '+e.message,'error');
+  }
 }
 
 // ── Logs ──
@@ -1477,8 +1528,8 @@ async function saveEmployee(){
     }else{
       const code=document.getElementById('mEmpCode').value.trim(),name=document.getElementById('mEmpName').value.trim();
       if(!code||!name)throw new Error('Vui lòng nhập mã NV và họ tên');
-      showToast('Chuyển sang trang đăng ký nhân viên mới...','success');
-      setTimeout(()=>{window.location='/register';},1200);
+      showToast('Đăng ký nhân viên và khuôn mặt thực hiện tại kiosk','error');
+      return;
     }
     closeModal();await loadEmployeeRoles();await loadEmployees();await loadSummary();
   }catch(e){showToast('Lỗi: '+e.message,'error');}

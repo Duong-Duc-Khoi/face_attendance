@@ -10,38 +10,50 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:        #060c17;
-    --surface:   #0d1626;
-    --panel:     #111e34;
-    --border:    #1a2f50;
+    --bg:        #050b14;
+    --surface:   #0b1728;
+    --panel:     #12213a;
+    --border:    #24405f;
+    --border-soft: rgba(124,154,188,0.18);
+    --border-strong: rgba(142,175,212,0.34);
     --teal:      #00d4aa;
     --teal-dim:  #007a63;
     --teal-glow: rgba(0,212,170,0.15);
     --blue:      #3a8fff;
     --red:       #ff4d6a;
-    --text:      #e8f0fe;
-    --muted:     #5a7a9a;
+    --yellow:    #f6c90e;
+    --text:      #edf5ff;
+    --muted:     #8ba5c2;
+    --muted-dim: #5f7896;
+    --shadow-panel: 0 18px 50px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.045);
+    --ease-out: cubic-bezier(.22,1,.36,1);
+    --ease-press: cubic-bezier(.32,.72,0,1);
     --font-sans: 'Sora', sans-serif;
     --font-mono: 'Space Mono', monospace;
   }
 
   html, body {
-    height: 100%; width: 100%;
-    background: var(--bg);
+    min-height: 100%; width: 100%;
+    background: linear-gradient(180deg,rgba(13,25,43,.86) 0%,var(--bg) 48%,#040811 100%);
     color: var(--text);
     font-family: var(--font-sans);
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
   }
 
   /* ── Grid background ── */
   body::before {
     content: '';
     position: fixed; inset: 0; z-index: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 40px 40px;
-    opacity: 0.35;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.035),transparent 34%),
+      linear-gradient(115deg,rgba(0,212,170,.075),transparent 38%),
+      linear-gradient(245deg,rgba(58,143,255,.08),transparent 42%),
+      linear-gradient(var(--border-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
+    background-size: auto,auto,auto,44px 44px,44px 44px;
+    opacity: .52;
     pointer-events: none;
   }
 
@@ -50,8 +62,8 @@
     content: '';
     position: fixed; inset: 0; z-index: 0;
     background:
-      radial-gradient(ellipse 60% 50% at 50% 100%, rgba(0,212,170,0.07) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 30% at 50% 0%,   rgba(58,143,255,0.05) 0%, transparent 70%);
+      linear-gradient(180deg,transparent 45%,rgba(0,212,170,0.055)),
+      linear-gradient(120deg,rgba(58,143,255,0.055),transparent 42%);
     pointer-events: none;
   }
 
@@ -61,8 +73,11 @@
   .app {
     position: relative; z-index: 1;
     display: grid;
-    grid-template-rows: 72px 1fr 90px;
-    height: 100vh;
+    grid-template-rows: minmax(72px,auto) minmax(0,1fr) auto;
+    min-height: 100dvh;
+    height: 100dvh;
+    max-width: 1600px;
+    margin: 0 auto;
     padding: 0 28px;
     gap: 0;
   }
@@ -72,7 +87,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid var(--border);
+    gap: 18px;
+    border-bottom: 1px solid var(--border-soft);
   }
 
   .brand {
@@ -80,11 +96,12 @@
   }
   .brand-icon {
     width: 36px; height: 36px;
-    border: 1.5px solid var(--teal);
+    border: 1px solid rgba(0,212,170,0.62);
     border-radius: 8px;
     display: grid; place-items: center;
     position: relative;
     overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 12px 28px rgba(0,0,0,0.22);
   }
   .brand-icon::before {
     content: '';
@@ -129,7 +146,7 @@
   .branch-pill {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 14px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-soft);
     border-radius: 999px;
     font-size: 12px; color: var(--muted);
     font-family: var(--font-mono);
@@ -179,7 +196,7 @@
   /* ── Main content ── */
   main {
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: minmax(0,1fr) minmax(320px,380px);
     gap: 24px;
     padding: 24px 0;
     align-items: stretch;
@@ -190,11 +207,12 @@
   .camera-wrap {
     position: relative;
     isolation: isolate;
-    border: 1px solid var(--border);
-    border-radius: 16px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
     overflow: hidden;
-    background: #030810;
+    background: #02050a;
     display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04);
   }
 
   .camera-feed {
@@ -279,12 +297,12 @@
     opacity: 0;
     pointer-events: none;
     padding: 16px 20px;
-    border: 1px solid var(--teal-dim);
+    border: 1px solid var(--border-soft);
     border-radius: 10px;
-    background: rgba(3,8,16,0.88);
+    background: rgba(8,17,31,0.94);
     box-shadow: 0 18px 48px rgba(0,0,0,0.38), 0 0 24px rgba(0,212,170,0.12);
     backdrop-filter: blur(10px);
-    transition: opacity 0.22s ease, transform 0.22s ease;
+    transition: opacity 0.28s var(--ease-out), transform 0.28s var(--ease-out);
   }
   .camera-notice.visible {
     opacity: 1;
@@ -346,10 +364,11 @@
   }
 
   .panel-box {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    background: linear-gradient(180deg,rgba(22,40,65,0.96),rgba(9,18,32,0.96));
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
     padding: 20px;
+    box-shadow: var(--shadow-panel);
   }
 
   /* ── Instruction card ── */
@@ -450,8 +469,8 @@
     gap: 10px;
   }
   .result-item {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: rgba(8,17,31,0.58);
+    border: 1px solid var(--border-soft);
     border-radius: 8px;
     padding: 10px 12px;
   }
@@ -476,7 +495,7 @@
     margin-bottom: 6px; letter-spacing: 0.06em;
   }
   .conf-bar-track {
-    height: 4px; background: var(--border);
+    height: 4px; background: rgba(124,154,188,0.18);
     border-radius: 999px; overflow: hidden;
   }
   .conf-bar-fill {
@@ -496,7 +515,7 @@
   }
   .log-title::after {
     content: ''; flex: 1; height: 1px;
-    background: var(--border);
+    background: var(--border-soft);
   }
   .log-list {
     display: flex; flex-direction: column; gap: 8px;
@@ -511,8 +530,8 @@
   .log-item {
     display: flex; align-items: center; gap: 10px;
     padding: 8px 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: rgba(8,17,31,0.58);
+    border: 1px solid var(--border-soft);
     border-radius: 8px;
     animation: fadeIn 0.3s ease;
   }
@@ -543,7 +562,7 @@
   footer {
     display: flex; align-items: center;
     justify-content: space-between;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--border-soft);
     padding: 0 4px;
   }
   .footer-left {
@@ -586,21 +605,22 @@
   .cam-toggle-btn {
     display: inline-flex; align-items: center; gap: 7px;
     padding: 5px 11px;
-    background: transparent;
-    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border-soft);
     border-radius: 999px;
     font-family: var(--font-mono);
     font-size: 11px; font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--muted);
     cursor: pointer;
-    transition: border-color 0.25s, color 0.25s, box-shadow 0.25s, background 0.25s;
+    transition: transform .24s var(--ease-press), border-color 0.25s, color 0.25s, box-shadow 0.25s, background-color 0.25s;
     outline: none;
     width: fit-content;
   }
   .cam-toggle-btn:hover {
     border-color: var(--teal-dim);
     color: var(--teal);
+    transform: translateY(-1px);
   }
   .cam-toggle-btn.cam-on {
     border-color: var(--teal-dim);
@@ -634,7 +654,7 @@
     border-radius: 50%;
     background: var(--muted);
     flex-shrink: 0;
-    transition: background 0.25s, box-shadow 0.25s;
+    transition: background-color 0.25s, box-shadow 0.25s;
   }
   .cam-toggle-btn.cam-on .cam-toggle-dot {
     background: var(--teal);
@@ -670,6 +690,91 @@
   @keyframes rippleOut {
     from { transform: scale(0.5); opacity: 0.8; }
     to   { transform: scale(2.5); opacity: 0; }
+  }
+
+  @media (max-width: 1080px) {
+    html, body { overflow: auto; }
+    .app {
+      height: auto;
+      min-height: 100dvh;
+      grid-template-rows: auto auto auto;
+      padding: 0 18px;
+    }
+    header {
+      min-height: 72px;
+      padding: 14px 0;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+    .header-status-stack {
+      order: 3;
+      width: 100%;
+      min-width: 0;
+      align-items: stretch;
+    }
+    .status-pill,
+    .branch-pill {
+      justify-content: center;
+      max-width: none;
+    }
+    main {
+      grid-template-columns: 1fr;
+      overflow: visible;
+      padding: 18px 0;
+    }
+    .camera-wrap {
+      min-height: min(62dvh, 620px);
+      aspect-ratio: 16 / 10;
+    }
+    .side-panel {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+      overflow: visible;
+    }
+    .log-box {
+      grid-column: 1 / -1;
+      max-height: 280px;
+    }
+    footer {
+      padding: 14px 0 18px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+    .footer-stats {
+      margin-left: auto;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .app { padding: 0 12px; }
+    header { gap: 12px; }
+    .brand { width: 100%; }
+    .clock-block { width: 100%; text-align: left; }
+    .clock-time { font-size: 24px; }
+    .camera-wrap {
+      min-height: 58dvh;
+      border-radius: 10px;
+    }
+    .side-panel {
+      grid-template-columns: 1fr;
+    }
+    .footer-stats {
+      width: 100%;
+      justify-content: space-between;
+      gap: 12px;
+      order: 3;
+    }
+    .footer-right {
+      text-align: left;
+    }
+    .cam-label {
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      transform: none;
+      text-align: center;
+      white-space: normal;
+    }
   }
 </style>
 </head>
@@ -1211,10 +1316,24 @@ const kioskBranchFromStorage = localStorage.getItem('kiosk_branch_id') || '';
 const kioskBranchId = kioskBranchFromConfig || kioskBranchFromUrl || kioskBranchFromStorage || '';
 const kioskBranchSource = kioskBranchFromConfig ? 'Cấu hình máy kiosk' : (kioskBranchFromUrl ? 'URL kiosk' : (kioskBranchFromStorage ? 'Đã lưu trên trình duyệt' : 'Chưa cấu hình'));
 if (kioskBranchFromConfig || kioskBranchFromUrl) localStorage.setItem('kiosk_branch_id', kioskBranchId);
+const kioskId = (() => {
+  let value = localStorage.getItem('kiosk_id') || '';
+  if (!value) {
+    try { value = crypto.randomUUID(); }
+    catch(e) { value = 'kiosk-' + Date.now() + '-' + Math.random().toString(16).slice(2); }
+    localStorage.setItem('kiosk_id', value);
+  }
+  return value;
+})();
 function withBranchParam(path) {
   if (!kioskBranchId) return path;
   const joiner = path.includes('?') ? '&' : '?';
   return `${path}${joiner}branch_id=${encodeURIComponent(kioskBranchId)}`;
+}
+function withKioskWsParams(path) {
+  path = withBranchParam(path);
+  const joiner = path.includes('?') ? '&' : '?';
+  return `${path}${joiner}kiosk_id=${encodeURIComponent(kioskId)}`;
 }
 function apiUrl(path) {
   return backendBase ? `${backendBase}${path}` : path;
@@ -1254,7 +1373,7 @@ async function loadKioskBranchInfo() {
   }
 }
 function wsUrl(path) {
-  path = withBranchParam(path);
+  path = withKioskWsParams(path);
   if (backendBase) {
     return backendBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + path;
   }
@@ -1292,6 +1411,9 @@ const cameraClientId = (() => {
 let kioskWs = null;
 let browserStream = null;
 let frameTimer = null;
+let keepKioskWs = true;
+let kioskWsReconnectTimer = null;
+let kioskHeartbeatTimer = null;
 
 function setCameraVisible(visible) {
   const feed = document.getElementById('camFeed');
@@ -1312,7 +1434,12 @@ function hideCameraFeed() {
 }
 
 function connectKioskWS() {
+  if (!kioskBranchId) return Promise.reject(new Error('Kiosk chưa được cấu hình cửa hàng'));
   if (kioskWs && kioskWs.readyState <= 1) return Promise.resolve(kioskWs);
+  if (kioskWsReconnectTimer) {
+    clearTimeout(kioskWsReconnectTimer);
+    kioskWsReconnectTimer = null;
+  }
   return new Promise((resolve, reject) => {
     let ws;
     try {
@@ -1323,13 +1450,18 @@ function connectKioskWS() {
     }
     kioskWs = ws;
     ws.onopen = () => {
-      document.getElementById('wsStatus').textContent = 'WS: KIOSK ĐÃ KẾT NỐI ✓';
+      document.getElementById('wsStatus').textContent = cameraOn ? 'WS: KIOSK ĐANG GỬI FRAME' : 'WS: KIOSK ONLINE ✓';
       document.getElementById('wsStatus').style.color = 'var(--teal)';
+      startKioskHeartbeat();
       resolve(ws);
     };
     ws.onmessage = (e) => {
       let data;
       try { data = JSON.parse(e.data); } catch(err) { console.error('WS JSON error:', err); return; }
+      if (data.type === 'open_register_ticket') {
+        openRegisterTicket(data);
+        return;
+      }
       if (data.type === 'kiosk_ready' || data.type === 'faces' || data.type === 'frame_error') return;
       if (data.type === 'attendance' || data.type === 'attendance_error' || data.check_type) {
         console.log('[KIOSK WS] attendance nhận được:', data);
@@ -1337,14 +1469,41 @@ function connectKioskWS() {
       }
     };
     ws.onclose = () => {
-      if (cameraOn) {
+      kioskWs = null;
+      stopKioskHeartbeat();
+      if (keepKioskWs && document.visibilityState !== 'hidden') {
         document.getElementById('wsStatus').textContent = 'WS: MẤT KẾT NỐI — THỬ LẠI...';
         document.getElementById('wsStatus').style.color = 'var(--red)';
-        setTimeout(() => connectKioskWS().catch(() => {}), 2500);
+        kioskWsReconnectTimer = setTimeout(() => connectKioskWS().catch(() => {}), 2500);
       }
     };
     ws.onerror = () => reject(new Error('Không kết nối được WebSocket kiosk'));
   });
+}
+
+function startKioskHeartbeat() {
+  stopKioskHeartbeat();
+  kioskHeartbeatTimer = setInterval(() => {
+    if (kioskWs && kioskWs.readyState === WebSocket.OPEN) {
+      kioskWs.send(JSON.stringify({ type: 'heartbeat', kiosk_id: kioskId }));
+    }
+  }, 30000);
+}
+
+function stopKioskHeartbeat() {
+  if (kioskHeartbeatTimer) {
+    clearInterval(kioskHeartbeatTimer);
+    kioskHeartbeatTimer = null;
+  }
+}
+
+function openRegisterTicket(data) {
+  if (!data || !data.ticket) return;
+  const params = new URLSearchParams();
+  params.set('ticket', data.ticket);
+  if (backendParam) params.set('backend', backendParam);
+  if (kioskBranchId) params.set('branch_id', kioskBranchId);
+  location.href = `/register?${params.toString()}`;
 }
 
 function captureFramePayload() {
@@ -1394,12 +1553,12 @@ function stopCameraLease() {
     browserStream.getTracks().forEach(track => track.stop());
     browserStream = null;
   }
-  if (kioskWs) {
-    kioskWs.close();
-    kioskWs = null;
-  }
   hideCameraFeed();
   updateCamUI();
+  if (kioskWs && kioskWs.readyState === WebSocket.OPEN) {
+    document.getElementById('wsStatus').textContent = 'WS: KIOSK ONLINE ✓';
+    document.getElementById('wsStatus').style.color = 'var(--teal)';
+  }
 }
 
 async function toggleCamera() {
@@ -1454,11 +1613,21 @@ document.addEventListener('visibilitychange', () => {
     stopFrameLoop();
   } else if (cameraOn) {
     startFrameLoop();
+  } else if (keepKioskWs && kioskBranchId) {
+    connectKioskWS().catch(() => {});
   }
 });
 
-window.addEventListener('pagehide', () => stopCameraLease());
-window.addEventListener('beforeunload', () => stopCameraLease());
+window.addEventListener('pagehide', () => {
+  keepKioskWs = false;
+  stopCameraLease();
+  if (kioskWs) kioskWs.close();
+});
+window.addEventListener('beforeunload', () => {
+  keepKioskWs = false;
+  stopCameraLease();
+  if (kioskWs) kioskWs.close();
+});
 
 function updateCamUI() {
   const btn   = document.getElementById('btnCamToggle');
@@ -1506,6 +1675,11 @@ async function loadTodayHistory() {
 hideCameraFeed();
 updateCamUI();
 loadKioskBranchInfo();
-document.getElementById('wsStatus').textContent = kioskBranchId ? 'WS: CHƯA KẾT NỐI - BẬT CAMERA' : 'KIOSK CHƯA CẤU HÌNH CỬA HÀNG';
+document.getElementById('wsStatus').textContent = kioskBranchId ? 'WS: ĐANG KẾT NỐI KIOSK...' : 'KIOSK CHƯA CẤU HÌNH CỬA HÀNG';
+if (kioskBranchId) connectKioskWS().catch(() => {
+  document.getElementById('wsStatus').textContent = 'WS: LỖI KẾT NỐI — THỬ LẠI...';
+  document.getElementById('wsStatus').style.color = 'var(--red)';
+  kioskWsReconnectTimer = setTimeout(() => connectKioskWS().catch(() => {}), 2500);
+});
 setTimeout(loadTodayHistory, 500);</script>
 </html>

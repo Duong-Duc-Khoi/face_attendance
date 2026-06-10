@@ -9,6 +9,7 @@ Two modes are supported:
 import asyncio
 import base64
 from concurrent.futures import ThreadPoolExecutor
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -18,6 +19,7 @@ from app.services.attendance import process_attendance
 from app.services.attendance_audit import record_attendance_evidence
 from app.services.camera import get_camera, save_capture_snapshot
 from app.services.face_engine import face_engine
+from app.services.kiosk_registry import register_kiosk, touch_kiosk, unregister_kiosk
 from app.services.notify import notify_late_async
 from app.services.presentation_guard import presentation_guard_service
 
@@ -248,14 +250,19 @@ async def ws_kiosk(websocket: WebSocket):
             await websocket.send_json({"type": "frame_error", "message": "branch_id không hợp lệ"})
             await websocket.close()
             return
+    kiosk_id = websocket.query_params.get("kiosk_id") or f"kiosk-{uuid4().hex}"
+    await register_kiosk(kiosk_id, branch_id, websocket)
     loop = asyncio.get_running_loop()
     processed_until_absent: set[str] = set()
     last_seen_by_emp: dict[str, float] = {}
     last_processed_at = 0.0
     try:
-        await websocket.send_json({"type": "kiosk_ready"})
+        await websocket.send_json({"type": "kiosk_ready", "kiosk_id": kiosk_id, "branch_id": branch_id})
         while True:
             payload = await websocket.receive_json()
+            await touch_kiosk(kiosk_id)
+            if payload.get("type") == "heartbeat":
+                continue
             if payload.get("type") != "frame":
                 continue
 
@@ -306,6 +313,8 @@ async def ws_kiosk(websocket: WebSocket):
         pass
     except Exception as exc:
         print(f"  ✗ ws_kiosk lỗi: {exc}")
+    finally:
+        await unregister_kiosk(kiosk_id, websocket)
 
 
 @router.websocket("/ws/attendance")

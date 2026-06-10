@@ -43,3 +43,9 @@ skills-lock.json
 docs/*.svg
 scripts/check_restaurant_integrity.sql
 scripts/validate_restaurant_constraints.sql
+migrations/
+!migrations/
+migrations/__pycache__/
+!migrations/versions/
+migrations/versions/__pycache__/
+!migrations/versions/*.py

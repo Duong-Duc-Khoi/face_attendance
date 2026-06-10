@@ -5,32 +5,72 @@
 
 /* ── Design tokens ── */
 :root{
-  --bg:#060c17;
-  --surface:#0d1626;
-  --panel:#111e34;
-  --border:#1a2f50;
+  --bg:#050b14;
+  --surface:#0b1728;
+  --panel:#12213a;
+  --surface-elevated:#162841;
+  --surface-soft:rgba(18,33,58,.72);
+  --border:#24405f;
+  --border-soft:rgba(124,154,188,.18);
+  --border-strong:rgba(142,175,212,.34);
   --teal:#00d4aa;
   --teal-dim:#007a63;
   --teal-glow:rgba(0,212,170,0.15);
   --blue:#3a8fff;
   --red:#ff4d6a;
   --yellow:#f6c90e;
-  --text:#e8f0fe;
-  --muted:#5a7a9a;
+  --text:#edf5ff;
+  --muted:#8ba5c2;
+  --muted-dim:#5f7896;
+  --shadow-soft:0 18px 46px rgba(0,0,0,.22);
+  --shadow-panel:0 18px 50px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.045);
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-press:cubic-bezier(.32,.72,0,1);
   --font-sans:'Be Vietnam Pro','Sora','Segoe UI',system-ui,sans-serif;
   --font-mono:'Space Mono','Consolas','Liberation Mono',monospace;
 }
 
 /* ── Base body ── */
-html,body{background:var(--bg);color:var(--text);font-family:var(--font-sans)}
+html,body{
+  min-width:320px;
+  background:
+    linear-gradient(180deg,rgba(13,25,43,.86) 0%,var(--bg) 42%,#040811 100%);
+  color:var(--text);
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:geometricPrecision;
+}
 
 /* ── Grid background ── */
 body::before{
   content:'';position:fixed;inset:0;z-index:0;
-  background-image:
-    linear-gradient(var(--border) 1px,transparent 1px),
-    linear-gradient(90deg,var(--border) 1px,transparent 1px);
-  background-size:40px 40px;
-  opacity:.2;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.035),transparent 34%),
+    linear-gradient(115deg,rgba(0,212,170,.075),transparent 38%),
+    linear-gradient(245deg,rgba(58,143,255,.08),transparent 42%),
+    linear-gradient(var(--border-soft) 1px,transparent 1px),
+    linear-gradient(90deg,var(--border-soft) 1px,transparent 1px);
+  background-size:auto,auto,auto,44px 44px,44px 44px;
+  opacity:.52;
   pointer-events:none;
+}
+
+button,input,select,textarea{font:inherit}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible{
+  outline:2px solid rgba(0,212,170,.72);
+  outline-offset:2px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+  }
 }
