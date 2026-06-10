@@ -18,6 +18,7 @@ from app.models.branch import Branch
 from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import normalize_job_role, normalize_job_roles, normalize_text
+from app.services.attendance_period import ensure_period_unlocked
 from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS, ensure_can_assign_employee
 
 
@@ -216,6 +217,7 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
     if not shift.is_active:
         raise ValueError(f"Ca #{shift_id} đã tắt, không thể phân công")
     assignment_branch_id = shift.branch_id or (emp.branch_id if emp else None)
+    ensure_period_unlocked(db, assignment_branch_id, work_date)
     _ensure_assignable_workday(work_date, db, assignment_branch_id)
     existing = (
         db.query(ShiftAssignment)
@@ -358,6 +360,8 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
 
     emp = db.query(Employee).filter_by(emp_code=a.emp_code).first()
     new_branch_id = shift.branch_id or (emp.branch_id if emp else a.branch_id)
+    ensure_period_unlocked(db, a.branch_id, a.work_date)
+    ensure_period_unlocked(db, new_branch_id, new_work_date)
     _ensure_assignable_workday(new_work_date, db, new_branch_id)
     ensure_can_assign_employee(db, a.emp_code, new_work_date, a)
     if emp and not _employee_role_matches_shift(emp, shift):
@@ -409,6 +413,7 @@ def delete_assignment(assignment_id: int, db: Session) -> bool:
             raise ValueError("Không tìm thấy cửa hàng")
         if not branch.is_active:
             raise ValueError(INACTIVE_BRANCH_ERROR)
+    ensure_period_unlocked(db, a.branch_id, a.work_date)
     # Giữ bản ghi để attendance_sessions còn tham chiếu được lịch sử ca.
     # Các query lịch đã lọc status != "cancelled", nên thao tác này vẫn ẩn
     # phân công khỏi UI mà không phá khóa ngoại.
@@ -503,6 +508,41 @@ def _session_note_for_reconcile(session: AttendanceSession) -> str:
     return session.note or ""
 
 
+def _is_auto_checkout_log(log: AttendanceLog | None) -> bool:
+    return bool(log and log.check_type == "check_out" and (log.note or "").startswith("Tự động chấm ra"))
+
+
+def _clear_session_attendance(session: AttendanceSession) -> None:
+    session.check_in_at = None
+    session.check_out_at = None
+    session.check_in_status = ""
+    session.check_out_status = ""
+    session.late_minutes = 0
+    session.early_leave_minutes = 0
+    session.overtime_minutes = 0
+    session.worked_minutes = 0
+    if session.status not in ("absent", "cancelled", "missing_checkout"):
+        session.status = "open"
+    if session.review_type not in ("absent", "missing_checkout"):
+        session.review_type = ""
+        session.review_status = "none"
+
+
+def _unlink_reconciled_events(session: AttendanceSession, db: Session) -> None:
+    if not session.id:
+        return
+    events = (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.session_id == session.id,
+              AttendanceEvent.event_type.in_(["check_in", "check_out"]),
+          )
+          .all()
+    )
+    for event in events:
+        event.session_id = None
+
+
 def _link_or_create_reconciled_event(
     log: AttendanceLog,
     session: AttendanceSession,
@@ -550,8 +590,36 @@ def _reconcile_assignment_attendance(
     Khi quản lý bổ sung ca sau khi nhân viên đã chấm công, chuyển log cũ vào
     session của ca đó để báo công và auto-checkout xử lý tiếp như ca bình thường.
     """
+    rebuild_session_for_assignment(assignment, db, shift=shift, emp=emp)
+
+
+def rebuild_session_for_assignment(
+    assignment: ShiftAssignment,
+    db: Session,
+    shift: Shift | None = None,
+    emp: Employee | None = None,
+) -> AttendanceSession | None:
+    """
+    Rebuild AttendanceSession từ AttendanceLog trong cửa sổ ca.
+
+    Quy tắc tính session:
+    - check-in là log check_in đầu tiên trong cửa sổ.
+    - check-out là log check_out cuối cùng sau check-in.
+    - Không có check-in thì không link log vào session để log vẫn là chấm công lẻ.
+    """
+    if assignment.status in ("cancelled", LEAVE_ASSIGNMENT_STATUS):
+        return None
+    shift = shift or db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
+    if not shift:
+        return None
+    emp = emp or (
+        db.query(Employee).filter_by(id=assignment.employee_id).first()
+        if assignment.employee_id else None
+    )
     if not emp:
-        return
+        emp = db.query(Employee).filter_by(emp_code=assignment.emp_code).first()
+    if not emp:
+        return None
 
     shift_start, shift_end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
     logs = (
@@ -561,27 +629,34 @@ def _reconcile_assignment_attendance(
               AttendanceLog.timestamp >= checkin_from,
               AttendanceLog.timestamp <= checkout_until,
           )
-          .order_by(AttendanceLog.timestamp.asc())
+          .order_by(AttendanceLog.timestamp.asc(), AttendanceLog.id.asc())
           .all()
     )
-    if not logs:
-        return
-
     check_in_log = next((log for log in logs if log.check_type == "check_in"), None)
     check_out_candidates = [
         log for log in logs
-        if log.check_type == "check_out"
-        and (not check_in_log or log.timestamp >= check_in_log.timestamp)
+        if check_in_log
+        and log.check_type == "check_out"
+        and log.timestamp >= check_in_log.timestamp
     ]
     check_out_log = check_out_candidates[-1] if check_out_candidates else None
-    if not check_in_log and not check_out_log:
-        return
 
     session = (
         db.query(AttendanceSession)
           .filter_by(shift_assignment_id=assignment.id)
           .first()
     )
+    if not check_in_log:
+        if session:
+            _unlink_reconciled_events(session, db)
+            _clear_session_attendance(session)
+            session.employee_id = emp.id
+            session.branch_id = assignment.branch_id or shift.branch_id or emp.branch_id
+            session.shift_id = shift.id
+            session.work_date = assignment.work_date
+            session.break_minutes = shift.break_minutes or 0
+        return session
+
     if not session:
         session = AttendanceSession(
             employee_id=emp.id,
@@ -596,56 +671,167 @@ def _reconcile_assignment_attendance(
         db.add(session)
         db.flush()
 
+    previous_review_type = session.review_type or ""
+    previous_review_status = session.review_status or "none"
+    _unlink_reconciled_events(session, db)
     session.employee_id = emp.id
     session.branch_id = assignment.branch_id or shift.branch_id or emp.branch_id
     session.shift_id = shift.id
     session.work_date = assignment.work_date
     session.break_minutes = shift.break_minutes or 0
     session.source = session.source or "reconciled"
-
-    if check_in_log:
-        session.check_in_at = check_in_log.timestamp
-        raw_late_minutes = max(0, int((check_in_log.timestamp - shift_start).total_seconds() / 60))
-        grace_minutes = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES
-        session.late_minutes = max(0, raw_late_minutes - grace_minutes)
-        session.check_in_status = "late" if raw_late_minutes > grace_minutes else "on_time"
+    session.review_type = ""
+    session.review_status = "none"
+    session.review_note = ""
+    session.check_in_at = check_in_log.timestamp
+    raw_late_minutes = max(0, int((check_in_log.timestamp - shift_start).total_seconds() / 60))
+    grace_minutes = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES
+    session.late_minutes = max(0, raw_late_minutes - grace_minutes)
+    session.check_in_status = "late" if raw_late_minutes > grace_minutes else "on_time"
 
     if check_out_log:
         session.check_out_at = check_out_log.timestamp
-        session.status = "completed"
         session.early_leave_minutes = max(0, int((shift_end - check_out_log.timestamp).total_seconds() / 60))
         raw_overtime = max(0, int((check_out_log.timestamp - shift_end).total_seconds() / 60))
         session.overtime_minutes = raw_overtime if raw_overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES else 0
-        if session.early_leave_minutes > 0:
-            session.check_out_status = "early_leave"
-        elif session.overtime_minutes > 0:
-            session.check_out_status = "overtime"
-            session.review_type = "overtime"
-            session.review_status = "pending_review"
+        if _is_auto_checkout_log(check_out_log):
+            session.status = "missing_checkout"
+            session.check_out_status = "auto"
+            session.review_type = "missing_checkout"
+            if previous_review_type == "missing_checkout" and previous_review_status in ("approved", "rejected"):
+                session.review_status = previous_review_status
+                if previous_review_status == "approved":
+                    session.status = "completed"
+            else:
+                session.review_status = "pending_review"
+            session.early_leave_minutes = 0
+            session.overtime_minutes = 0
         else:
-            session.check_out_status = "normal"
-    elif check_in_log and session.check_out_at is None:
-        session.status = "open"
-
-    if session.check_in_at and session.check_out_at:
+            session.status = "completed"
+            if session.early_leave_minutes > 0:
+                session.check_out_status = "early_leave"
+            elif session.overtime_minutes > 0:
+                session.check_out_status = "overtime"
+                session.review_type = "overtime"
+                session.review_status = "pending_review"
+            else:
+                session.check_out_status = "normal"
         gross_minutes = int((session.check_out_at - session.check_in_at).total_seconds() / 60)
         session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+    else:
+        session.check_out_at = None
+        session.check_out_status = ""
+        session.early_leave_minutes = 0
+        session.overtime_minutes = 0
+        session.worked_minutes = 0
+        session.status = "open"
 
     session.note = session.note or _session_note_for_reconcile(session)
-
-    if check_in_log:
-        _link_or_create_reconciled_event(check_in_log, session, emp, db)
+    _link_or_create_reconciled_event(check_in_log, session, emp, db)
     if check_out_log:
         _link_or_create_reconciled_event(check_out_log, session, emp, db)
+    return session
 
 
-def find_shift_assignment_for_time(emp_code: str, moment: datetime, db: Session) -> tuple[Optional[ShiftAssignment], Optional[Shift]]:
+def _assignments_for_log_timestamp(
+    emp_code: str,
+    timestamp: datetime | None,
+    db: Session,
+) -> list[tuple[ShiftAssignment, Shift]]:
+    if not emp_code or not timestamp:
+        return []
+    candidate_dates = [timestamp.date(), timestamp.date() - timedelta(days=1)]
+    rows = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.emp_code == emp_code,
+              ShiftAssignment.work_date.in_(candidate_dates),
+              ShiftAssignment.status.notin_(["cancelled", LEAVE_ASSIGNMENT_STATUS]),
+          )
+          .all()
+    )
+    result: list[tuple[ShiftAssignment, Shift]] = []
+    seen: set[int] = set()
+    for assignment in rows:
+        shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
+        if not shift:
+            continue
+        _start, _end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+        if checkin_from <= timestamp <= checkout_until and assignment.id not in seen:
+            seen.add(assignment.id)
+            result.append((assignment, shift))
+    return result
+
+
+def rebuild_sessions_for_log_change(
+    emp_code: str,
+    old_timestamp: datetime | None,
+    new_timestamp: datetime | None,
+    db: Session,
+) -> list[int]:
+    """Rebuild các session bị ảnh hưởng khi log thủ công được tạo/sửa/xóa."""
+    targets: dict[int, tuple[ShiftAssignment, Shift]] = {}
+    for timestamp in (old_timestamp, new_timestamp):
+        for assignment, shift in _assignments_for_log_timestamp(emp_code, timestamp, db):
+            targets[assignment.id] = (assignment, shift)
+    session_ids: list[int] = []
+    for assignment, shift in targets.values():
+        session = rebuild_session_for_assignment(assignment, db, shift=shift)
+        if session and session.id:
+            session_ids.append(session.id)
+    return session_ids
+
+
+def find_open_session_for_time(
+    emp_code: str,
+    moment: datetime,
+    db: Session,
+) -> tuple[Optional[AttendanceSession], Optional[ShiftAssignment], Optional[Shift]]:
+    """Ưu tiên session đang mở để lần chấm tiếp theo là checkout đúng ca."""
+    candidate_dates = [moment.date(), moment.date() - timedelta(days=1)]
+    rows = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.emp_code == emp_code,
+              ShiftAssignment.work_date.in_(candidate_dates),
+              ShiftAssignment.status.notin_(["cancelled", LEAVE_ASSIGNMENT_STATUS]),
+          )
+          .all()
+    )
+
+    best: tuple[datetime, ShiftAssignment, Shift, AttendanceSession] | None = None
+    for assignment in rows:
+        shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
+        if not shift:
+            continue
+        _start, _end, _checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+        session = (
+            db.query(AttendanceSession)
+              .filter(
+                  AttendanceSession.shift_assignment_id == assignment.id,
+                  AttendanceSession.check_in_at.isnot(None),
+                  AttendanceSession.check_out_at.is_(None),
+                  AttendanceSession.status != "cancelled",
+              )
+              .first()
+        )
+        if not session or not session.check_in_at:
+            continue
+        if session.check_in_at <= moment <= checkout_until:
+            if best is None or session.check_in_at > best[0]:
+                best = (session.check_in_at, assignment, shift, session)
+
+    if best:
+        return best[3], best[1], best[2]
+    return None, None, None
+
+
+def find_shift_assignment_for_checkin(emp_code: str, moment: datetime, db: Session) -> tuple[Optional[ShiftAssignment], Optional[Shift]]:
     """
-    Tìm ca phù hợp nhất tại thời điểm chấm công.
+    Tìm ca phù hợp để check-in.
 
-    Xét cả hôm nay và hôm qua để bắt ca qua ngày. Ưu tiên ca có moment nằm trong
-    cửa sổ check-in/check-out; nếu nhiều ca cùng hợp lệ thì chọn ca có start gần
-    moment nhất.
+    Xét cả hôm nay và hôm qua để bắt ca qua ngày. Session đã có check-in không
+    được chọn lại, vì checkout được xử lý qua find_open_session_for_time().
     """
     candidate_dates = [moment.date(), moment.date() - timedelta(days=1)]
     rows = (
@@ -658,20 +844,38 @@ def find_shift_assignment_for_time(emp_code: str, moment: datetime, db: Session)
           .all()
     )
 
-    best: tuple[float, ShiftAssignment, Shift] | None = None
+    best: tuple[tuple[int, float], ShiftAssignment, Shift] | None = None
     for assignment in rows:
         shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
         if not shift:
             continue
-        start, _end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
-        if checkin_from <= moment <= checkout_until:
-            score = abs((moment - start).total_seconds())
-            if best is None or score < best[0]:
-                best = (score, assignment, shift)
+        start, end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+        if not (checkin_from <= moment <= checkout_until):
+            continue
+        session = (
+            db.query(AttendanceSession)
+              .filter_by(shift_assignment_id=assignment.id)
+              .first()
+        )
+        if session and session.check_in_at:
+            continue
+        score = (0 if moment <= end else 1, abs((moment - start).total_seconds()))
+        if best is None or score < best[0]:
+            best = (score, assignment, shift)
 
     if best:
         return best[1], best[2]
     return None, None
+
+
+def find_shift_assignment_for_time(emp_code: str, moment: datetime, db: Session) -> tuple[Optional[ShiftAssignment], Optional[Shift]]:
+    """
+    Backward compatible wrapper: ưu tiên session đang mở, sau đó mới tìm ca check-in.
+    """
+    _session, assignment, shift = find_open_session_for_time(emp_code, moment, db)
+    if assignment and shift:
+        return assignment, shift
+    return find_shift_assignment_for_checkin(emp_code, moment, db)
 
 
 def find_leave_assignment_for_time(emp_code: str, moment: datetime, db: Session) -> tuple[Optional[ShiftAssignment], Optional[Shift]]:
@@ -704,7 +908,7 @@ def calc_status_for_shift(check_time: datetime, emp_code: str, db: Session) -> s
     
     Dùng thay thế cho _calc_status() cũ trong attendance.py.
     """
-    assignment, shift = find_shift_assignment_for_time(emp_code, check_time, db)
+    assignment, shift = find_shift_assignment_for_checkin(emp_code, check_time, db)
     if shift and assignment:
         work_dt, _end, _from, _until = shift_window(assignment.work_date, shift)
         threshold = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES

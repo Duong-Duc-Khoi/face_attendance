@@ -23,6 +23,7 @@ from app.models.attendance import (
     AttendanceEvent,
     AttendanceEvidence,
     AttendanceLog,
+    AttendancePeriodLock,
     AttendanceSession,
 )
 from app.models.branch import Branch
@@ -31,6 +32,24 @@ from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS
+from app.services.attendance_period import (
+    create_period_lock,
+    ensure_period_unlocked,
+    list_period_locks,
+    period_lock_to_dict,
+    unlock_period,
+)
+from app.services.attendance_policy import (
+    confirmed_absent,
+    leave_credit_for_assignment,
+    missing_checkout_recorded,
+    payable_work_minutes,
+    recorded_overtime_minutes,
+    review_status_label,
+    session_counts_as_work,
+    session_needs_review,
+    session_status_label,
+)
 from app.services.attendance import (
     get_logs_by_date, get_summary_today,
     get_log_by_id, update_attendance_log,
@@ -202,49 +221,23 @@ def _employment_label(value: str | None) -> str:
 
 
 def _review_label(value: str | None) -> str:
-    return {
-        "none": "Không cần duyệt",
-        "pending_review": "Chờ duyệt",
-        "approved": "Đã duyệt",
-        "rejected": "Từ chối",
-    }.get(value or "none", value or "Không cần duyệt")
+    return review_status_label(value)
 
 
 def _session_status_label(session: AttendanceSession | None) -> str:
-    if not session:
-        return "Chưa có chấm công"
-    return {
-        "open": "Đang mở",
-        "completed": "Hoàn tất",
-        "missing_checkout": "Quên checkout",
-        "absent": "Vắng",
-        "cancelled": "Đã hủy",
-    }.get(session.status or "", session.status or "Chưa xác định")
+    return session_status_label(session)
 
 
 def _session_counts_as_work(session: AttendanceSession | None) -> bool:
-    if not session:
-        return False
-    if session.review_status in ("pending_review", "rejected"):
-        return False
-    if session.status in ("absent", "cancelled", "missing_checkout"):
-        return False
-    return bool(session.check_in_at and session.check_out_at)
+    return session_counts_as_work(session)
 
 
 def _session_needs_review(session: AttendanceSession | None) -> bool:
-    return bool(session and session.review_status == "pending_review")
+    return session_needs_review(session)
 
 
 def _session_ot_buckets(session: AttendanceSession | None) -> tuple[int, int]:
-    ot = int(session.overtime_minutes or 0) if session else 0
-    if not ot:
-        return 0, 0
-    if session.review_status == "pending_review":
-        return 0, ot
-    if session.review_status == "rejected":
-        return 0, 0
-    return ot, 0
+    return recorded_overtime_minutes(session), 0
 
 
 def _write_table_sheet(ws, title: str, headers: list[str], rows: list[list], widths: list[int], styles) -> None:
@@ -632,12 +625,13 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
         branch_label = branches.get(assignment_branch_id, f"Chi nhánh #{assignment_branch_id}" if assignment_branch_id else "Chưa xác định")
         employment = _employment_label(emp.employment_type if emp else None)
         leave_approved = assignment.status == LEAVE_ASSIGNMENT_STATUS
-        paid_shift = 1 if (not leave_approved and _session_counts_as_work(session)) else 0
-        worked_minutes = int(session.worked_minutes or 0) if paid_shift and session else 0
-        ot_approved, ot_pending = _session_ot_buckets(session)
+        work_credit = 1 if (not leave_approved and session_counts_as_work(session)) else 0
+        worked_minutes = payable_work_minutes(session) if work_credit else 0
+        leave_credit, leave_minutes = leave_credit_for_assignment(assignment, shift)
+        ot_recorded = recorded_overtime_minutes(session)
         needs_review = _session_needs_review(session)
-        missing_checkout = bool(session and (session.status == "missing_checkout" or session.review_type == "missing_checkout"))
-        absent = bool(session and session.status == "absent")
+        missing_checkout = missing_checkout_recorded(session)
+        absent = confirmed_absent(session)
         rejected = bool(session and session.review_status == "rejected")
 
         row = summary.setdefault(emp_code, {
@@ -647,10 +641,11 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
             "role": role_label,
             "employment": employment,
             "assigned": 0,
-            "paid_shifts": 0,
+            "work_credit": 0,
             "worked_minutes": 0,
-            "ot_approved": 0,
-            "ot_pending": 0,
+            "leave_credit": 0,
+            "leave_minutes": 0,
+            "ot_recorded": 0,
             "late_count": 0,
             "late_minutes": 0,
             "early_leave_minutes": 0,
@@ -660,10 +655,11 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
         })
         row["branches"].add(branch_label)
         row["assigned"] += 1
-        row["paid_shifts"] += paid_shift
+        row["work_credit"] += work_credit
         row["worked_minutes"] += worked_minutes
-        row["ot_approved"] += ot_approved if paid_shift else 0
-        row["ot_pending"] += ot_pending
+        row["leave_credit"] += leave_credit
+        row["leave_minutes"] += leave_minutes
+        row["ot_recorded"] += ot_recorded
         if session and session.late_minutes:
             row["late_count"] += 1
             row["late_minutes"] += int(session.late_minutes or 0)
@@ -693,10 +689,11 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
             _dt_text(session.check_out_at if session else None),
             "Nghỉ phép" if leave_approved else ("Từ chối" if rejected else _session_status_label(session)),
             _review_label(session.review_status if session else None),
-            paid_shift,
+            work_credit,
             _hours(worked_minutes),
-            _hours(ot_approved if paid_shift else 0),
-            _hours(ot_pending),
+            leave_credit,
+            _hours(leave_minutes),
+            _hours(ot_recorded),
             int(session.late_minutes or 0) if session else 0,
             int(session.early_leave_minutes or 0) if session else 0,
             " | ".join([p for p in note_parts if p]),
@@ -712,10 +709,11 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
             row["role"],
             row["employment"],
             row["assigned"],
-            row["paid_shifts"],
+            row["work_credit"],
             _hours(row["worked_minutes"]),
-            _hours(row["ot_approved"]),
-            _hours(row["ot_pending"]),
+            row["leave_credit"],
+            _hours(row["leave_minutes"]),
+            _hours(row["ot_recorded"]),
             row["late_count"],
             row["late_minutes"],
             row["early_leave_minutes"],
@@ -757,17 +755,17 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
     _write_table_sheet(
         ws_summary,
         "Tong hop",
-        ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại nhân sự", "Số ca phân", "Số ca tính công", "Giờ làm tính công", "OT đã duyệt (giờ)", "OT chờ duyệt (giờ)", "Số lần đi muộn", "Phút đi muộn", "Phút về sớm", "Ca vắng", "Ca quên checkout", "Ca cần duyệt"],
+        ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại nhân sự", "Số ca phân", "Công làm", "Giờ làm thực tế", "Công phép", "Giờ phép", "OT ghi nhận (giờ)", "Số lần đi muộn", "Phút đi muộn", "Phút về sớm", "Vắng xác nhận", "Ca quên checkout", "Ca cần duyệt"],
         summary_rows,
-        [6, 12, 24, 22, 18, 14, 12, 14, 16, 16, 16, 14, 14, 14, 10, 16, 14],
+        [6, 12, 24, 22, 18, 14, 12, 12, 16, 12, 14, 16, 14, 14, 14, 14, 16, 14],
         styles,
     )
     _write_table_sheet(
         wb.create_sheet("Chi tiet ca"),
         "Chi tiet ca",
-        ["STT", "Ngày", "Chi nhánh", "Mã NV", "Họ tên", "Vai trò", "Loại nhân sự", "Ca", "Giờ ca", "Giờ vào", "Giờ ra", "Trạng thái ca", "Trạng thái duyệt", "Số ca tính công", "Giờ làm tính công", "OT đã duyệt (giờ)", "OT chờ duyệt (giờ)", "Đi muộn (phút)", "Về sớm (phút)", "Ghi chú"],
+        ["STT", "Ngày", "Chi nhánh", "Mã NV", "Họ tên", "Vai trò", "Loại nhân sự", "Ca", "Giờ ca", "Giờ vào", "Giờ ra", "Trạng thái ca", "Trạng thái duyệt", "Công làm", "Giờ làm thực tế", "Công phép", "Giờ phép", "OT ghi nhận (giờ)", "Đi muộn (phút)", "Về sớm (phút)", "Ghi chú"],
         detail_rows,
-        [6, 12, 22, 12, 24, 18, 14, 18, 14, 18, 18, 16, 16, 14, 16, 16, 16, 14, 14, 30],
+        [6, 12, 22, 12, 24, 18, 14, 18, 14, 18, 18, 16, 16, 12, 16, 12, 14, 16, 14, 14, 30],
         styles,
     )
     _write_table_sheet(
@@ -951,6 +949,7 @@ class AttendanceUpdateRequest(BaseModel):
     check_type:    Optional[str] = None   # "check_in" | "check_out"
     timestamp:     Optional[str] = None   # "YYYY-MM-DD HH:MM:SS" hoặc ISO
     note:          Optional[str] = None
+    reason:        str
 
 
 class AttendanceCreateRequest(BaseModel):
@@ -958,6 +957,7 @@ class AttendanceCreateRequest(BaseModel):
     check_type: str                       # "check_in" | "check_out"
     timestamp:  str                       # "YYYY-MM-DD HH:MM:SS" hoặc ISO
     note:       Optional[str] = ""
+    reason:     str
 
 
 class AuditRunRequest(BaseModel):
@@ -977,6 +977,13 @@ class AuditReviewRequest(BaseModel):
 
 class AttendanceSessionReviewRequest(BaseModel):
     review_status: str
+    note: Optional[str] = ""
+
+
+class AttendancePeriodLockRequest(BaseModel):
+    branch_id: Optional[int] = None
+    from_date: str
+    to_date: str
     note: Optional[str] = ""
 
 
@@ -1113,14 +1120,115 @@ def review_attendance_session(
     if not session:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
     _ensure_session_scope(db, current_user, session)
+    try:
+        ensure_period_unlocked(db, session.branch_id, session.work_date)
+    except ValueError as e:
+        raise HTTPException(status_code=423, detail=str(e))
     session.review_status = body.review_status
     session.review_note = body.note or ""
     session.reviewed_by = current_user.full_name or current_user.email
     session.reviewed_at = datetime.now() if body.review_status != "pending_review" else None
     session.updated_by_id = current_user.id
+    if (
+        session.review_type == "missing_checkout"
+        and body.review_status == "approved"
+        and session.check_in_at
+        and session.check_out_at
+    ):
+        session.status = "completed"
+    elif session.review_type == "missing_checkout" and body.review_status in ("pending_review", "rejected"):
+        session.status = "missing_checkout"
     db.commit()
     db.refresh(session)
     return {"success": True, "session": _session_review_to_dict(session, db)}
+
+
+def _parse_lock_date(value: str, field: str):
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except Exception:
+        raise HTTPException(status_code=422, detail=f"{field} phải định dạng YYYY-MM-DD")
+
+
+def _lock_branch_for_user(db: Session, current_user, branch_id: int | None) -> int | None:
+    _require_manager_or_admin(current_user)
+    if current_user.role == "admin":
+        if branch_id is not None:
+            ensure_branch_access(db, current_user, branch_id)
+        return branch_id
+    branch_ids = selected_branch_ids(db, current_user, branch_id)
+    if branch_id is None:
+        if len(branch_ids) == 1:
+            return branch_ids[0]
+        raise HTTPException(status_code=400, detail="Manager cần chọn chi nhánh để khóa kỳ")
+    if branch_id not in branch_ids:
+        raise HTTPException(status_code=403, detail="Không có quyền với chi nhánh này")
+    return branch_id
+
+
+@router.get("/attendance/period-locks")
+def get_attendance_period_locks(
+    branch_id: int | None = None,
+    active_only: bool = True,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+    rows = list_period_locks(
+        db,
+        branch_ids=branch_ids,
+        active_only=active_only,
+        from_date=_parse_lock_date(from_date, "from_date") if from_date else None,
+        to_date=_parse_lock_date(to_date, "to_date") if to_date else None,
+    )
+    return {"items": [period_lock_to_dict(row) for row in rows], "total": len(rows)}
+
+
+@router.post("/attendance/period-locks", status_code=201)
+def create_attendance_period_lock(
+    body: AttendancePeriodLockRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    branch_id = _lock_branch_for_user(db, current_user, body.branch_id)
+    try:
+        row = create_period_lock(
+            db,
+            branch_id=branch_id,
+            from_date=_parse_lock_date(body.from_date, "from_date"),
+            to_date=_parse_lock_date(body.to_date, "to_date"),
+            locked_by=current_user.full_name or current_user.email,
+            locked_by_id=current_user.id,
+            note=body.note or "",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"success": True, "lock": period_lock_to_dict(row)}
+
+
+@router.delete("/attendance/period-locks/{lock_id}")
+def delete_attendance_period_lock(
+    lock_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    row = db.query(AttendancePeriodLock).filter_by(id=lock_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kỳ công")
+    if row.branch_id is None and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Chỉ admin được mở khóa kỳ toàn hệ thống")
+    if row.branch_id is not None:
+        ensure_branch_access(db, current_user, row.branch_id)
+    unlocked = unlock_period(
+        db,
+        lock_id,
+        unlocked_by=current_user.full_name or current_user.email,
+        unlocked_by_id=current_user.id,
+    )
+    return {"success": True, "lock": period_lock_to_dict(unlocked)}
 
 
 # ── GET /api/attendance/{log_id}/capture ─────────────────────────
@@ -1347,6 +1455,8 @@ def edit_attendance_log(
             timestamp_str= body.timestamp,
             note         = body.note,
             updated_by   = current_user.full_name or current_user.email,
+            updated_by_id= current_user.id,
+            reason       = body.reason,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -1362,6 +1472,7 @@ def edit_attendance_log(
 @router.delete("/attendance/{log_id}")
 def remove_attendance_log(
     log_id: int,
+    reason: str,
     current_user=Depends(get_current_user),
 ):
     """
@@ -1375,14 +1486,21 @@ def remove_attendance_log(
         )
 
     try:
-        deleted = delete_attendance_log(log_id)
+        deleted = delete_attendance_log(
+            log_id,
+            deleted_by=current_user.full_name or current_user.email,
+            deleted_by_id=current_user.id,
+            reason=reason,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
 
-    return {"success": True, "message": f"Đã xoá bản ghi #{log_id}"}
+    return {"success": True, "message": f"Đã xoá bản ghi #{log_id}", "audit_id": deleted.get("audit_id")}
 
 
 # ── POST /api/attendance/manual ──────────────────────────────────
@@ -1416,6 +1534,8 @@ def add_manual_attendance(
             timestamp_str = body.timestamp,
             note        = body.note or "",
             created_by  = current_user.full_name or current_user.email,
+            created_by_id = current_user.id,
+            reason      = body.reason,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

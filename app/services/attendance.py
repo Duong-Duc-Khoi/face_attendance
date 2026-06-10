@@ -20,12 +20,20 @@ from app.models.shift import Shift, ShiftAssignment
 from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS
 from app.services.shift_service import (
     calc_status_for_shift,
-    find_leave_assignment_for_time,
+    find_open_session_for_time,
+    find_shift_assignment_for_checkin,
     find_shift_assignment_for_time,
+    find_leave_assignment_for_time,
+    rebuild_sessions_for_log_change,
     shift_window,
 )
 from app.services.employee_branch_history import branch_for_log, filter_logs_by_branch_ids
 from app.services.notify import notify_missing_checkout
+from app.services.attendance_period import (
+    create_correction_audit,
+    ensure_period_unlocked,
+    log_snapshot,
+)
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 
 LOW_CONFIDENCE_THRESHOLD = 0.70
@@ -176,7 +184,9 @@ def process_attendance(
                 "avatar_url": emp.avatar_url or "",
             }
 
-        assignment, shift = find_shift_assignment_for_time(emp_code, now, db)
+        open_session, assignment, shift = find_open_session_for_time(emp_code, now, db)
+        if not open_session:
+            assignment, shift = find_shift_assignment_for_checkin(emp_code, now, db)
         if not assignment or not shift:
             leave_assignment, leave_shift = find_leave_assignment_for_time(emp_code, now, db)
             if leave_assignment and leave_shift:
@@ -253,8 +263,8 @@ def process_attendance(
                 "voice_message": "Đã ghi nhận chấm công, nhưng bạn chưa có ca được phân công. Vui lòng báo quản lý kiểm tra.",
                 "avatar_url": emp.avatar_url or "",
             }
-        session = None
-        if assignment:
+        session = open_session
+        if assignment and not session:
             session = (
                 db.query(AttendanceSession)
                   .filter_by(shift_assignment_id=assignment.id)
@@ -281,7 +291,7 @@ def process_attendance(
                 "voice_message": "Ca làm đã hoàn tất check in và check out.",
                 "avatar_url": emp.avatar_url or "",
             }
-        check_type = "check_out" if session and session.check_in_at else "check_in"
+        check_type = "check_out" if open_session or (session and session.check_in_at) else "check_in"
 
         status = ""
         check_out_status = ""
@@ -317,7 +327,11 @@ def process_attendance(
         if session:
             if check_type == "check_in":
                 session.check_in_at = now
+                session.status = "open"
                 session.check_in_status = "late" if status.startswith("Đi muộn") else "on_time"
+                if session.review_type in ("absent", "missing_checkout"):
+                    session.review_type = ""
+                    session.review_status = "none"
                 if shift and assignment:
                     shift_start, _shift_end, _from, _until = shift_window(assignment.work_date, shift)
                     session.late_minutes = _late_minutes_after_grace(now, shift_start, shift)
@@ -688,12 +702,38 @@ def get_log_by_id(log_id: int) -> dict | None:
         db.close()
 
 
+def _parse_log_timestamp(timestamp_str: str) -> datetime:
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"):
+        try:
+            return datetime.strptime(timestamp_str, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Không nhận dạng được định dạng thời gian: {timestamp_str}")
+
+
+def _branch_for_attendance_log(db, log: AttendanceLog, event: AttendanceEvent | None = None) -> int | None:
+    branch_id = branch_for_log(db, log, event)
+    if branch_id:
+        return branch_id
+    if log.employee_id:
+        emp = db.query(Employee).filter_by(id=log.employee_id).first()
+        if emp:
+            return emp.branch_id
+    if log.emp_code:
+        emp = db.query(Employee).filter_by(emp_code=log.emp_code).first()
+        if emp:
+            return emp.branch_id
+    return None
+
+
 def update_attendance_log(
     log_id: int,
     check_type: str | None = None,
     timestamp_str: str | None = None,
     note: str | None = None,
     updated_by: str = "",
+    updated_by_id: int | None = None,
+    reason: str = "",
 ) -> dict | None:
     """
     Chỉnh sửa 1 bản ghi điểm danh (dùng cho quản lý).
@@ -702,36 +742,39 @@ def update_attendance_log(
     - note: ghi chú mới
     Trả về dict đã cập nhật, hoặc None nếu không tìm thấy log.
     """
+    if not (reason or "").strip():
+        raise ValueError("Vui lòng nhập lý do chỉnh sửa công")
     db = SessionLocal()
     try:
         log = db.query(AttendanceLog).filter_by(id=log_id).first()
         if not log:
             return None
 
+        old_timestamp = log.timestamp
+        old_check_type = log.check_type
+        matched_event = _matching_event(db, log)
+        branch_id = _branch_for_attendance_log(db, log, matched_event)
+        new_ts = _parse_log_timestamp(timestamp_str) if timestamp_str else old_timestamp
+        ensure_period_unlocked(db, branch_id, old_timestamp)
+        if new_ts and new_ts.date() != old_timestamp.date():
+            ensure_period_unlocked(db, branch_id, new_ts)
+        before_data = log_snapshot(log)
         changes = []
         if check_type and check_type in ("check_in", "check_out"):
             changes.append(f"check_type: {log.check_type}→{check_type}")
             log.check_type = check_type
+        elif check_type:
+            raise ValueError("check_type phải là 'check_in' hoặc 'check_out'")
 
         if timestamp_str:
-            try:
-                for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"):
-                    try:
-                        new_ts = datetime.strptime(timestamp_str, fmt)
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    raise ValueError(f"Không nhận dạng được định dạng thời gian: {timestamp_str}")
-                changes.append(f"timestamp: {log.timestamp.strftime('%H:%M %d/%m/%Y')}→{new_ts.strftime('%H:%M %d/%m/%Y')}")
-                log.timestamp = new_ts
-                # Tính lại status nếu là check_in
-                if log.check_type == "check_in":
-                    log.note = _calc_status_for_employee_shift(log.emp_code, new_ts, "check_in", db)
-            except ValueError as e:
-                raise ValueError(str(e))
+            changes.append(f"timestamp: {log.timestamp.strftime('%H:%M %d/%m/%Y')}→{new_ts.strftime('%H:%M %d/%m/%Y')}")
+            log.timestamp = new_ts
+            if log.check_type == "check_in":
+                log.note = _calc_status_for_employee_shift(log.emp_code, new_ts, "check_in", db)
 
         if note is not None:
+            if note != log.note:
+                changes.append("note")
             log.note = note
 
         # Thêm vết chỉnh sửa vào note
@@ -739,8 +782,33 @@ def update_attendance_log(
         if changes:
             log.note = (log.note or "") + f" {edit_trail}"
 
+        if matched_event and changes:
+            matched_event.event_type = log.check_type
+            matched_event.event_time = log.timestamp
+            matched_event.note = log.note or matched_event.note
+        affected_session_ids = []
+        if changes or old_check_type != log.check_type or old_timestamp != log.timestamp:
+            affected_session_ids = rebuild_sessions_for_log_change(log.emp_code, old_timestamp, log.timestamp, db)
+
+        audit = create_correction_audit(
+            db,
+            action="update",
+            reason=reason,
+            log=log,
+            before_data=before_data,
+            after_data=log_snapshot(log),
+            affected_session_ids=affected_session_ids,
+            created_by=updated_by,
+            created_by_id=updated_by_id,
+            branch_id=branch_id,
+            employee_id=log.employee_id,
+            emp_code=log.emp_code,
+        )
+
         db.commit()
-        return _log_to_dict(log)
+        result = _log_to_dict(log)
+        result["audit_id"] = audit.id
+        return result
 
     except Exception as e:
         db.rollback()
@@ -749,16 +817,47 @@ def update_attendance_log(
         db.close()
 
 
-def delete_attendance_log(log_id: int) -> bool:
-    """Xoá 1 bản ghi điểm danh. Trả về True nếu thành công."""
+def delete_attendance_log(
+    log_id: int,
+    deleted_by: str = "",
+    deleted_by_id: int | None = None,
+    reason: str = "",
+) -> dict | None:
+    """Xoá 1 bản ghi điểm danh và ghi audit. Trả về dict nếu thành công."""
+    if not (reason or "").strip():
+        raise ValueError("Vui lòng nhập lý do chỉnh sửa công")
     db = SessionLocal()
     try:
         log = db.query(AttendanceLog).filter_by(id=log_id).first()
         if not log:
-            return False
+            return None
+        old_emp_code = log.emp_code
+        old_timestamp = log.timestamp
+        matched_event = _matching_event(db, log)
+        branch_id = _branch_for_attendance_log(db, log, matched_event)
+        ensure_period_unlocked(db, branch_id, old_timestamp)
+        before_data = log_snapshot(log)
+        if matched_event:
+            matched_event.session_id = None
         db.delete(log)
+        db.flush()
+        affected_session_ids = rebuild_sessions_for_log_change(old_emp_code, old_timestamp, None, db)
+        audit = create_correction_audit(
+            db,
+            action="delete",
+            reason=reason,
+            log=None,
+            before_data=before_data,
+            after_data={},
+            affected_session_ids=affected_session_ids,
+            created_by=deleted_by,
+            created_by_id=deleted_by_id,
+            branch_id=branch_id,
+            employee_id=before_data.get("employee_id"),
+            emp_code=old_emp_code,
+        )
         db.commit()
-        return True
+        return {"deleted": True, "audit_id": audit.id}
     except Exception as e:
         db.rollback()
         raise e
@@ -772,11 +871,15 @@ def create_manual_attendance_log(
     timestamp_str: str,
     note: str = "",
     created_by: str = "",
+    created_by_id: int | None = None,
+    reason: str = "",
 ) -> dict | None:
     """
     Tạo thủ công 1 bản ghi điểm danh (quản lý thêm bù).
     Trả về dict nếu thành công, None nếu không tìm thấy nhân viên.
     """
+    if not (reason or "").strip():
+        raise ValueError("Vui lòng nhập lý do chỉnh sửa công")
     db = SessionLocal()
     try:
         emp = db.query(Employee).filter_by(emp_code=emp_code, is_active=True).first()
@@ -785,14 +888,10 @@ def create_manual_attendance_log(
         if not _branch_active(db, emp.branch_id):
             raise ValueError("Cửa hàng đã ngừng hoạt động, không thể tạo chấm công")
 
-        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"):
-            try:
-                ts = datetime.strptime(timestamp_str, fmt)
-                break
-            except ValueError:
-                continue
-        else:
-            raise ValueError(f"Không nhận dạng được định dạng thời gian: {timestamp_str}")
+        if check_type not in ("check_in", "check_out"):
+            raise ValueError("check_type phải là 'check_in' hoặc 'check_out'")
+        ts = _parse_log_timestamp(timestamp_str)
+        ensure_period_unlocked(db, emp.branch_id, ts)
 
         auto_note = _calc_status_for_employee_shift(emp_code, ts, check_type, db) if check_type == "check_in" else ""
         trail = f"[Tạo thủ công bởi {created_by} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
@@ -810,8 +909,26 @@ def create_manual_attendance_log(
             note         = f"{auto_note} {final_note}".strip(),
         )
         db.add(log)
+        db.flush()
+        affected_session_ids = rebuild_sessions_for_log_change(emp_code, None, ts, db)
+        audit = create_correction_audit(
+            db,
+            action="create",
+            reason=reason,
+            log=log,
+            before_data={},
+            after_data=log_snapshot(log),
+            affected_session_ids=affected_session_ids,
+            created_by=created_by,
+            created_by_id=created_by_id,
+            branch_id=emp.branch_id,
+            employee_id=emp.id,
+            emp_code=emp_code,
+        )
         db.commit()
-        return _log_to_dict(log)
+        result = _log_to_dict(log)
+        result["audit_id"] = audit.id
+        return result
 
     except Exception as e:
         db.rollback()

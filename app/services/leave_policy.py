@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
+from app.services.attendance_period import ensure_period_unlocked
 
 LEAVE_ASSIGNMENT_STATUS = "leave_approved"
 ACTIVE_LEAVE_STATUSES = ("pending", "approved")
@@ -160,6 +161,7 @@ def apply_approved_leave_to_assignments(db: Session, req: LeaveRequest, reviewed
                 .all()
             )
             for row in rows:
+                ensure_period_unlocked(db, row.branch_id, row.work_date)
                 row.status = LEAVE_ASSIGNMENT_STATUS
                 if note_suffix and note_suffix not in (row.note or ""):
                     row.note = f"{row.note} | {note_suffix}".strip(" |")
@@ -179,6 +181,7 @@ def apply_approved_leave_to_assignments(db: Session, req: LeaveRequest, reviewed
         .all()
     )
     for row in rows:
+        ensure_period_unlocked(db, row.branch_id, row.work_date)
         row.status = LEAVE_ASSIGNMENT_STATUS
         if note_suffix and note_suffix not in (row.note or ""):
             row.note = f"{row.note} | {note_suffix}".strip(" |")
