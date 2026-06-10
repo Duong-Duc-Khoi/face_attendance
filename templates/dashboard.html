@@ -513,8 +513,8 @@
     </div>
     <div class="atd-row full">
       <div>
-        <div class="atd-lbl">Ghi chú / Lý do sửa</div>
-        <input type="text" class="atd-inp" id="atdEditNote" placeholder="Tuỳ chọn">
+        <div class="atd-lbl">Lý do sửa / ghi chú</div>
+        <input type="text" class="atd-inp" id="atdEditNote" placeholder="Bắt buộc nhập lý do">
       </div>
     </div>
     <div class="atd-foot">
@@ -539,6 +539,12 @@
       Bạn sắp xoá bản ghi của <strong id="atdDelName">—</strong><br>
       <span id="atdDelMeta" style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">—</span>
       <br><br>Thao tác này <strong>không thể hoàn tác</strong>.
+    </div>
+    <div class="atd-row full">
+      <div>
+        <div class="atd-lbl">Lý do xoá</div>
+        <input type="text" class="atd-inp" id="atdDelReason" placeholder="Bắt buộc nhập lý do">
+      </div>
     </div>
     <div class="atd-foot">
       <button class="btn btn-outline" onclick="closeAtd('atdDelOvl')">Huỷ</button>
@@ -580,7 +586,7 @@
     <div class="atd-row full">
       <div>
         <div class="atd-lbl">Lý do / Ghi chú</div>
-        <input type="text" class="atd-inp" id="atdAddNote" placeholder="VD: Quên chấm, hệ thống lỗi...">
+        <input type="text" class="atd-inp" id="atdAddNote" placeholder="Bắt buộc: VD quên chấm, hệ thống lỗi...">
       </div>
     </div>
     <div class="atd-foot">
@@ -2084,10 +2090,12 @@ function openAtdEdit(logId){
   document.getElementById('atdEditOvl').classList.add('open');
 }
 async function saveAtdEdit(){
+  const reason=document.getElementById('atdEditNote').value.trim();
+  if(!reason){showToast('Vui lòng nhập lý do sửa công','error');return;}
   const btn=document.getElementById('atdEditBtn');
   btn.innerHTML='<span class="atd-sp"></span> Đang lưu...';btn.disabled=true;
   try{
-    const res=await authFetch('/api/attendance/'+_atdEditId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({check_type:document.getElementById('atdEditType').value,timestamp:_tsApi(document.getElementById('atdEditTs').value),note:document.getElementById('atdEditNote').value||null})});
+    const res=await authFetch('/api/attendance/'+_atdEditId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({check_type:document.getElementById('atdEditType').value,timestamp:_tsApi(document.getElementById('atdEditTs').value),note:reason,reason})});
     if(!res.ok)throw new Error((await res.json()).detail||'Lỗi cập nhật');
     const data=await res.json();
     const idx=allLogs.findIndex(l=>l.id===_atdEditId);if(idx!==-1)allLogs[idx]=data.log;
@@ -2102,13 +2110,16 @@ function openAtdDel(logId){
   _atdDelId=logId;
   document.getElementById('atdDelName').textContent=log.name||log.emp_code;
   document.getElementById('atdDelMeta').textContent=`${log.check_type==='check_in'?'▲ Vào':'▼ Ra'}  ·  ${log.time}  ${log.date}  ·  ID #${log.id}`;
+  document.getElementById('atdDelReason').value='';
   document.getElementById('atdDelOvl').classList.add('open');
 }
 async function confirmAtdDel(){
+  const reason=document.getElementById('atdDelReason').value.trim();
+  if(!reason){showToast('Vui lòng nhập lý do xoá công','error');return;}
   const btn=document.getElementById('atdDelBtn');
   btn.innerHTML='<span class="atd-sp"></span> Đang xoá...';btn.disabled=true;
   try{
-    const res=await authFetch('/api/attendance/'+_atdDelId,{method:'DELETE'});
+    const res=await authFetch('/api/attendance/'+_atdDelId+'?reason='+encodeURIComponent(reason),{method:'DELETE'});
     if(!res.ok)throw new Error((await res.json()).detail||'Lỗi xoá');
     allLogs=allLogs.filter(l=>l.id!==_atdDelId);renderLogs(allLogs);
     closeAtd('atdDelOvl');showToast('Đã xoá bản ghi điểm danh','success');await loadSummary();
@@ -2132,10 +2143,12 @@ async function saveAtdAdd(){
   if(!empCode){showToast('Vui lòng chọn nhân viên','error');return;}
   const tsVal=document.getElementById('atdAddTs').value;
   if(!tsVal){showToast('Vui lòng chọn thời gian','error');return;}
+  const reason=document.getElementById('atdAddNote').value.trim();
+  if(!reason){showToast('Vui lòng nhập lý do thêm công','error');return;}
   const btn=document.getElementById('atdAddBtn');
   btn.innerHTML='<span class="atd-sp"></span> Đang thêm...';btn.disabled=true;
   try{
-    const res=await authFetch('/api/attendance/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emp_code:empCode,check_type:document.getElementById('atdAddType').value,timestamp:_tsApi(tsVal),note:document.getElementById('atdAddNote').value||''})});
+    const res=await authFetch('/api/attendance/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emp_code:empCode,check_type:document.getElementById('atdAddType').value,timestamp:_tsApi(tsVal),note:reason,reason})});
     if(!res.ok)throw new Error((await res.json()).detail||'Lỗi tạo bản ghi');
     const data=await res.json();allLogs.unshift(data.log);renderLogs(allLogs);
     closeAtd('atdAddOvl');showToast('Đã thêm bản ghi điểm danh thủ công','success');await loadSummary();
