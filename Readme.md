@@ -113,6 +113,16 @@ EMAIL_TO=admin@company.com
 
 `KIOSK_BRANCH_ID` là ID chi nhánh/cửa hàng gắn cố định với máy kiosk. Nếu chưa cấu hình, màn hình kiosk sẽ báo thiếu cấu hình và không cho bật camera chấm công.
 
+Chạy migration khi triển khai database thật:
+
+```powershell
+cd G:\face_attendance
+.\venv\Scripts\activate
+alembic upgrade head
+```
+
+`Base.metadata.create_all()` vẫn hỗ trợ chạy local/dev, nhưng môi trường production nên dùng Alembic để cập nhật schema.
+
 ## Chạy ứng dụng
 
 Mở 3 terminal riêng.
@@ -201,6 +211,7 @@ Swagger UI đầy đủ ở `http://127.0.0.1:8000/docs`.
 | Lịch vận hành | `/api/calendar`, `/api/calendar/config` |
 | Nghỉ phép | `/api/leave`, `/api/leave/pending-count` |
 | Báo cáo | `/api/attendance`, `/api/summary`, `/api/reports/export` |
+| Khóa kỳ công | `/api/attendance/period-locks` |
 | Camera | `/video_feed`, `/api/camera/start`, `/api/camera/stop`, `/api/camera/status` |
 | Realtime | `/ws/attendance`, `/ws/kiosk` |
 | Cấu hình | `/api/health`, `/api/config`, `/api/integrations/ai-keys` |

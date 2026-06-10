@@ -166,3 +166,43 @@ class AttendanceLog(Base):
     confidence   = Column(Float,   default=0.0)
     capture_path = Column(String(255), default="")
     note         = Column(Text, default="")
+
+
+class AttendanceCorrectionAudit(Base):
+    __tablename__ = "attendance_correction_audits"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    log_id     = Column(Integer, ForeignKey("attendance_logs.id", ondelete="SET NULL"), nullable=True, index=True)
+    session_id = Column(Integer, ForeignKey("attendance_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
+    branch_id   = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
+    emp_code    = Column(String(20), default="", index=True)
+
+    action       = Column(String(30), nullable=False, index=True)  # create | update | delete | review
+    status       = Column(String(30), default="applied", index=True)
+    reason       = Column(Text, nullable=False)
+    before_data  = Column(Text, default="{}")
+    after_data   = Column(Text, default="{}")
+    affected_session_ids = Column(Text, default="[]")
+
+    created_by    = Column(String(150), default="")
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at    = Column(DateTime, default=datetime.now, index=True)
+
+
+class AttendancePeriodLock(Base):
+    __tablename__ = "attendance_period_locks"
+
+    id        = Column(Integer, primary_key=True, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="CASCADE"), nullable=True, index=True)
+    from_date = Column(Date, nullable=False, index=True)
+    to_date   = Column(Date, nullable=False, index=True)
+    note      = Column(Text, default="")
+    is_active = Column(Boolean, default=True, index=True)
+
+    locked_by    = Column(String(150), default="")
+    locked_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    locked_at    = Column(DateTime, default=datetime.now, index=True)
+    unlocked_by  = Column(String(150), default="")
+    unlocked_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    unlocked_at  = Column(DateTime, nullable=True)
