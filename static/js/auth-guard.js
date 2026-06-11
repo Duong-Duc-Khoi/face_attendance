@@ -274,7 +274,7 @@
     box.className = 'branch-scope-box';
     box.setAttribute('data-branch-scope', '');
     if (current.role === 'admin') {
-      const branchRequired = currentPath.startsWith('/shifts');
+      const branchRequired = currentPath.startsWith('/shifts') || currentPath.startsWith('/roster');
       const selected = getSelectedBranchId();
       const validSelected = selected && branches.some(function (b) { return String(b.id) === String(selected); });
       if (selected && !validSelected) localStorage.removeItem('admin_branch_id');

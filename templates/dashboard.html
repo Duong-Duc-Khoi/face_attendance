@@ -6,7 +6,7 @@
 <title>{{ page_title|default('Dashboard') }} — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-16">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-17">
 <link rel="stylesheet" href="/static/css/components.css">
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
@@ -119,6 +119,23 @@
 .roster-metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
 .roster-metric-num{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text)}
 .roster-metric-label{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric{
+  overflow:hidden;
+  padding:14px 16px 14px 18px;
+  border-radius:10px;
+}
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric::after{
+  content:none!important;
+}
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric::before{
+  inset:12px auto 12px 0;
+  width:4px;
+  border-radius:0 999px 999px 0;
+  background:#007f73;
+}
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(2)::before{background:#2f61b6}
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(3)::before{background:#946500}
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(4)::before{background:#b73555}
 .roster-shift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;padding:16px}
 .roster-shift-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .roster-shift-card.is-empty{opacity:.72}
@@ -169,14 +186,98 @@
 .roster-chip b{font-size:11px;color:var(--text)}
 .roster-chip span{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
 .roster-empty{padding:32px;text-align:center;color:var(--muted);font-size:12px}
-.shift-tone-morning .roster-cell.assigned{background:rgba(0,212,170,.1);border-color:rgba(0,212,170,.32)}
+.shift-tone-morning .roster-cell.assigned{background:rgba(246,201,14,.1);border-color:rgba(246,201,14,.34)}
 .shift-tone-lunch .roster-cell.assigned{background:rgba(246,201,14,.1);border-color:rgba(246,201,14,.32)}
 .shift-tone-evening .roster-cell.assigned{background:rgba(77,166,255,.1);border-color:rgba(77,166,255,.32)}
 .shift-tone-night .roster-cell.assigned{background:rgba(167,139,250,.11);border-color:rgba(167,139,250,.35)}
-.roster-shift-card.shift-tone-morning .roster-count-pill{background:rgba(0,212,170,.12);border-color:rgba(0,212,170,.28);color:var(--teal)}
+.roster-shift-card.shift-tone-morning .roster-count-pill{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.3);color:var(--yellow)}
 .roster-shift-card.shift-tone-lunch .roster-count-pill{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.28);color:var(--yellow)}
 .roster-shift-card.shift-tone-evening .roster-count-pill{background:rgba(77,166,255,.12);border-color:rgba(77,166,255,.28);color:var(--blue)}
 .roster-shift-card.shift-tone-night .roster-count-pill{background:rgba(167,139,250,.13);border-color:rgba(167,139,250,.3);color:#a78bfa}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card{
+  --roster-tone:#f6c90e;
+  --roster-tone-chip-bg:#fff5d6;
+  --roster-tone-chip-border:rgba(246,201,14,.38);
+  --roster-tone-ink:#6f4a00;
+  --roster-tone-rule:rgba(246,201,14,.25);
+  position:relative;
+  isolation:isolate;
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:4px;
+  background:var(--roster-tone)!important;
+  opacity:.96;
+  z-index:1;
+  pointer-events:none;
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-morning::before{background:#f6c90e!important}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-lunch::before{background:#b85a15!important}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-evening::before{background:#2f61b6!important}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-night::before{background:#6149c7!important}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-morning{
+  --roster-tone:#f6c90e;
+  --roster-tone-chip-bg:#fff7c2;
+  --roster-tone-chip-border:rgba(246,201,14,.38);
+  --roster-tone-ink:#6f4a00;
+  --roster-tone-rule:rgba(246,201,14,.25);
+  background:linear-gradient(145deg,#ffffff,var(--tone-amber-bg));
+  border-color:var(--tone-amber-border);
+  box-shadow:0 14px 28px rgba(246,201,14,.12),inset 0 1px 0 rgba(255,255,255,.88);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-lunch{
+  --roster-tone:#b85a15;
+  --roster-tone-chip-bg:#fff0e6;
+  --roster-tone-chip-border:rgba(184,90,21,.24);
+  --roster-tone-ink:#87400d;
+  --roster-tone-rule:rgba(184,90,21,.17);
+  background:linear-gradient(145deg,#ffffff,#ffe7d6);
+  border-color:rgba(184,90,21,.28);
+  box-shadow:0 14px 28px rgba(184,90,21,.1),inset 0 1px 0 rgba(255,255,255,.88);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-evening{
+  --roster-tone:#2f61b6;
+  --roster-tone-chip-bg:#eaf3ff;
+  --roster-tone-chip-border:rgba(47,97,182,.24);
+  --roster-tone-ink:#224b91;
+  --roster-tone-rule:rgba(47,97,182,.17);
+  background:linear-gradient(145deg,#ffffff,var(--tone-blue-bg));
+  border-color:var(--tone-blue-border);
+  box-shadow:0 14px 28px rgba(47,97,182,.1),inset 0 1px 0 rgba(255,255,255,.88);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-night{
+  --roster-tone:#6149c7;
+  --roster-tone-chip-bg:#f1edff;
+  --roster-tone-chip-border:rgba(97,73,199,.24);
+  --roster-tone-ink:#4d39a5;
+  --roster-tone-rule:rgba(97,73,199,.17);
+  background:linear-gradient(145deg,#ffffff,var(--tone-violet-bg));
+  border-color:var(--tone-violet-border);
+  box-shadow:0 14px 28px rgba(97,73,199,.1),inset 0 1px 0 rgba(255,255,255,.88);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card .roster-shift-head{
+  position:relative;
+  z-index:2;
+  border-bottom-color:var(--roster-tone-rule);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card .roster-shift-time,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card .roster-count-pill{
+  color:var(--roster-tone-ink);
+  background:var(--roster-tone-chip-bg);
+  border:1px solid var(--roster-tone-chip-border);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.78),0 4px 10px rgba(28,50,63,.04);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card .roster-shift-time{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  margin-top:6px;
+  padding:3px 8px;
+  border-radius:999px;
+  line-height:1.25;
+}
 .employee-layout{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
 .employee-role-panel{position:sticky;top:18px}
 .employee-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 150px 150px 130px;gap:8px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
@@ -234,9 +335,58 @@
 .evidence-btn.warn{border-color:rgba(246,201,14,.42);color:var(--yellow);background:rgba(246,201,14,.08)}
 .evidence-btn[disabled]{opacity:.5;cursor:not-allowed}
 .audit-panel{margin-bottom:14px}
-.attendance-subnav{display:flex;gap:6px;align-items:center;margin-bottom:12px;border:1px solid rgba(26,47,80,.75);background:rgba(6,12,23,.42);border-radius:8px;padding:4px;width:max-content;max-width:100%;overflow-x:auto}
-.attendance-view-btn{border:0;background:transparent;color:var(--muted);height:30px;border-radius:6px;padding:0 12px;font-family:var(--font-sans);font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
-.attendance-view-btn.active{background:rgba(0,212,170,.12);color:var(--teal)}
+.attendance-subnav{display:flex;gap:6px;align-items:center;margin-bottom:12px;border:1px solid rgba(141,235,216,.11);background:linear-gradient(180deg,rgba(13,25,43,.96),rgba(7,16,29,.94));border-radius:11px;padding:5px;width:max-content;max-width:100%;overflow-x:auto;box-shadow:0 14px 30px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.045)}
+.attendance-view-btn{
+  --attendance-tab-accent:#00d4aa;
+  --attendance-tab-border:rgba(0,212,170,.18);
+  --attendance-tab-hover-border:rgba(0,212,170,.34);
+  --attendance-tab-hover-bg:linear-gradient(180deg,rgba(0,212,170,.12),rgba(0,212,170,.05));
+  --attendance-tab-active-bg:linear-gradient(180deg,#12bfa8,#008a79);
+  --attendance-tab-active-border:rgba(0,212,170,.52);
+  --attendance-tab-active-shadow:rgba(0,212,170,.18);
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:40px;padding:0 16px;overflow:hidden;border:1px solid var(--attendance-tab-border);
+  border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  color:#d2dfeb;font-family:var(--font-sans);font-size:12px;font-weight:800;letter-spacing:0;
+  cursor:pointer;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 8px 18px rgba(0,0,0,.12);
+  transition:transform .22s var(--ease-press),background-color .22s var(--ease-out),border-color .22s var(--ease-out),box-shadow .22s var(--ease-out),color .22s var(--ease-out);
+}
+.attendance-view-btn:nth-child(2){
+  --attendance-tab-accent:#f6c90e;
+  --attendance-tab-border:rgba(246,201,14,.22);
+  --attendance-tab-hover-border:rgba(246,201,14,.42);
+  --attendance-tab-hover-bg:linear-gradient(180deg,rgba(246,201,14,.14),rgba(246,201,14,.045));
+  --attendance-tab-active-bg:linear-gradient(180deg,#d99c17,#9a6504);
+  --attendance-tab-active-border:rgba(246,201,14,.54);
+  --attendance-tab-active-shadow:rgba(246,201,14,.17);
+}
+.attendance-view-btn:nth-child(3){
+  --attendance-tab-accent:#4da6ff;
+  --attendance-tab-border:rgba(77,166,255,.2);
+  --attendance-tab-hover-border:rgba(77,166,255,.38);
+  --attendance-tab-hover-bg:linear-gradient(180deg,rgba(77,166,255,.13),rgba(77,166,255,.045));
+  --attendance-tab-active-bg:linear-gradient(180deg,#3474d6,#2258ad);
+  --attendance-tab-active-border:rgba(77,166,255,.52);
+  --attendance-tab-active-shadow:rgba(77,166,255,.18);
+}
+.attendance-view-btn::after{content:"";position:absolute;inset:auto 11px 6px;height:2px;border-radius:999px;background:var(--attendance-tab-accent);opacity:0;transform:scaleX(.45);transition:opacity .2s var(--ease-out),transform .2s var(--ease-out)}
+.attendance-view-btn:hover{transform:translateY(-1px);border-color:var(--attendance-tab-hover-border);background:var(--attendance-tab-hover-bg);color:#f5fbff;box-shadow:0 10px 22px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.08)}
+.attendance-view-btn.active{border-color:var(--attendance-tab-active-border);background:var(--attendance-tab-active-bg);color:#f8fffd!important;text-shadow:0 1px 1px rgba(0,32,27,.35);box-shadow:0 12px 26px var(--attendance-tab-active-shadow),inset 0 1px 0 rgba(255,255,255,.23),inset 0 -1px 0 rgba(0,37,31,.2)}
+.attendance-view-btn:nth-child(2).active{color:#fff8df!important;text-shadow:0 1px 1px rgba(43,25,0,.38)}
+.attendance-view-btn.active::after{opacity:.95;transform:scaleX(1)}
+.attendance-subnav .tab-badge{border:1px solid rgba(246,201,14,.28);background:rgba(246,201,14,.15);color:#ffd861;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.attendance-subnav .tab-badge.zero{background:rgba(90,122,154,.16);border-color:rgba(90,122,154,.22);color:#9badbf}
+.attendance-view-btn.active .tab-badge{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.26);color:#ffffff}
+html[data-admin-theme="light"] body.admin-shell .attendance-subnav{border-color:rgba(33,58,73,.16);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(239,247,245,.9)),#f8fbf9;box-shadow:0 12px 26px rgba(28,50,63,.09),inset 0 1px 0 rgba(255,255,255,.92)}
+html[data-admin-theme="light"] body.admin-shell .attendance-view-btn{--attendance-tab-border:var(--tone-teal-border);--attendance-tab-hover-border:rgba(0,127,115,.46);--attendance-tab-hover-bg:linear-gradient(180deg,#ffffff,#dff7ef);--attendance-tab-active-bg:linear-gradient(180deg,#069a86,#007568);--attendance-tab-active-border:rgba(0,127,115,.72);--attendance-tab-active-shadow:rgba(0,127,115,.24);background:linear-gradient(180deg,#ffffff,var(--tone-teal-bg));color:#173044;text-shadow:0 1px 0 rgba(255,255,255,.72);box-shadow:0 8px 18px rgba(28,50,63,.08),inset 0 1px 0 rgba(255,255,255,.95)}
+html[data-admin-theme="light"] body.admin-shell .attendance-view-btn:nth-child(2){--attendance-tab-border:var(--tone-amber-border);--attendance-tab-hover-border:rgba(246,201,14,.5);--attendance-tab-hover-bg:linear-gradient(180deg,#ffffff,#fff0c9);--attendance-tab-active-bg:linear-gradient(180deg,#e7ad22,#aa7208);--attendance-tab-active-border:rgba(246,201,14,.74);--attendance-tab-active-shadow:rgba(148,101,0,.2);background:linear-gradient(180deg,#ffffff,var(--tone-amber-bg))}
+html[data-admin-theme="light"] body.admin-shell .attendance-view-btn:nth-child(3){--attendance-tab-border:var(--tone-blue-border);--attendance-tab-hover-border:rgba(47,97,182,.46);--attendance-tab-hover-bg:linear-gradient(180deg,#ffffff,#dfeaff);--attendance-tab-active-bg:linear-gradient(180deg,#3474d6,#2258ad);--attendance-tab-active-border:rgba(47,97,182,.72);--attendance-tab-active-shadow:rgba(47,97,182,.24);background:linear-gradient(180deg,#ffffff,var(--tone-blue-bg))}
+html[data-admin-theme="light"] body.admin-shell .attendance-view-btn:hover{color:#142335}
+html[data-admin-theme="light"] body.admin-shell .attendance-view-btn.active{border-color:var(--attendance-tab-active-border);background:var(--attendance-tab-active-bg);color:#ffffff!important;text-shadow:0 1px 1px rgba(1,35,31,.25);box-shadow:0 14px 28px var(--attendance-tab-active-shadow),inset 0 1px 0 rgba(255,255,255,.32)}
+html[data-admin-theme="light"] body.admin-shell .attendance-view-btn:nth-child(2).active{color:#fff8df!important;text-shadow:0 1px 1px rgba(63,37,0,.3)}
+html[data-admin-theme="light"] body.admin-shell .attendance-subnav .tab-badge{background:#fff1bf;border-color:rgba(246,201,14,.34);color:#7a5200}
+html[data-admin-theme="light"] body.admin-shell .attendance-subnav .tab-badge.zero{background:#eef3f2;border-color:rgba(33,58,73,.16);color:#667b8d}
+html[data-admin-theme="light"] body.admin-shell .attendance-view-btn.active .tab-badge{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.3);color:#ffffff}
 .attendance-section.hidden{display:none}
 .audit-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .audit-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px;padding:14px 16px}
@@ -272,6 +422,24 @@
 .atd-review-actions.show{display:flex}
 @media(max-width:900px){.audit-grid{grid-template-columns:1fr}.audit-command-box .log-btn{flex:1}}
 /* Table extras */
+.roster-scope-required{
+  display:grid;
+  gap:8px;
+  margin:14px 16px 16px;
+  padding:18px 20px;
+  border:1px solid rgba(246,201,14,.34);
+  border-radius:8px;
+  background:linear-gradient(180deg,rgba(246,201,14,.1),rgba(17,30,52,.78));
+}
+.roster-scope-required[hidden],
+.roster-workspace[hidden]{display:none}
+.roster-scope-title{font-size:14px;font-weight:800;color:var(--text)}
+.roster-scope-text{font-size:12px;color:var(--muted);line-height:1.55;max-width:760px}
+html[data-admin-theme="light"] body.admin-shell .roster-scope-required{
+  background:linear-gradient(145deg,#ffffff,var(--tone-amber-bg));
+  border-color:var(--tone-amber-border);
+  box-shadow:0 14px 30px rgba(148,101,0,.1),inset 0 1px 0 rgba(255,255,255,.9);
+}
 .log-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font-sans);transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;text-decoration:none}
 .log-btn:hover{border-color:var(--teal);color:var(--teal)}
 .log-btn.del:hover{border-color:var(--red);color:var(--red)}
@@ -281,7 +449,7 @@
 .mgr-show{display:none}
 .atd-sp{width:12px;height:12px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
 </style>
-<script src="/static/js/auth-guard.js?v=admin-theme-10"></script>
+<script src="/static/js/auth-guard.js?v=admin-theme-12"></script>
 </head>
 <body class="admin-shell">
 <header>
@@ -668,6 +836,11 @@ const KIOSK_URL='{{ kiosk_url }}';
   }
   if(ACTIVE_PAGE==='roster'){
     await loadEmployeeRoles();
+    if(isAdminWithoutRosterBranch()){
+      setRosterWorkspaceLocked(true);
+      resetRosterData();
+      return;
+    }
     await loadShiftRoster();
   }
 })();
@@ -1700,6 +1873,37 @@ setInterval(async()=>{
 
 // ── Shift roster ──
 let rosterShifts=[],rosterAssignments=[],rosterAssignmentsByDate=new Map(),rosterDates=[],rosterLoaded=false,rosterViewMode='shift',rosterPeriod='week',rosterParentPeriod='week';
+function isAdminWithoutRosterBranch(){
+  const current=window.getUser?window.getUser():null;
+  const branchId=window.getSelectedBranchId?window.getSelectedBranchId():'';
+  return ACTIVE_PAGE==='roster'&&current?.role==='admin'&&!branchId;
+}
+function setRosterWorkspaceLocked(locked){
+  const panel=document.getElementById('rosterBranchRequiredPanel');
+  const workspace=document.getElementById('rosterWorkspace');
+  if(panel)panel.hidden=!locked;
+  if(workspace)workspace.hidden=locked;
+}
+function resetRosterData(){
+  rosterShifts=[];
+  rosterAssignments=[];
+  rosterAssignmentsByDate=new Map();
+  rosterDates=[];
+  rosterLoaded=false;
+  ['rosterMetricAssigned','rosterMetricEmployees','rosterMetricUnassigned','rosterMetricShifts'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.textContent='0';
+  });
+  const label=document.getElementById('rosterRangeLabel');
+  if(label)label.textContent='—';
+}
+function requireRosterBranch(action='xem bảng phân ca'){
+  if(!isAdminWithoutRosterBranch())return true;
+  setRosterWorkspaceLocked(true);
+  resetRosterData();
+  showToast(`Chọn một chi nhánh để ${action}`,'error');
+  return false;
+}
 function rosterDateStr(d){
   const p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
@@ -1753,10 +1957,15 @@ function rosterTime(v){
   return s.length>=5?s.slice(0,5):s;
 }
 function rosterTone(shift){
-  const text=`${shift?.name||''} ${shift?.code||''}`.toLowerCase();
+  const text=`${shift?.name||''} ${shift?.code||''}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/đ/g,'d');
   if(/trua|lunch|mid|noon/.test(text))return 'shift-tone-lunch';
   if(/toi|chieu|evening|pm|dinner/.test(text))return 'shift-tone-evening';
   if(/dem|night|overnight/.test(text))return 'shift-tone-night';
+  if(/sang|morning|\bam\b/.test(text))return 'shift-tone-morning';
   return 'shift-tone-morning';
 }
 function fillRosterDept(){
@@ -1798,6 +2007,8 @@ function returnToRosterPeriod(){
   loadShiftRoster();
 }
 async function loadShiftRoster(){
+  if(!requireRosterBranch('xem bảng phân ca'))return;
+  setRosterWorkspaceLocked(false);
   rosterDates=rosterPeriodDates();
   const tbody=document.getElementById('shiftRosterBody');
   const groups=document.getElementById('shiftRosterGroups');

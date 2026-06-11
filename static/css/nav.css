@@ -2870,6 +2870,100 @@ html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child
   color:#8f263f!important;
   background:linear-gradient(180deg,#ffffff,#ffd2dc);
 }
+
+/* Light tabs contrast pass */
+html[data-admin-theme="light"] body.admin-shell .tab-bar{
+  align-items:center;
+  padding:5px;
+  border:1px solid rgba(33,58,73,.16);
+  border-radius:12px;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.92),rgba(239,247,245,.9)),
+    #f8fbf9;
+  box-shadow:0 12px 26px rgba(28,50,63,.09),inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:42px;
+  padding:0 17px;
+  overflow:hidden;
+  border-color:rgba(33,58,73,.24);
+  color:#173044;
+  font-weight:800;
+  letter-spacing:.01em;
+  text-shadow:0 1px 0 rgba(255,255,255,.72);
+  box-shadow:0 8px 18px rgba(28,50,63,.08),inset 0 1px 0 rgba(255,255,255,.95);
+  transition:
+    transform .22s cubic-bezier(.2,.7,.2,1),
+    background-color .22s cubic-bezier(.2,.7,.2,1),
+    border-color .22s cubic-bezier(.2,.7,.2,1),
+    box-shadow .22s cubic-bezier(.2,.7,.2,1),
+    color .22s cubic-bezier(.2,.7,.2,1);
+  white-space:nowrap;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn::after{
+  content:"";
+  position:absolute;
+  inset:auto 12px 7px;
+  height:3px;
+  border-radius:999px;
+  background:currentColor;
+  opacity:0;
+  transform:scaleX(.46);
+  transition:opacity .22s cubic-bezier(.2,.7,.2,1),transform .22s cubic-bezier(.2,.7,.2,1);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:hover{
+  transform:translateY(-1px);
+  border-color:rgba(0,127,115,.46);
+  color:#0c2a22;
+  background:linear-gradient(180deg,#ffffff,#dff7ef);
+  box-shadow:0 14px 28px rgba(0,127,115,.14),inset 0 1px 0 rgba(255,255,255,.96);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+1).active{
+  border-color:rgba(0,127,115,.72);
+  color:#ffffff!important;
+  background:linear-gradient(180deg,#069a86,#007568);
+  box-shadow:0 16px 32px rgba(0,127,115,.24),inset 0 1px 0 rgba(255,255,255,.34);
+  text-shadow:0 1px 1px rgba(1,35,31,.25);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn.active::after{
+  opacity:.94;
+  transform:scaleX(1);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+2).active{
+  border-color:rgba(47,97,182,.72);
+  color:#ffffff!important;
+  background:linear-gradient(180deg,#3474d6,#2258ad);
+  box-shadow:0 16px 32px rgba(47,97,182,.24),inset 0 1px 0 rgba(255,255,255,.34);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+3).active{
+  border-color:rgba(148,101,0,.72);
+  color:#fffaf0!important;
+  background:linear-gradient(180deg,#c4860a,#8d5f00);
+  box-shadow:0 16px 32px rgba(148,101,0,.22),inset 0 1px 0 rgba(255,255,255,.32);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+4).active{
+  border-color:rgba(183,53,85,.72);
+  color:#ffffff!important;
+  background:linear-gradient(180deg,#c94867,#9f2c48);
+  box-shadow:0 16px 32px rgba(183,53,85,.24),inset 0 1px 0 rgba(255,255,255,.32);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n).active{
+  border-color:rgba(97,73,199,.72);
+  color:#ffffff!important;
+  background:linear-gradient(180deg,#745ee0,#563bb8);
+  box-shadow:0 16px 32px rgba(97,73,199,.22),inset 0 1px 0 rgba(255,255,255,.32);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn.active .tab-badge{
+  background:rgba(255,255,255,.2);
+  color:#ffffff;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.32);
+}
 html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-morning,
 html[data-admin-theme="light"] body.admin-shell .shift-row-head.morning,
 html[data-admin-theme="light"] body.admin-shell .assignment-person.morning,

@@ -6,9 +6,9 @@
 <title>Phân ca cửa hàng - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-16">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-17">
 <link rel="stylesheet" href="/static/css/components.css">
-<script src="/static/js/auth-guard.js?v=admin-theme-10"></script>
+<script src="/static/js/auth-guard.js?v=admin-theme-12"></script>
 <style>
 :root{
   --amber:#f6c90e;
@@ -53,7 +53,20 @@ body::after{
 .metric{
   min-height:82px;background:var(--surface);border:1px solid var(--border);
   border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between;
+  position:relative;overflow:hidden;
 }
+.metric::after{content:none!important}
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric{
+  border-radius:10px;
+  padding:16px 18px;
+  box-shadow:0 12px 24px rgba(28,50,63,.08),inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric::before{
+  content:"";position:absolute;inset:14px auto 14px 0;width:4px;border-radius:0 999px 999px 0;background:#007f73;opacity:.82;
+}
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(2)::before{background:#2f61b6}
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(3)::before{background:#946500}
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(4)::before{background:#b73555}
 .metric-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .metric-value{font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--text)}
 .metric-value.green{color:var(--green)}.metric-value.amber{color:var(--amber)}.metric-value.cyan{color:var(--cyan)}
@@ -66,6 +79,92 @@ body::after{
 }
 .tab-btn:hover{border-color:var(--cyan);color:var(--text)}
 .tab-btn.active{background:rgba(0,212,170,.1);border-color:rgba(0,212,170,.42);color:var(--green)}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs{
+  align-items:center;
+  width:max-content;
+  max-width:100%;
+  gap:6px;
+  padding:5px;
+  border:1px solid rgba(141,235,216,.11);
+  border-radius:11px;
+  background:linear-gradient(180deg,rgba(13,25,43,.96),rgba(7,16,29,.94));
+  box-shadow:0 14px 30px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.045);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn{
+  --shift-tab-accent:#00d4aa;
+  --shift-tab-border:rgba(0,212,170,.18);
+  --shift-tab-hover-border:rgba(0,212,170,.34);
+  --shift-tab-hover-bg:linear-gradient(180deg,rgba(0,212,170,.12),rgba(0,212,170,.05));
+  --shift-tab-active-bg:linear-gradient(180deg,#12bfa8,#008a79);
+  --shift-tab-active-border:rgba(0,212,170,.52);
+  --shift-tab-active-shadow:rgba(0,212,170,.18);
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:0 16px;
+  overflow:hidden;
+  border-radius:8px;
+  border-color:var(--shift-tab-border);
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  color:#d2dfeb;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 8px 18px rgba(0,0,0,.12);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn:nth-child(2){
+  --shift-tab-accent:#4da6ff;
+  --shift-tab-border:rgba(77,166,255,.2);
+  --shift-tab-hover-border:rgba(77,166,255,.38);
+  --shift-tab-hover-bg:linear-gradient(180deg,rgba(77,166,255,.13),rgba(77,166,255,.045));
+  --shift-tab-active-bg:linear-gradient(180deg,#3474d6,#2258ad);
+  --shift-tab-active-border:rgba(77,166,255,.52);
+  --shift-tab-active-shadow:rgba(77,166,255,.18);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn:nth-child(3){
+  --shift-tab-accent:#f6c90e;
+  --shift-tab-border:rgba(246,201,14,.22);
+  --shift-tab-hover-border:rgba(246,201,14,.42);
+  --shift-tab-hover-bg:linear-gradient(180deg,rgba(246,201,14,.14),rgba(246,201,14,.045));
+  --shift-tab-active-bg:linear-gradient(180deg,#d99c17,#9a6504);
+  --shift-tab-active-border:rgba(246,201,14,.54);
+  --shift-tab-active-shadow:rgba(246,201,14,.17);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn::after{
+  content:"";
+  position:absolute;
+  inset:auto 11px 6px;
+  height:2px;
+  border-radius:999px;
+  background:var(--shift-tab-accent);
+  opacity:0;
+  transform:scaleX(.45);
+  transition:opacity .2s var(--ease-out),transform .2s var(--ease-out);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn:hover{
+  transform:translateY(-1px);
+  border-color:var(--shift-tab-hover-border);
+  background:var(--shift-tab-hover-bg);
+  color:#f5fbff;
+  box-shadow:0 10px 22px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.08);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn.active{
+  border-color:var(--shift-tab-active-border);
+  background:var(--shift-tab-active-bg);
+  color:#f8fffd!important;
+  text-shadow:0 1px 1px rgba(0,32,27,.35);
+  box-shadow:0 12px 26px var(--shift-tab-active-shadow),inset 0 1px 0 rgba(255,255,255,.23),inset 0 -1px 0 rgba(0,37,31,.2);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn:nth-child(3).active{
+  color:#fff8df!important;
+  text-shadow:0 1px 1px rgba(43,25,0,.38);
+}
+html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn.active::after{
+  opacity:.95;
+  transform:scaleX(1);
+}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
@@ -111,6 +210,14 @@ body::after{
 .shift-row-head.night::before{background:var(--violet)}
 .slot-title{font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot-time{font-family:var(--font-mono);font-size:10px;color:var(--text);white-space:nowrap;border:1px solid rgba(232,240,254,.12);border-radius:999px;padding:3px 7px;background:rgba(8,17,31,.25);width:max-content;max-width:100%}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.morning::before{background:#f6c90e!important}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.lunch::before{background:#b85a15!important}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.evening::before{background:#2f61b6!important}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.night::before{background:#6149c7!important}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.morning .slot-time{color:#6f4a00;background:#fff7c2;border-color:rgba(246,201,14,.38)}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.lunch .slot-time{color:#87400d;background:#fff0e6;border-color:rgba(184,90,21,.24)}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.evening .slot-time{color:#224b91;background:#eaf3ff;border-color:rgba(47,97,182,.24)}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time{color:#4d39a5;background:#f1edff;border-color:rgba(97,73,199,.24)}
 .shift-cell{min-height:82px;padding:7px;display:grid;gap:5px;align-content:start}
 .shift-cell.day-off{background:rgba(255,127,149,.035);border-color:rgba(255,127,149,.18)}
 .shift-cell.locked{background:rgba(90,122,154,.06);border-color:rgba(90,122,154,.22);opacity:.78}
@@ -297,6 +404,8 @@ body::after{
 }
 @media(max-width:560px){
   .tab-bar{display:grid;grid-template-columns:1fr}
+  html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs{width:100%;padding:5px}
+  html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn{width:100%;justify-content:center}
   .week-board{display:grid;overflow:visible}
   .shift-row{grid-template-columns:1fr}
   .dow-grid{display:none}
@@ -375,7 +484,7 @@ body::after{
       <div class="metric"><div class="metric-label">Đã chọn</div><div class="metric-value" id="statSelected">0</div></div>
     </section>
 
-    <section class="tab-bar" aria-label="Khu vực ca làm">
+    <section class="tab-bar shift-tabs" aria-label="Khu vực ca làm">
       <button class="tab-btn active" id="tabBtnSchedule" onclick="switchShiftTab('schedule')">Lịch phân ca</button>
       <button class="tab-btn" id="tabBtnShifts" onclick="switchShiftTab('shifts')">Bộ ca</button>
       <button class="tab-btn" id="tabBtnIo" onclick="switchShiftTab('io')">Nhập/Xuất</button>

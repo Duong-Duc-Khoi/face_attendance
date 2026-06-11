@@ -436,181 +436,184 @@ body.login-page::after{
   .login-page .logo{margin-bottom:12px}
 }
 
-/* Dashboard-aligned login palette */
+/* Dashboard dark-aligned login palette */
 body.login-page{
-  --bg:#edf4f1;
-  --surface:#fffdf8;
-  --panel:#f6faf6;
-  --border:#c7d5cf;
-  --border-soft:rgba(43,68,83,.16);
-  --border-strong:rgba(43,68,83,.3);
-  --text:#142335;
-  --muted:#52687a;
-  --muted-dim:#778895;
-  --teal:#007f73;
-  --teal-dim:#056a5c;
-  --teal-glow:rgba(0,127,115,.12);
-  --blue:#2f61b6;
-  --red:#b73555;
-  --yellow:#946500;
+  --bg:#050b14;
+  --surface:#0b1728;
+  --panel:#12213a;
+  --surface-elevated:#162841;
+  --surface-soft:rgba(18,33,58,.72);
+  --border:#1a2f50;
+  --border-soft:rgba(59,88,124,.42);
+  --border-strong:rgba(87,125,168,.55);
+  --text:#edf5ff;
+  --muted:#8ba5c2;
+  --muted-dim:#5f7896;
+  --teal:#00d4aa;
+  --teal-dim:#007a63;
+  --teal-glow:rgba(0,212,170,.15);
+  --blue:#4da6ff;
+  --red:#ff4d6a;
+  --yellow:#f6c90e;
   background:
-    radial-gradient(circle at 74% 2%,rgba(255,170,108,.13),transparent 34%),
-    radial-gradient(circle at 14% 8%,rgba(0,127,115,.13),transparent 30%),
-    linear-gradient(180deg,#f5f8f1 0%,#edf4f1 48%,#e8f0ed 100%);
+    radial-gradient(circle at 78% 4%,rgba(0,212,170,.12),transparent 30%),
+    radial-gradient(circle at 15% 10%,rgba(77,166,255,.1),transparent 28%),
+    linear-gradient(180deg,rgba(13,25,43,.92) 0%,var(--bg) 46%,#040811 100%);
   color:var(--text);
 }
 body.login-page::before{
-  opacity:.34;
+  opacity:.32;
   background:
-    linear-gradient(180deg,rgba(255,255,255,.58),transparent 32%),
-    linear-gradient(115deg,rgba(0,127,115,.08),transparent 38%),
-    linear-gradient(245deg,rgba(47,97,182,.06),transparent 42%),
-    linear-gradient(rgba(43,68,83,.05) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(43,68,83,.04) 1px,transparent 1px);
-  background-size:auto,auto,auto,64px 64px,64px 64px;
+    linear-gradient(180deg,rgba(237,245,255,.055),transparent 30%),
+    linear-gradient(115deg,rgba(0,212,170,.105),transparent 36%),
+    linear-gradient(245deg,rgba(77,166,255,.075),transparent 42%),
+    linear-gradient(rgba(90,122,154,.09) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(90,122,154,.075) 1px,transparent 1px);
+  background-size:auto,auto,auto,56px 56px,56px 56px;
 }
 body.login-page::after{
   background:
-    linear-gradient(90deg,rgba(0,127,115,.08),transparent 24%,transparent 78%,rgba(255,150,80,.05)),
-    linear-gradient(180deg,transparent 44%,rgba(232,240,237,.66));
+    linear-gradient(90deg,rgba(0,212,170,.12),transparent 24%,transparent 78%,rgba(77,166,255,.09)),
+    linear-gradient(180deg,transparent 40%,rgba(4,8,17,.78));
 }
 .login-aside{
-  color:#f7fbfc;
-  border-color:rgba(232,244,247,.14);
+  color:var(--text);
+  border-color:rgba(59,88,124,.45);
   background:
-    linear-gradient(150deg,rgba(0,127,115,.18),transparent 42%),
-    linear-gradient(180deg,#123451,#0b2036);
-  box-shadow:0 26px 80px rgba(27,55,69,.24),inset 0 1px 0 rgba(255,255,255,.08);
+    linear-gradient(150deg,rgba(0,212,170,.13),transparent 42%),
+    linear-gradient(180deg,rgba(18,33,58,.98),rgba(6,12,23,.98));
+  box-shadow:0 28px 80px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.075);
 }
 .login-aside::before{
   background:
-    linear-gradient(90deg,rgba(141,235,216,.08) 1px,transparent 1px),
-    linear-gradient(180deg,rgba(255,255,255,.045) 1px,transparent 1px);
+    linear-gradient(90deg,rgba(0,212,170,.08) 1px,transparent 1px),
+    linear-gradient(180deg,rgba(77,166,255,.055) 1px,transparent 1px);
 }
 .login-page .login-aside .brand-name,
 .login-page .login-aside .access-copy strong,
 .login-page .login-aside .status-tile strong{
-  color:#ffffff;
+  color:var(--text);
 }
 .login-page .login-aside .brand-sub,
 .login-page .login-aside .access-copy span,
 .login-page .login-aside .status-tile span{
-  color:rgba(230,247,250,.76);
+  color:var(--muted);
 }
 .login-page .login-aside .login-mark{
-  background:linear-gradient(180deg,rgba(141,235,216,.17),rgba(255,255,255,.045));
-  border-color:rgba(141,235,216,.42);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 14px 28px rgba(0,19,38,.24);
+  background:linear-gradient(180deg,rgba(0,212,170,.18),rgba(0,212,170,.06));
+  border-color:rgba(0,212,170,.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 14px 30px rgba(0,0,0,.28);
 }
 .login-page .login-aside .login-mark::before,
 .login-page .login-aside .login-mark::after,
 .login-page .login-aside .login-mark span::before,
 .login-page .login-aside .login-mark span::after{
-  border-color:#8debd8;
+  border-color:var(--teal);
 }
 .scan-frame{
   background:
-    linear-gradient(180deg,rgba(7,24,39,.96),rgba(9,25,37,.96)),
-    #0b2036;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 46px rgba(0,19,38,.2);
+    linear-gradient(180deg,rgba(11,23,40,.98),rgba(5,11,20,.98)),
+    #0b1728;
+  border-color:rgba(59,88,124,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 46px rgba(0,0,0,.28);
 }
 .face-grid{
-  border-color:rgba(141,235,216,.34);
+  border-color:rgba(0,212,170,.38);
   background:
-    linear-gradient(90deg,transparent 49%,rgba(141,235,216,.22) 50%,transparent 51%),
-    linear-gradient(0deg,transparent 49%,rgba(141,235,216,.16) 50%,transparent 51%);
+    linear-gradient(90deg,transparent 49%,rgba(0,212,170,.2) 50%,transparent 51%),
+    linear-gradient(0deg,transparent 49%,rgba(77,166,255,.14) 50%,transparent 51%);
 }
 .face-grid::before,
 .face-grid::after{
-  border-color:rgba(141,235,216,.22);
+  border-color:rgba(0,212,170,.22);
 }
-.scan-corner{border-color:rgba(141,235,216,.78)}
+.scan-corner{border-color:rgba(0,212,170,.82)}
 .scan-line{
-  background:linear-gradient(90deg,transparent,rgba(141,235,216,.95),transparent);
-  box-shadow:0 0 22px rgba(141,235,216,.5);
+  background:linear-gradient(90deg,transparent,rgba(0,212,170,.95),transparent);
+  box-shadow:0 0 22px rgba(0,212,170,.48);
 }
 .access-copy,
 .status-tile{
-  background:rgba(255,255,255,.05);
-  border-color:rgba(232,244,247,.11);
+  background:rgba(11,23,40,.58);
+  border-color:rgba(59,88,124,.34);
 }
 .login-card{
-  background:linear-gradient(180deg,#fffdf8,#f7faf6);
-  border-color:rgba(43,68,83,.14);
-  box-shadow:0 28px 76px rgba(27,55,69,.16),inset 0 1px 0 rgba(255,255,255,.9);
+  background:linear-gradient(180deg,rgba(18,33,58,.97),rgba(8,17,31,.98));
+  border-color:rgba(59,88,124,.46);
+  box-shadow:0 30px 80px rgba(0,0,0,.46),inset 0 1px 0 rgba(255,255,255,.075);
 }
 .login-page .logo-name,
 .login-form-head h1{
-  color:#142335;
+  color:var(--text);
 }
 .login-page .logo-sub,
 .login-page .brand-sub{
-  color:#52687a;
+  color:var(--muted);
 }
 .login-page .logo .login-mark{
-  background:linear-gradient(180deg,rgba(0,127,115,.1),rgba(47,97,182,.045)),#fffdf8;
-  border-color:rgba(0,127,115,.34);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 14px 30px rgba(27,55,69,.12);
+  background:linear-gradient(180deg,rgba(0,212,170,.18),rgba(77,166,255,.07)),rgba(11,23,40,.92);
+  border-color:rgba(0,212,170,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 14px 30px rgba(0,0,0,.28);
 }
 .login-page .logo .login-mark::before,
 .login-page .logo .login-mark::after,
 .login-page .logo .login-mark span::before,
 .login-page .logo .login-mark span::after{
-  border-color:#007f73;
+  border-color:var(--teal);
 }
 .login-page .auth-kicker,
 .text-link,
 .otp-resend{
-  color:#007f73;
+  color:var(--teal);
 }
 .login-page .fl{
-  color:#52687a;
+  color:var(--muted);
 }
 .login-page .fi{
-  background:#fffefa;
-  border-color:rgba(43,68,83,.17);
-  color:#142335;
+  background:rgba(8,17,31,.78);
+  border-color:rgba(59,88,124,.52);
+  color:var(--text);
 }
 .login-page .fi:focus{
-  background:#ffffff;
-  border-color:rgba(0,127,115,.42);
-  box-shadow:0 0 0 4px rgba(0,127,115,.1);
+  background:rgba(11,23,40,.94);
+  border-color:rgba(0,212,170,.62);
+  box-shadow:0 0 0 4px rgba(0,212,170,.12);
 }
 .login-page .fi-icon .eye{
-  background:#f3f8f4;
-  border-color:rgba(43,68,83,.14);
-  color:#52687a;
+  background:rgba(18,33,58,.78);
+  border-color:rgba(59,88,124,.45);
+  color:var(--muted);
 }
 .login-page .fi-icon .eye:hover,
 .login-page .fi-icon .eye.is-visible{
-  color:#007f73;
-  border-color:rgba(0,127,115,.3);
-  background:rgba(0,127,115,.08);
+  color:var(--teal);
+  border-color:rgba(0,212,170,.45);
+  background:rgba(0,212,170,.09);
 }
 .btn-t{
-  background:linear-gradient(180deg,#008e7f,#006f64);
-  color:#ffffff;
-  box-shadow:0 13px 26px rgba(0,127,115,.15),inset 0 1px 0 rgba(255,255,255,.25);
+  background:linear-gradient(180deg,#28e6c4,#00b894);
+  color:#03120f;
+  box-shadow:0 16px 34px rgba(0,212,170,.18),inset 0 1px 0 rgba(255,255,255,.28);
 }
 .btn-t:hover:not(:disabled){
-  background:linear-gradient(180deg,#009a89,#006f64);
+  background:linear-gradient(180deg,#52f0d5,#00d4aa);
 }
 .btn-t::after,
 .login-page .btn-t::after{
-  background:rgba(255,255,255,.14);
-  color:#ffffff;
+  background:rgba(3,18,15,.13);
+  color:#03120f;
 }
 .btn-o{
-  background:#fffdf8;
-  color:#40586b;
-  border-color:rgba(43,68,83,.16);
+  background:rgba(8,17,31,.72);
+  color:var(--muted);
+  border-color:rgba(59,88,124,.45);
 }
 .btn-o:hover{
-  color:#142335;
-  border-color:rgba(47,97,182,.28);
-  background:#eef5f7;
+  color:var(--text);
+  border-color:rgba(77,166,255,.45);
+  background:rgba(77,166,255,.08);
 }
-.alert.err{background:rgba(183,53,85,.09);border-color:rgba(183,53,85,.26);color:#b73555}
-.alert.ok{background:rgba(0,127,115,.09);border-color:rgba(0,127,115,.28);color:#007f73}
-.alert.info{background:rgba(47,97,182,.09);border-color:rgba(47,97,182,.26);color:#2f61b6}
-.spinner{border-color:rgba(255,255,255,.34);border-top-color:#ffffff}
+.alert.err{background:rgba(255,77,106,.1);border-color:rgba(255,77,106,.32);color:#ff8fa0}
+.alert.ok{background:rgba(0,212,170,.1);border-color:rgba(0,212,170,.28);color:#00d4aa}
+.alert.info{background:rgba(77,166,255,.1);border-color:rgba(77,166,255,.28);color:#7ab8ff}
+.spinner{border-color:rgba(3,18,15,.22);border-top-color:#03120f}
