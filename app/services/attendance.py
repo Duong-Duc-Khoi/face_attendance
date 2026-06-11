@@ -87,6 +87,45 @@ def _next_unscheduled_check_type(emp_code: str, now: datetime, db) -> str:
     return "check_out" if unscheduled_count % 2 == 1 else "check_in"
 
 
+def _open_unscheduled_session(emp: Employee, now: datetime, db) -> AttendanceSession | None:
+    candidate_dates = [now.date(), (now - timedelta(days=1)).date()]
+    return (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.employee_id == emp.id,
+              AttendanceSession.work_date.in_(candidate_dates),
+              AttendanceSession.review_type == "unscheduled",
+              AttendanceSession.review_status == "pending_review",
+              AttendanceSession.status != "cancelled",
+              AttendanceSession.check_in_at.isnot(None),
+              AttendanceSession.check_out_at.is_(None),
+          )
+          .order_by(AttendanceSession.check_in_at.desc(), AttendanceSession.id.desc())
+          .first()
+    )
+
+
+def _last_unmatched_unscheduled_checkin(emp_code: str, now: datetime, db) -> AttendanceLog | None:
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    rows = (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.emp_code == emp_code,
+              AttendanceLog.check_type == "check_in",
+              AttendanceLog.timestamp >= day_start,
+              AttendanceLog.note.like("Ngoài phân ca%"),
+          )
+          .order_by(AttendanceLog.timestamp.desc(), AttendanceLog.id.desc())
+          .limit(20)
+          .all()
+    )
+    for log in rows:
+        event = _matching_event(db, log)
+        if not event or not event.session_id:
+            return log
+    return None
+
+
 def process_attendance(
     emp_code: str,
     confidence: float,
@@ -205,8 +244,79 @@ def process_attendance(
                     "voice_message": "Ca này đã được duyệt nghỉ phép, không thể chấm công.",
                     "avatar_url": emp.avatar_url or "",
                 }
-            check_type = _next_unscheduled_check_type(emp_code, now, db)
+            unscheduled_session = _open_unscheduled_session(emp, now, db)
+            check_type = "check_out" if unscheduled_session else _next_unscheduled_check_type(emp_code, now, db)
             status = "Ngoài phân ca - chưa có ca phân công, chờ quản lý kiểm tra/gắn ca"
+            if check_type == "check_in":
+                unscheduled_session = AttendanceSession(
+                    employee_id=emp.id,
+                    branch_id=emp.branch_id,
+                    shift_assignment_id=None,
+                    shift_id=None,
+                    work_date=now.date(),
+                    check_in_at=now,
+                    status="open",
+                    check_in_status="unscheduled",
+                    source="face",
+                    note=status,
+                    review_type="unscheduled",
+                    review_status="pending_review",
+                )
+                db.add(unscheduled_session)
+                db.flush()
+            elif not unscheduled_session:
+                previous_checkin = _last_unmatched_unscheduled_checkin(emp_code, now, db)
+                if previous_checkin:
+                    unscheduled_session = AttendanceSession(
+                        employee_id=emp.id,
+                        branch_id=emp.branch_id,
+                        shift_assignment_id=None,
+                        shift_id=None,
+                        work_date=previous_checkin.timestamp.date(),
+                        check_in_at=previous_checkin.timestamp,
+                        status="open",
+                        check_in_status="unscheduled",
+                        source="face",
+                        note=status,
+                        review_type="unscheduled",
+                        review_status="pending_review",
+                    )
+                    db.add(unscheduled_session)
+                    db.flush()
+                    previous_event = _matching_event(db, previous_checkin)
+                    if previous_event:
+                        previous_event.session_id = unscheduled_session.id
+                        previous_event.branch_id = emp.branch_id
+                else:
+                    check_type = "check_in"
+                    unscheduled_session = AttendanceSession(
+                        employee_id=emp.id,
+                        branch_id=emp.branch_id,
+                        shift_assignment_id=None,
+                        shift_id=None,
+                        work_date=now.date(),
+                        check_in_at=now,
+                        status="open",
+                        check_in_status="unscheduled",
+                        source="face",
+                        note=status,
+                        review_type="unscheduled",
+                        review_status="pending_review",
+                    )
+                    db.add(unscheduled_session)
+                    db.flush()
+            if check_type == "check_out" and unscheduled_session:
+                unscheduled_session.check_out_at = now
+                unscheduled_session.status = "completed"
+                unscheduled_session.check_out_status = "unscheduled"
+                unscheduled_session.review_status = "pending_review"
+                unscheduled_session.review_type = "unscheduled"
+                if unscheduled_session.check_in_at:
+                    unscheduled_session.worked_minutes = max(
+                        0,
+                        int((now - unscheduled_session.check_in_at).total_seconds() / 60),
+                    )
+                unscheduled_session.note = status
             log = AttendanceLog(
                 employee_id  = emp.id,
                 emp_code     = emp_code,
@@ -222,7 +332,7 @@ def process_attendance(
             db.flush()
 
             event = AttendanceEvent(
-                session_id   = None,
+                session_id   = unscheduled_session.id if unscheduled_session else None,
                 employee_id  = emp.id,
                 branch_id    = emp.branch_id,
                 event_type   = check_type,
@@ -241,7 +351,7 @@ def process_attendance(
                 "warning": True,
                 "reason": "no_active_shift_assignment_logged",
                 "id": log.id,
-                "session_id": None,
+                "session_id": unscheduled_session.id if unscheduled_session else None,
                 "event_id": event.id,
                 "shift_id": None,
                 "shift_name": "",
@@ -511,6 +621,7 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
         pending_absent = review_q.filter(AttendanceSession.review_type == "absent").count()
         pending_missing_checkout = review_q.filter(AttendanceSession.review_type == "missing_checkout").count()
         pending_overtime = review_q.filter(AttendanceSession.review_type == "overtime").count()
+        pending_unscheduled = review_q.filter(AttendanceSession.review_type == "unscheduled").count()
         total_assigned = len(assignments)
         unique_emp = len({a.emp_code for a in assignments})
 
@@ -528,6 +639,7 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             "pending_absent_reviews": pending_absent,
             "pending_missing_checkout_reviews": pending_missing_checkout,
             "pending_overtime_reviews": pending_overtime,
+            "pending_unscheduled_reviews": pending_unscheduled,
         }
     finally:
         db.close()

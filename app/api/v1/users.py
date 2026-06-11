@@ -359,7 +359,7 @@ def list_users(
     q = db.query(User)
 
     if pending_only:
-        q = q.filter_by(is_email_verified=True, is_approved=False, is_active=False)
+        q = q.filter_by(is_email_verified=True, is_approved=False)
 
     if role:
         q = q.filter_by(role=role)
@@ -382,7 +382,7 @@ def list_pending_users(
     current_user: User = Depends(require_manager),
 ):
     """Shortcut: danh sách user chờ duyệt."""
-    q = db.query(User).filter_by(is_email_verified=True, is_approved=False, is_active=False)
+    q = db.query(User).filter_by(is_email_verified=True, is_approved=False)
 
     if current_user.role == "manager":
         q = q.filter(User.role != "admin")

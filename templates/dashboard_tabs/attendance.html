@@ -7,7 +7,7 @@
     </div>
     <div class="panel attendance-section hidden" id="reviewPanel">
       <div class="panel-header">
-        <div class="panel-header-left"><span class="dot"></span> Vắng, quên checkout & OT cần duyệt</div>
+        <div class="panel-header-left"><span class="dot"></span> Vắng, quên checkout, OT & ngoài ca cần duyệt</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="date" class="filter-input" id="reviewFrom" onchange="loadAttendanceReviewItems()" style="font-size:12px">
           <input type="date" class="filter-input" id="reviewTo" onchange="loadAttendanceReviewItems()" style="font-size:12px">
@@ -16,6 +16,7 @@
             <option value="absent">Vắng</option>
             <option value="missing_checkout">Quên checkout</option>
             <option value="overtime">OT</option>
+            <option value="unscheduled">Ngoài ca</option>
           </select>
           <button class="log-btn" onclick="loadAttendanceReviewItems()">Tải lại</button>
         </div>

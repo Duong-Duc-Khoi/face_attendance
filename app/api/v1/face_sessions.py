@@ -19,13 +19,18 @@ from app.services.face_enrollment import (
     face_action_label,
     hash_face_ticket,
 )
-from app.services.kiosk_registry import list_online_kiosks
+from app.services.kiosk_registry import list_online_kiosks, send_to_kiosk
 
 router = APIRouter(prefix="/api", tags=["face-enrollment"])
 
 
 class FaceSessionCompleteRequest(BaseModel):
     frames: list[str] = Field(default_factory=list)
+
+
+class KioskRegisterOpenRequest(BaseModel):
+    branch_id: int | None = None
+    kiosk_id: str | None = ""
 
 
 def _branch_dict(branch: Branch | None) -> dict | None:
@@ -106,6 +111,50 @@ async def online_kiosks(
     if current_user.role != "admin":
         rows = [row for row in rows if row.get("branch_id") in allowed]
     return {"kiosks": rows, "total": len(rows)}
+
+
+@router.post("/kiosks/register")
+async def open_register_on_kiosk(
+    body: KioskRegisterOpenRequest | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    allowed = require_branch_manager_or_admin(db, current_user)
+    branch_id = body.branch_id if body else None
+    kiosk_id = ((body.kiosk_id if body else "") or "").strip()
+    if branch_id is not None:
+        ensure_branch_access(db, current_user, branch_id)
+
+    online = await list_online_kiosks(branch_id)
+    if current_user.role != "admin":
+        online = [row for row in online if row.get("branch_id") in allowed]
+
+    selected = None
+    if kiosk_id:
+        selected = next((row for row in online if row["kiosk_id"] == kiosk_id), None)
+    elif len(online) == 1:
+        selected = online[0]
+
+    selected_branch_id = (selected or {}).get("branch_id") or branch_id
+    register_path = "/register"
+    if selected_branch_id:
+        register_path = f"/register?branch_id={selected_branch_id}"
+
+    sent = False
+    if selected:
+        sent = await send_to_kiosk(selected["kiosk_id"], {
+            "type": "open_register_page",
+            "register_path": register_path,
+            "branch_id": selected_branch_id,
+        })
+
+    return {
+        "success": True,
+        "register_path": register_path,
+        "sent_to_kiosk": sent,
+        "kiosk": selected,
+        "online_kiosks": online,
+    }
 
 
 @router.get("/face-sessions/{ticket}")

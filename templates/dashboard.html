@@ -6,7 +6,7 @@
 <title>{{ page_title|default('Dashboard') }} — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-14">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-16">
 <link rel="stylesheet" href="/static/css/components.css">
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
@@ -255,6 +255,7 @@
 .review-type-pill.absent{color:var(--red);background:rgba(255,77,106,.08);border-color:rgba(255,77,106,.28)}
 .review-type-pill.missing_checkout{color:var(--yellow);background:rgba(246,201,14,.08);border-color:rgba(246,201,14,.25)}
 .review-type-pill.overtime{color:#a78bfa;background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.28)}
+.review-type-pill.unscheduled{color:#38bdf8;background:rgba(56,189,248,.09);border-color:rgba(56,189,248,.3)}
 .review-actions{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
 .review-actions .approve{border-color:rgba(0,212,170,.35);color:var(--teal);background:rgba(0,212,170,.08)}
 .review-actions .reject{border-color:rgba(255,77,106,.35);color:var(--red);background:rgba(255,77,106,.08)}
@@ -768,7 +769,7 @@ function renderWorkItems(data){
   const tbody=document.getElementById('workItemsBody');
   if(!tbody)return;
   const rows=[
-    {label:'Duyệt chấm công',note:'Vắng, quên checkout hoặc OT đang chờ xác nhận',count:data.reviewCount,state:'warn',url:'/attendance?section=review'},
+    {label:'Duyệt chấm công',note:'Vắng, quên checkout, OT hoặc ngoài ca đang chờ xác nhận',count:data.reviewCount,state:'warn',url:'/attendance?section=review'},
     {label:'Nhắc checkout',note:'Nhân viên đã vào ca nhưng chưa ra',count:data.missingCheckout,state:'danger',url:'/attendance'},
     {label:'Kiểm tra lượt đi muộn',note:'Các bản ghi check-in bị đánh dấu muộn',count:data.lateCount,state:'warn',url:'/attendance'},
     {label:'Duyệt đơn nghỉ',note:'Đơn nghỉ phép đang chờ xử lý',count:data.pendingLeaveCount,state:'info',url:'/leave'},
@@ -1058,22 +1059,38 @@ function filterEmployees(){
   renderEmployees(f);
 }
 
-function _kioskRegisterUrl(path){
+function _kioskUrl(path){
   const base=(KIOSK_URL||'').replace(/\/+$/,'');
-  return base+(path||'/register');
+  return base+(path||'/');
 }
 
-async function _selectKioskForEmployee(emp){
-  if(!emp.branch_id)return '';
+function _kioskRegisterUrl(path){
+  return _kioskUrl(path||'/register');
+}
+
+function _currentDashboardBranchId(){
+  const selected=window.getSelectedBranchId?window.getSelectedBranchId():'';
+  if(selected)return Number(selected);
+  const user=window.getUser?window.getUser():null;
+  const scope=(user&&user.scope)||{};
+  if(scope.branch_id)return Number(scope.branch_id);
+  const ids=Array.isArray(scope.branch_ids)?scope.branch_ids:[];
+  if(ids.length===1)return Number(ids[0]);
+  return null;
+}
+
+async function _selectKioskForBranch(branchId,purpose){
+  const query=branchId?`?branch_id=${encodeURIComponent(branchId)}`:'';
   try{
-    const res=await authFetch(`/api/kiosks/online?branch_id=${encodeURIComponent(emp.branch_id)}`);
+    const res=await authFetch(`/api/kiosks/online${query}`);
     if(!res.ok)return '';
     const data=await res.json();
     const kiosks=data.kiosks||[];
     if(kiosks.length===1)return kiosks[0].kiosk_id;
     if(kiosks.length>1){
-      const lines=kiosks.map((k,i)=>`${i+1}. ${k.kiosk_id}`).join('\n');
-      const choice=prompt(`Có nhiều kiosk đang mở cho chi nhánh này:\n${lines}\n\nNhập số kiosk muốn gửi phiên đăng ký:`,`1`);
+      const lines=kiosks.map((k,i)=>`${i+1}. ${k.kiosk_id}${k.branch_id?` · chi nhánh #${k.branch_id}`:''}`).join('\n');
+      const scopeText=branchId?' cho chi nhánh này':'';
+      const choice=prompt(`Có nhiều kiosk đang mở${scopeText}:\n${lines}\n\nNhập số kiosk muốn gửi ${purpose||'lệnh'}:`,`1`);
       if(choice===null)return null;
       const idx=Number(choice)-1;
       if(kiosks[idx])return kiosks[idx].kiosk_id;
@@ -1082,6 +1099,38 @@ async function _selectKioskForEmployee(emp){
     }
   }catch(e){}
   return '';
+}
+
+async function _selectKioskForEmployee(emp){
+  if(!emp.branch_id)return '';
+  return _selectKioskForBranch(emp.branch_id,'phiên đăng ký khuôn mặt');
+}
+
+async function openRegisterOnKiosk(){
+  const branchId=_currentDashboardBranchId();
+  const kioskId=await _selectKioskForBranch(branchId,'trang đăng ký nhân viên');
+  if(kioskId===null)return;
+  const body={};
+  if(branchId)body.branch_id=branchId;
+  if(kioskId)body.kiosk_id=kioskId;
+  try{
+    const res=await authFetch('/api/kiosks/register',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.detail||'Không gửi được trang đăng ký sang kiosk');
+    const fallbackUrl=_kioskRegisterUrl(data.register_path||'/register');
+    if(data.sent_to_kiosk){
+      showToast('Đã gửi trang đăng ký sang kiosk','success');
+    }else{
+      showToast('Không thấy kiosk đang mở. Dùng link dự phòng trên kiosk.','error');
+      prompt('Mở link này trên máy kiosk để tiếp tục:',fallbackUrl);
+    }
+  }catch(e){
+    showToast('Lỗi: '+e.message,'error');
+  }
 }
 
 async function startFaceEnrollment(id){
@@ -1279,13 +1328,17 @@ function _fmtDateTime(iso){
   return `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
 }
 function _reviewTypePill(type){
-  const labels={absent:'Vắng',missing_checkout:'Quên checkout',overtime:'OT'};
+  const labels={absent:'Vắng',missing_checkout:'Quên checkout',overtime:'OT',unscheduled:'Ngoài ca'};
   return `<span class="review-type-pill ${type||''}">${labels[type]||'Cần duyệt'}</span>`;
 }
 function _reviewDetail(item){
   if(item.review_type==='absent')return item.note||'Không check-in cả ca';
   if(item.review_type==='missing_checkout')return 'Hệ thống tự checkout tại giờ kết thúc ca';
   if(item.review_type==='overtime')return `OT ${item.overtime_minutes||0} phút, cần quản lý duyệt`;
+  if(item.review_type==='unscheduled'){
+    if(item.check_in_at&&item.check_out_at)return 'Chấm công khi chưa có phân ca. Duyệt sẽ tạo/gắn ca theo đúng khoảng giờ vào-ra này';
+    return 'Chấm công khi chưa có phân ca. Cần đủ giờ vào và giờ ra trước khi duyệt/gắn ca';
+  }
   return item.note||'Cần quản lý xác nhận';
 }
 async function loadAttendanceReviewItems(){
@@ -1316,7 +1369,7 @@ function renderAttendanceReviewItems(){
     <tr>
       <td>${_reviewTypePill(item.review_type)}</td>
       <td><div style="font-weight:700">${rosterSafe(item.emp_name||'—')}</div><div style="font-size:11px;color:var(--muted)">${rosterSafe(item.emp_code||'')}</div></td>
-      <td>${rosterSafe(item.shift_name||'—')}<br><span style="color:var(--muted);font-size:10px">${item.work_date||'—'}</span></td>
+      <td>${rosterSafe(item.shift_name||(item.review_type==='unscheduled'?'Chưa gắn ca':'—'))}<br><span style="color:var(--muted);font-size:10px">${item.work_date||'—'}</span></td>
       <td style="font-family:var(--font-mono);font-size:12px">Vào: ${_fmtDateTime(item.check_in_at)}<br>Ra: ${_fmtDateTime(item.check_out_at)}</td>
       <td>${rosterSafe(_reviewDetail(item))}<br><span style="color:var(--muted);font-size:10px">Muộn ${item.late_minutes||0}p · OT ${item.overtime_minutes||0}p</span></td>
       <td style="text-align:right"><div class="review-actions">

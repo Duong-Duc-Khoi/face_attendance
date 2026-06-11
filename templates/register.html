@@ -152,6 +152,19 @@ html,body{min-height:100dvh}
 .btn-t:disabled{background:var(--teal-dim);color:#003;cursor:not-allowed}
 .btn-o{background:rgba(255,255,255,.025);color:#b6c7da;border:1px solid var(--border-soft)}
 .btn-o:hover{color:var(--text);border-color:rgba(58,143,255,.48);background:rgba(58,143,255,.08)}
+.register-kiosk-link{
+  justify-self:end;
+  min-height:34px;
+  padding:8px 14px;
+  background:linear-gradient(135deg,rgba(58,143,255,.14),rgba(0,212,170,.13));
+  border-color:rgba(0,212,170,.28);
+  color:#e9f7ff;
+  box-shadow:0 12px 26px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.08);
+}
+.register-kiosk-link:hover{
+  border-color:rgba(0,212,170,.5);
+  background:linear-gradient(135deg,rgba(58,143,255,.2),rgba(0,212,170,.2));
+}
 .voice-btn.active{color:#00110d;background:var(--yellow);border-color:var(--yellow)}
 .btn-full{width:100%;padding:12px}
 .tipbox{background:rgba(8,17,31,.58);border:1px solid var(--border-soft);border-radius:8px;padding:11px 14px;margin-bottom:14px}
@@ -215,6 +228,8 @@ html,body{min-height:100dvh}
   .sn{width:18px;height:18px}
   .pose-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
   .pcard{min-height:74px}
+  header{padding:0 14px;gap:10px}
+  .register-kiosk-link{min-height:32px;padding:7px 10px;font-size:11px}
   .face-guide{
     width:min(210px,58vw);
     height:min(276px,76vw);
@@ -238,7 +253,7 @@ html,body{min-height:100dvh}
     </div>
     <span class="brand-name">FaceAttend</span>
   </div>
-  <!-- Kiosk mode: không có nav điều hướng -->
+  <a class="btn btn-o register-kiosk-link" data-kiosk-home-link id="headerKioskLink" href="/">Mở kiosk</a>
 </header>
 
 <div class="page">
@@ -410,7 +425,7 @@ html,body{min-height:100dvh}
         </div>
         <div style="display:flex;gap:9px;justify-content:center;margin-top:18px;flex-wrap:wrap">
           <button class="btn btn-t" id="successPrimaryBtn" onclick="resetAll()">Đăng ký tiếp</button>
-          <a href="/" class="btn btn-o" id="successKioskLink">Về kiosk</a>
+          <a href="/" class="btn btn-o" data-kiosk-home-link id="successKioskLink">Về kiosk</a>
         </div>
       </div>
     </div>
@@ -429,6 +444,21 @@ if (preferredBranchId) localStorage.setItem('register_branch_id', preferredBranc
 function apiUrl(path) {
   return backendBase ? `${backendBase}${path}` : path;
 }
+function kioskHomeHref(){
+  const branchSelect = document.getElementById('empBranch');
+  const branchId = window.KIOSK_BRANCH_ID || (branchSelect && branchSelect.value) || preferredBranchId || localStorage.getItem('register_branch_id') || '';
+  const params = new URLSearchParams();
+  if (backendParam) params.set('backend', backendParam);
+  if (branchId) params.set('branch_id', branchId);
+  const query = params.toString();
+  return query ? `/?${query}` : '/';
+}
+function syncKioskHomeLinks(){
+  document.querySelectorAll('[data-kiosk-home-link]').forEach(link => {
+    link.href = kioskHomeHref();
+  });
+}
+syncKioskHomeLinks();
 function backendAssetUrl(path) {
   if (!path) return '';
   if (/^(https?:|data:|blob:)/i.test(path)) return path;
@@ -520,6 +550,7 @@ async function loadRegisterBranches(){
   if (!select) return;
   select.onchange = () => {
     if (select.value) localStorage.setItem('register_branch_id', select.value);
+    syncKioskHomeLinks();
   };
   select.innerHTML = '<option value="">Đang tải chi nhánh...</option>';
   try{
@@ -539,13 +570,16 @@ async function loadRegisterBranches(){
     }else if (rows.length === 1){
       select.value = String(rows[0].id);
     }
+    syncKioskHomeLinks();
   }catch(e){
     if (preferredBranchId){
       select.innerHTML = `<option value="${esc(preferredBranchId)}">Chi nhánh #${esc(preferredBranchId)}</option>`;
       select.value = String(preferredBranchId);
+      syncKioskHomeLinks();
       return;
     }
     select.innerHTML = '<option value="">Không tải được chi nhánh</option>';
+    syncKioskHomeLinks();
   }
 }
 

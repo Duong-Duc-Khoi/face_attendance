@@ -24,7 +24,7 @@ from app.core.database import get_db
 from app.models.branch import Branch
 from app.models.employee import Employee
 from app.models.face_enrollment import FaceEnrollmentSession
-from app.models.user import User
+from app.models.user import RefreshToken, User
 from app.schemas.employee import (
     EmployeeUpdate,
     JOB_ROLE_LABELS,
@@ -111,6 +111,33 @@ def _clean_phone(value: str | None) -> str:
     if len(phone) > 20:
         raise HTTPException(400, "Số điện thoại tối đa 20 ký tự")
     return phone
+
+
+def _user_for_employee_account(db: Session, emp: Employee) -> User | None:
+    if emp.user_id:
+        user = db.query(User).filter_by(id=emp.user_id).first()
+        if user:
+            return user
+    email = (emp.email or "").strip()
+    if not email:
+        return None
+    return db.query(User).filter_by(email=email).first()
+
+
+def _sync_employee_account_active(db: Session, emp: Employee) -> None:
+    user = _user_for_employee_account(db, emp)
+    if not user or user.role == "admin":
+        return
+    if emp.is_active:
+        if user.is_email_verified and user.is_approved:
+            user.is_active = True
+        return
+    user.is_active = False
+    (
+        db.query(RefreshToken)
+        .filter_by(user_id=user.id, revoked=False)
+        .update({"revoked": True}, synchronize_session=False)
+    )
 
 
 def _ensure_store_role_slot(
@@ -528,7 +555,7 @@ async def self_register(payload: dict, db: Session = Depends(get_db)):
         full_name         = name,
         hashed_password   = hash_password(password),
         role              = "staff",
-        is_active         = False,
+        is_active         = True,
         is_email_verified = False,
         is_approved       = False,
     )
@@ -735,6 +762,7 @@ def update_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(get
             setattr(emp, field, val)
     if "is_active" in update_data or "status" in update_data:
         emp.deactivated_at = None if emp.is_active else datetime.now()
+        _sync_employee_account_active(db, emp)
     db.commit(); db.refresh(emp)
     return {"success": True, "employee": _emp_dict(emp)}
 
@@ -756,5 +784,6 @@ def delete_employee(emp_id: int, hard: bool = False, db: Session = Depends(get_d
         emp.is_active = False
         emp.status = "inactive"
         emp.deactivated_at = datetime.now()
+        _sync_employee_account_active(db, emp)
     db.commit()
     return {"success": True, "message": "Đã xóa nhân viên"}

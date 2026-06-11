@@ -2941,6 +2941,104 @@ html[data-admin-theme="light"] body.admin-shell::after{
     linear-gradient(90deg,rgba(33,58,73,.048) 1px,transparent 1px);
   background-size:auto,auto,42px 42px,42px 42px;
 }
+html[data-admin-theme="light"] body.admin-shell .branch-scope-box{
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));
+  border-top-color:rgba(232,244,247,.14);
+  border-bottom:1px solid rgba(232,244,247,.08);
+}
+html[data-admin-theme="light"] body.admin-shell .branch-scope-label{
+  color:rgba(230,247,250,.78);
+}
+html[data-admin-theme="light"] body.admin-shell .branch-scope-select,
+html[data-admin-theme="light"] body.admin-shell .branch-scope-pill{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.035)),
+    #102b45;
+  border-color:rgba(141,235,216,.24);
+  color:#f7fbfc;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 10px 22px rgba(0,19,38,.12);
+}
+html[data-admin-theme="light"] body.admin-shell .branch-scope-select{
+  color-scheme:dark;
+}
+html[data-admin-theme="light"] body.admin-shell .branch-scope-select option{
+  background:#102b45;
+  color:#f7fbfc;
+}
+html[data-admin-theme="light"] body.admin-shell .branch-scope-select:focus{
+  background:#123554;
+  border-color:rgba(141,235,216,.54);
+  box-shadow:0 0 0 3px rgba(141,235,216,.12),inset 0 1px 0 rgba(255,255,255,.12);
+}
+html[data-admin-theme="light"] body.admin-shell .branch-scope-pill{
+  color:#b8f3e8;
+}
+
+body.admin-shell .overview-actions .overview-action{
+  position:relative;
+  min-height:38px;
+  padding:0 15px;
+  overflow:hidden;
+  appearance:none;
+  border-color:transparent!important;
+  color:#ffffff!important;
+  isolation:isolate;
+  box-shadow:0 14px 28px rgba(19,38,53,.13),inset 0 1px 0 rgba(255,255,255,.34);
+  transition:
+    transform .48s cubic-bezier(.32,.72,0,1),
+    box-shadow .48s cubic-bezier(.32,.72,0,1),
+    filter .48s cubic-bezier(.32,.72,0,1);
+}
+body.admin-shell .overview-actions .overview-action::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:linear-gradient(110deg,rgba(255,255,255,.28),transparent 42%,rgba(255,255,255,.16));
+  opacity:.72;
+}
+body.admin-shell .overview-actions .overview-action:hover{
+  transform:translateY(-2px);
+  filter:saturate(1.08) contrast(1.02);
+  box-shadow:0 18px 34px rgba(19,38,53,.18),inset 0 1px 0 rgba(255,255,255,.42);
+}
+body.admin-shell .overview-actions .overview-action:active{
+  transform:translateY(0) scale(.985);
+}
+body.admin-shell .overview-actions .overview-action:nth-child(1){
+  background:linear-gradient(135deg,#0097ff 0%,#00cfaa 100%)!important;
+}
+body.admin-shell .overview-actions .overview-action:nth-child(2){
+  background:linear-gradient(135deg,#ff9f1c 0%,#ef476f 100%)!important;
+}
+body.admin-shell .overview-actions .overview-action:nth-child(3){
+  background:linear-gradient(135deg,#7c3aed 0%,#ec4899 100%)!important;
+}
+body.admin-shell .overview-actions .overview-action:nth-child(4){
+  background:linear-gradient(135deg,#2563eb 0%,#06b6d4 100%)!important;
+}
+body.admin-shell .overview-actions .overview-action .action-badge{
+  position:relative;
+  z-index:1;
+  background:#fff7ed;
+  color:#9a3412;
+  box-shadow:0 0 0 3px rgba(255,255,255,.2);
+}
+html[data-admin-theme="light"] body.admin-shell .overview-actions .overview-action{
+  text-shadow:0 1px 1px rgba(8,22,37,.18);
+}
+html[data-admin-theme="light"] body.admin-shell .overview-actions .overview-action:nth-child(1){
+  box-shadow:0 16px 30px rgba(0,151,255,.18),inset 0 1px 0 rgba(255,255,255,.42);
+}
+html[data-admin-theme="light"] body.admin-shell .overview-actions .overview-action:nth-child(2){
+  box-shadow:0 16px 30px rgba(239,71,111,.18),inset 0 1px 0 rgba(255,255,255,.42);
+}
+html[data-admin-theme="light"] body.admin-shell .overview-actions .overview-action:nth-child(3){
+  box-shadow:0 16px 30px rgba(124,58,237,.18),inset 0 1px 0 rgba(255,255,255,.42);
+}
+html[data-admin-theme="light"] body.admin-shell .overview-actions .overview-action:nth-child(4){
+  box-shadow:0 16px 30px rgba(37,99,235,.18),inset 0 1px 0 rgba(255,255,255,.42);
+}
 
 body.admin-shell.nav-collapsed{
   padding-left:76px;

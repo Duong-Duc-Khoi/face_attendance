@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -980,6 +981,131 @@ class AttendanceSessionReviewRequest(BaseModel):
     note: Optional[str] = ""
 
 
+def _unscheduled_shift_code(start: datetime, end: datetime) -> str:
+    suffix = "-next" if end.date() != start.date() else ""
+    return f"outside-{start.strftime('%H%M')}-{end.strftime('%H%M')}{suffix}"
+
+
+def _find_or_create_unscheduled_shift(
+    db: Session,
+    branch_id: int | None,
+    check_in_at: datetime,
+    check_out_at: datetime,
+) -> Shift:
+    start_text = check_in_at.strftime("%H:%M")
+    end_text = check_out_at.strftime("%H:%M")
+    code = _unscheduled_shift_code(check_in_at, check_out_at)
+    shift = db.query(Shift).filter_by(branch_id=branch_id, code=code).first()
+    if shift:
+        if not shift.is_active:
+            shift.is_active = True
+        return shift
+    shift = Shift(
+        branch_id=branch_id,
+        name=f"Ngoài ca {start_text}-{end_text}",
+        code=code,
+        work_start=start_text,
+        work_end=end_text,
+        required_position="",
+        late_threshold_minutes=0,
+        early_checkin_minutes=0,
+        auto_checkout_minutes=0,
+        break_minutes=0,
+        is_overnight=check_out_at.date() != check_in_at.date() or check_out_at.time() <= check_in_at.time(),
+        is_active=True,
+        note="Tạo tự động khi duyệt chấm công ngoài ca",
+    )
+    db.add(shift)
+    db.flush()
+    return shift
+
+
+def _approve_unscheduled_session(
+    db: Session,
+    current_user,
+    session: AttendanceSession,
+) -> ShiftAssignment:
+    if not session.check_in_at or not session.check_out_at:
+        raise HTTPException(
+            status_code=400,
+            detail="Chấm công ngoài ca cần có đủ giờ vào và giờ ra trước khi duyệt/gắn ca",
+        )
+    if session.check_out_at <= session.check_in_at:
+        raise HTTPException(status_code=400, detail="Giờ ra phải sau giờ vào")
+    emp = db.query(Employee).filter_by(id=session.employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên của phiên chấm công")
+    branch_id = session.branch_id or emp.branch_id
+    ensure_branch_access(db, current_user, branch_id)
+    ensure_period_unlocked(db, branch_id, session.work_date)
+
+    shift = _find_or_create_unscheduled_shift(db, branch_id, session.check_in_at, session.check_out_at)
+    assignment = (
+        db.query(ShiftAssignment)
+          .filter_by(emp_code=emp.emp_code, work_date=session.work_date, shift_id=shift.id)
+          .first()
+    )
+    if assignment:
+        assignment.employee_id = emp.id
+        assignment.branch_id = branch_id
+        assignment.status = "scheduled"
+        assignment.assigned_by = current_user.email
+        assignment.assigned_by_id = current_user.id
+        assignment.note = f"Duyệt chấm công ngoài ca từ phiên #{session.id}"
+    else:
+        assignment = ShiftAssignment(
+            employee_id=emp.id,
+            branch_id=branch_id,
+            emp_code=emp.emp_code,
+            shift_id=shift.id,
+            work_date=session.work_date,
+            status="scheduled",
+            assigned_by=current_user.email,
+            assigned_by_id=current_user.id,
+            note=f"Duyệt chấm công ngoài ca từ phiên #{session.id}",
+        )
+        db.add(assignment)
+        db.flush()
+
+    linked = (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.shift_assignment_id == assignment.id,
+              AttendanceSession.id != session.id,
+          )
+          .first()
+    )
+    if linked:
+        raise HTTPException(status_code=409, detail="Khoảng ngoài ca này đã được gắn với phiên chấm công khác")
+
+    session.branch_id = branch_id
+    session.shift_id = shift.id
+    session.shift_assignment_id = assignment.id
+    session.status = "completed"
+    session.check_in_status = session.check_in_status or "unscheduled"
+    session.check_out_status = session.check_out_status or "unscheduled"
+    session.worked_minutes = max(0, int((session.check_out_at - session.check_in_at).total_seconds() / 60))
+    session.note = "Đã duyệt và gắn phân công ngoài ca"
+
+    events = (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == emp.id,
+              AttendanceEvent.event_time >= session.check_in_at,
+              AttendanceEvent.event_time <= session.check_out_at,
+              or_(
+                  AttendanceEvent.session_id.is_(None),
+                  AttendanceEvent.session_id == session.id,
+              ),
+          )
+          .all()
+    )
+    for event in events:
+        event.session_id = session.id
+        event.branch_id = branch_id
+    return assignment
+
+
 class AttendancePeriodLockRequest(BaseModel):
     branch_id: Optional[int] = None
     from_date: str
@@ -1002,6 +1128,8 @@ def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
             emp,
         ) if emp else "",
         "branch_name": branch.name if branch else "",
+        "branch_id": session.branch_id,
+        "shift_assignment_id": session.shift_assignment_id,
         "shift_id": session.shift_id,
         "shift_name": shift.name if shift else "",
         "work_date": session.work_date.isoformat() if session.work_date else "",
@@ -1099,7 +1227,7 @@ def get_attendance_review_count(
     if branch_ids is not None:
         q = q.filter(AttendanceSession.branch_id.in_(branch_ids))
     rows = q.all()
-    counts = {"total": len(rows), "absent": 0, "missing_checkout": 0, "overtime": 0}
+    counts = {"total": len(rows), "absent": 0, "missing_checkout": 0, "overtime": 0, "unscheduled": 0}
     for review_type, _id in rows:
         if review_type in counts:
             counts[review_type] += 1
@@ -1124,6 +1252,9 @@ def review_attendance_session(
         ensure_period_unlocked(db, session.branch_id, session.work_date)
     except ValueError as e:
         raise HTTPException(status_code=423, detail=str(e))
+    assignment = None
+    if session.review_type == "unscheduled" and body.review_status == "approved":
+        assignment = _approve_unscheduled_session(db, current_user, session)
     session.review_status = body.review_status
     session.review_note = body.note or ""
     session.reviewed_by = current_user.full_name or current_user.email
@@ -1138,9 +1269,15 @@ def review_attendance_session(
         session.status = "completed"
     elif session.review_type == "missing_checkout" and body.review_status in ("pending_review", "rejected"):
         session.status = "missing_checkout"
+    elif session.review_type == "unscheduled" and body.review_status == "rejected":
+        session.status = "cancelled"
     db.commit()
     db.refresh(session)
-    return {"success": True, "session": _session_review_to_dict(session, db)}
+    return {
+        "success": True,
+        "session": _session_review_to_dict(session, db),
+        "assignment_id": assignment.id if assignment else None,
+    }
 
 
 def _parse_lock_date(value: str, field: str):

@@ -6,7 +6,7 @@
 <title>Quản lý tài khoản — FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-14">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-16">
 <link rel="stylesheet" href="/static/css/components.css">
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
@@ -58,19 +58,31 @@
 
 /* ── Role badge ── */
 .role-badge {
-  padding: 2px 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
   border-radius: 20px;
   font-size: 10px;
   font-weight: 700;
+  line-height: 1;
   letter-spacing: .06em;
   text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 .role-admin   { background: rgba(255,77,106,.12);  color: var(--red);    border: 1px solid rgba(255,77,106,.3); }
 .role-manager { background: rgba(58,143,255,.12);  color: var(--blue);   border: 1px solid rgba(58,143,255,.3); }
 .role-staff   { background: rgba(0,212,170,.08);   color: var(--muted);  border: 1px solid var(--border); }
 
 /* ── Action group ── */
-.actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
+.actions .btn {
+  min-width: 30px;
+  padding: 5px 8px!important;
+  white-space: nowrap;
+}
 .btn-approve {
   background: rgba(0,212,170,.15); color: var(--teal);
   border: 1px solid rgba(0,212,170,.3);
@@ -118,23 +130,136 @@ select.form-input option { background: var(--surface); }
   display: inline-flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 150px;
+  min-width: 0;
+  max-width: 190px;
 }
 .profile-chip strong {
   color: var(--text);
   font-size: 12px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .profile-chip span {
   color: var(--muted);
   font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .empty-chip {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
 }
-@media (max-width: 720px) {
+.users-table-wrap {
+  max-width: 100%;
+  overflow: hidden;
+}
+.users-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+.users-table th,
+.users-table td {
+  min-width: 0;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.users-table th {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.users-table th:nth-child(1){width:24%}
+.users-table th:nth-child(2){width:8%}
+.users-table th:nth-child(3){width:17%}
+.users-table th:nth-child(4){width:12%}
+.users-table th:nth-child(5){width:6%}
+.users-table th:nth-child(6){width:10%}
+.users-table th:nth-child(7){width:10%}
+.users-table th:nth-child(8){width:13%}
+.users-table .role-cell {
+  vertical-align: middle;
+}
+.user-account-cell {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.user-account-main {
+  min-width: 0;
+}
+.user-name,
+.user-email-line,
+.user-date {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+.user-email-line {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.user-date {
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 100%;
+}
+.verify-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: middle;
+}
+.verify-cell.ok {
+  background: rgba(0,212,170,.12);
+  border: 1px solid rgba(0,212,170,.28);
+  color: var(--teal);
+}
+.verify-cell.no {
+  background: rgba(90,122,154,.12);
+  border: 1px solid rgba(90,122,154,.22);
+  color: var(--muted);
+}
+@media (max-width: 1180px) {
+  .users-table th:nth-child(7),
+  .users-table td:nth-child(7) {
+    display: none;
+  }
+}
+@media (max-width: 980px) {
+  .users-table th:nth-child(5),
+  .users-table td:nth-child(5) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
   .assignment-panel { grid-template-columns: 1fr; }
+  .users-table th:nth-child(6),
+  .users-table td:nth-child(6) {
+    display: none;
+  }
+  .actions .btn {
+    min-width: 28px;
+    padding: 5px 7px!important;
+  }
 }
 </style>
 <script src="/static/js/auth-guard.js?v=admin-theme-10"></script>
@@ -204,11 +329,11 @@ select.form-input option { background: var(--surface); }
 
   <!-- Tab bar -->
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('pending')" id="tabPending">
-      Chờ duyệt <span class="tab-badge" id="badgePending">0</span>
-    </button>
-    <button class="tab-btn" onclick="switchTab('all')" id="tabAll">
+    <button class="tab-btn active" onclick="switchTab('all')" id="tabAll">
       Tất cả tài khoản
+    </button>
+    <button class="tab-btn" onclick="switchTab('pending')" id="tabPending">
+      Chờ duyệt <span class="tab-badge" id="badgePending">0</span>
     </button>
   </div>
 
@@ -217,14 +342,14 @@ select.form-input option { background: var(--surface); }
     <div class="panel-header">
       <div class="panel-header-left">
         <span class="dot"></span>
-        <span id="panelTitle">Tài khoản chờ duyệt</span>
+        <span id="panelTitle">Tất cả tài khoản</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-approve" id="btnCreateDashboardUser" onclick="openCreateUserModal()" style="display:none;padding:7px 12px">
           + Tạo tài khoản quản lý
         </button>
         <input class="filter-input" id="searchUser" placeholder="Tìm email, họ tên..." oninput="filterUsers()" style="width:200px">
-        <select class="filter-input" id="filterRole" onchange="filterUsers()" style="display:none">
+        <select class="filter-input" id="filterRole" onchange="filterUsers()">
           <option value="">Tất cả role</option>
           <option value="staff">Staff</option>
           <option value="manager">Manager</option>
@@ -236,8 +361,8 @@ select.form-input option { background: var(--surface); }
       </div>
     </div>
 
-    <div style="overflow-x:auto">
-      <table class="data-table">
+    <div class="users-table-wrap">
+      <table class="data-table users-table">
         <thead><tr>
           <th>Tài khoản</th>
           <th>Role</th>
@@ -388,7 +513,7 @@ select.form-input option { background: var(--surface); }
 <script>
 let allUsers = [];
 let branches = [];
-let currentTab = 'pending';
+let currentTab = 'all';
 let approvingUserId = null;
 let editingRoleUserId = null;
 
@@ -442,7 +567,7 @@ function getToken() {
 // ── Stats ─────────────────────────────────────────────────────────
 function updateStats() {
   const total      = allUsers.length;
-  const pending    = allUsers.filter(u => u.is_email_verified && !u.is_approved && u.is_active).length;
+  const pending    = allUsers.filter(u => u.is_email_verified && !u.is_approved).length;
   const approved   = allUsers.filter(u => u.is_approved).length;
   const unverified = allUsers.filter(u => !u.is_email_verified).length;
 
@@ -471,7 +596,7 @@ function switchTab(tab) {
 function renderCurrentTab() {
   let list = allUsers;
   if (currentTab === 'pending') {
-    list = list.filter(u => u.is_email_verified && !u.is_approved && u.is_active);
+    list = list.filter(u => u.is_email_verified && !u.is_approved);
   }
   renderTable(list);
 }
@@ -483,7 +608,7 @@ function filterUsers() {
   let list   = allUsers;
 
   if (currentTab === 'pending') {
-    list = list.filter(u => u.is_email_verified && !u.is_approved && u.is_active);
+    list = list.filter(u => u.is_email_verified && !u.is_approved);
   }
   if (q)    list = list.filter(u => u.email.toLowerCase().includes(q) || u.full_name.toLowerCase().includes(q));
   if (role) list = list.filter(u => u.role === role);
@@ -519,7 +644,7 @@ function renderTable(list) {
 
     // Nút hành động tùy trạng thái
     let actionBtns = '';
-    if (u.is_email_verified && !u.is_approved && u.is_active) {
+    if (u.is_email_verified && !u.is_approved) {
       actionBtns += `<button class="btn btn-approve" onclick="approveUser(${u.id},'${escHtml(u.email)}')" style="padding:5px 12px">✓ Duyệt</button>`;
     }
     if (u.is_approved) {
@@ -534,28 +659,29 @@ function renderTable(list) {
       actionBtns += `<button class="btn btn-outline" onclick="openRoleModal(${u.id},'${escHtml(u.full_name)}','${u.role}')" style="padding:5px 10px" title="Đổi role">⚙</button>`;
     }
 
-    const rowClass = (u.is_email_verified && !u.is_approved && u.is_active) ? ' class="pending-row"' : '';
+    const rowClass = (u.is_email_verified && !u.is_approved) ? ' class="pending-row"' : '';
+    const displayName = u.full_name || 'Chưa có tên';
 
     return `<tr${rowClass}>
       <td>
-        <div class="emp-cell">
+        <div class="user-account-cell">
           <div class="emp-avatar">${(u.full_name || u.email || '?')[0].toUpperCase()}</div>
-          <div>
-            <div style="font-weight:600;font-size:13px">${escHtml(u.full_name)}</div>
-            <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">${escHtml(u.email)}</div>
+          <div class="user-account-main">
+            <div class="user-name" title="${escHtml(displayName)}">${escHtml(displayName)}</div>
+            <div class="user-email-line" title="${escHtml(u.email)}">${escHtml(u.email)}</div>
           </div>
         </div>
       </td>
-      <td>${roleBadge}</td>
+      <td class="role-cell">${roleBadge}</td>
       <td>${branchCell}</td>
       <td>${statusBadge}</td>
       <td>
         ${u.is_email_verified
-          ? '<span style="color:var(--teal);font-size:12px">✓ Đã xác minh</span>'
-          : '<span style="color:var(--muted);font-size:12px">✗ Chưa xác minh</span>'}
+          ? '<span class="verify-cell ok" title="Đã xác minh email" aria-label="Đã xác minh email">✓</span>'
+          : '<span class="verify-cell no" title="Chưa xác minh email" aria-label="Chưa xác minh email">!</span>'}
       </td>
-      <td style="color:var(--muted);font-size:12px">${u.created_at || '—'}</td>
-      <td style="color:var(--muted);font-size:12px">${u.last_login || '—'}</td>
+      <td><span class="user-date" title="${escHtml(u.created_at || '—')}">${u.created_at || '—'}</span></td>
+      <td><span class="user-date" title="${escHtml(u.last_login || '—')}">${u.last_login || '—'}</span></td>
       <td><div class="actions">${actionBtns}</div></td>
     </tr>`;
   }).join('');

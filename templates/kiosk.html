@@ -1462,6 +1462,10 @@ function connectKioskWS() {
         openRegisterTicket(data);
         return;
       }
+      if (data.type === 'open_register_page') {
+        openRegisterPage(data);
+        return;
+      }
       if (data.type === 'kiosk_ready' || data.type === 'faces' || data.type === 'frame_error') return;
       if (data.type === 'attendance' || data.type === 'attendance_error' || data.check_type) {
         console.log('[KIOSK WS] attendance nhận được:', data);
@@ -1504,6 +1508,15 @@ function openRegisterTicket(data) {
   if (backendParam) params.set('backend', backendParam);
   if (kioskBranchId) params.set('branch_id', kioskBranchId);
   location.href = `/register?${params.toString()}`;
+}
+
+function openRegisterPage(data) {
+  const params = new URLSearchParams();
+  const branchId = (data && data.branch_id) || kioskBranchId;
+  if (backendParam) params.set('backend', backendParam);
+  if (branchId) params.set('branch_id', branchId);
+  const query = params.toString();
+  location.href = query ? `/register?${query}` : '/register';
 }
 
 function captureFramePayload() {
