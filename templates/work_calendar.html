@@ -6,9 +6,9 @@
 <title>Lịch vận hành - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-2">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-14">
 <link rel="stylesheet" href="/static/css/components.css">
-<script src="/static/js/auth-guard.js"></script>
+<script src="/static/js/auth-guard.js?v=admin-theme-10"></script>
 <style>
 body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:linear-gradient(120deg,rgba(0,212,170,.075),transparent 40%),linear-gradient(250deg,rgba(246,201,14,.065),transparent 44%)}
 .ops-page{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:24px}
@@ -45,8 +45,8 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 .cal-num{font-family:var(--font-mono);font-size:24px;font-weight:900;color:#c7d6e8;line-height:1;text-shadow:none;-webkit-text-stroke:0}
 .cal-info{min-height:30px;display:grid;align-content:end;gap:2px;overflow:hidden}
 .cal-label{font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#eaf2ff;line-height:1.2}
-.cal-meta{font-family:var(--font-mono);font-size:10px;color:#ffd84d;line-height:1.2}
-.cal-chip{align-self:start;width:max-content;max-width:100%;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#35f3cf}
+.cal-meta{font-family:var(--font-mono);font-size:10px;color:var(--yellow);line-height:1.2}
+.cal-chip{align-self:start;width:max-content;max-width:100%;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--teal)}
 .cal-check{position:absolute;top:7px;right:7px;z-index:2;width:16px;height:16px;accent-color:var(--teal);cursor:pointer;display:none}
 .bulk-mode .cal-check{display:block}
 .cal-day.multi-selected{border-color:rgba(115,215,197,.82);box-shadow:0 0 0 1px rgba(115,215,197,.22) inset}
@@ -57,9 +57,9 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 .dt-off .cal-num{color:#d9a4ae}
 .dt-off .cal-chip{color:#e29aa7}
 .dt-holiday{background:linear-gradient(135deg,rgba(246,201,14,.08),#0b1524 58%);border-color:rgba(246,201,14,.3)}
-.dt-holiday::before{background:#f6c90e}
+.dt-holiday::before{background:var(--yellow)}
 .dt-holiday .cal-num{color:#e9cc6f}
-.dt-holiday .cal-chip{color:#ffd84d}
+.dt-holiday .cal-chip{color:var(--yellow)}
 .cal-day.weekend{border-color:rgba(125,154,184,.34);background:linear-gradient(135deg,rgba(125,154,184,.045),#0b1524 56%)}
 .cal-day.weekend .cal-num{text-shadow:0 1px 0 #02060c,1px 0 0 #02060c,0 -1px 0 #02060c,-1px 0 0 #02060c;color:#d5e1f0}
 .cal-day.weekend.dt-full{background:linear-gradient(135deg,rgba(125,154,184,.045),rgba(115,215,197,.026) 34%,#0b1524 58%)}

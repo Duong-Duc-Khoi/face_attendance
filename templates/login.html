@@ -3,32 +3,73 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Đăng nhập — FaceAttend</title>
+<title>Đăng nhập | FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/auth.css">
-<link rel="stylesheet" href="/static/css/login.css">
+<link rel="stylesheet" href="/static/css/auth.css?v=login-dashboard-1">
+<link rel="stylesheet" href="/static/css/login.css?v=login-dashboard-1">
 </head>
-<body>
-<div class="wrap">
-  <!-- Logo -->
-  <div class="logo">
-    <div class="logo-icon">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2" stroke-linecap="round">
-        <path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 3h-4"/>
-        <path d="M21 9V5a2 2 0 0 0-2-2"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/>
-        <path d="M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/>
-      </svg>
+<body class="login-page">
+<main class="wrap login-shell" aria-label="FaceAttend login">
+  <section class="login-aside" aria-label="FaceAttend">
+    <div class="brand-lockup">
+      <div class="login-mark" aria-hidden="true"><span></span></div>
+      <div>
+        <div class="brand-name">FaceAttend</div>
+        <div class="brand-sub">Quản trị chấm công</div>
+      </div>
     </div>
-    <div class="logo-name">FaceAttend</div>
-    <div class="logo-sub">Hệ thống chấm công thông minh</div>
-  </div>
 
-  <div class="card">
-    <!-- Step tabs -->
+    <div class="access-panel" aria-hidden="true">
+      <div class="scan-frame">
+        <span class="scan-corner tl"></span>
+        <span class="scan-corner tr"></span>
+        <span class="scan-corner bl"></span>
+        <span class="scan-corner br"></span>
+        <span class="scan-line"></span>
+        <span class="face-grid"></span>
+      </div>
+      <div class="access-copy">
+        <span>Bảng truy cập</span>
+        <strong>OTP bảo vệ</strong>
+      </div>
+    </div>
+
+    <div class="status-stack">
+      <div class="status-tile">
+        <span>Kiosk</span>
+        <strong>Sẵn sàng</strong>
+      </div>
+      <div class="status-tile">
+        <span>Phiên</span>
+        <strong>2 lớp</strong>
+      </div>
+      <div class="status-tile">
+        <span>Vai trò</span>
+        <strong>Tự định tuyến</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="login-form-panel">
+    <div class="logo">
+      <div class="login-mark" aria-hidden="true"><span></span></div>
+      <div class="logo-copy">
+        <div class="logo-name">FaceAttend</div>
+        <div class="logo-sub">Đăng nhập hệ thống</div>
+      </div>
+    </div>
+
+    <div class="card login-card">
+      <div class="login-form-head">
+        <p class="auth-kicker">Truy cập bảo mật</p>
+        <h1>Đăng nhập quản trị</h1>
+      </div>
+
+      <!-- Step tabs -->
     <div class="step-tabs" id="stepTabs">
-      <div class="stab active" id="tab1">① Thông tin</div>
-      <div class="stab" id="tab2">② Xác nhận OTP</div>
+      <div class="stab active" id="tab1">Thông tin</div>
+      <div class="stab" id="tab2">Xác nhận OTP</div>
     </div>
 
     <!-- Alert -->
@@ -44,7 +85,7 @@
         <label class="fl">Mật khẩu</label>
         <div class="fi-icon">
           <input class="fi" id="password" type="password" placeholder="••••••••" autocomplete="current-password">
-          <span class="eye" id="eyeBtn" onclick="togglePwd()">👁</span>
+          <button class="eye" id="eyeBtn" type="button" onclick="togglePwd()" aria-label="Hiện mật khẩu">Hiện</button>
         </div>
       </div>
       <div class="login-link-row">
@@ -54,16 +95,13 @@
       <button class="btn btn-t" id="btnLogin" onclick="doLogin()">
         Đăng nhập
       </button>
-      <div class="aux">
-        Chưa có tài khoản? <a href="{{ kiosk_url }}/register">Đăng ký ngay</a>
-      </div>
     </div>
 
     <!-- ── STEP 2: OTP ── -->
     <div id="step2" style="display:none">
-      <div style="text-align:center;margin-bottom:20px">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Mã OTP đã gửi tới</div>
-        <div style="font-weight:700;color:var(--text)" id="otpEmail">—</div>
+      <div class="otp-head">
+        <div class="otp-caption">Mã OTP đã gửi tới</div>
+        <div class="otp-email" id="otpEmail">Chưa xác định</div>
       </div>
 
       <div class="otp-row">
@@ -108,21 +146,22 @@
         <label class="fl">Mật khẩu mới</label>
         <div class="fi-icon">
           <input class="fi" id="newPassword" type="password" placeholder="Tối thiểu 8 ký tự, có số" autocomplete="new-password">
-          <span class="eye" id="eyeNewPwd" onclick="toggleFieldPwd('newPassword','eyeNewPwd')">👁</span>
+          <button class="eye" id="eyeNewPwd" type="button" onclick="toggleFieldPwd('newPassword','eyeNewPwd')" aria-label="Hiện mật khẩu mới">Hiện</button>
         </div>
       </div>
       <div class="fg">
         <label class="fl">Xác nhận mật khẩu mới</label>
         <div class="fi-icon">
           <input class="fi" id="newPasswordConfirm" type="password" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password">
-          <span class="eye" id="eyeNewConfirm" onclick="toggleFieldPwd('newPasswordConfirm','eyeNewConfirm')">👁</span>
+          <button class="eye" id="eyeNewConfirm" type="button" onclick="toggleFieldPwd('newPasswordConfirm','eyeNewConfirm')" aria-label="Hiện xác nhận mật khẩu">Hiện</button>
         </div>
       </div>
       <button class="btn btn-t" id="btnReset" onclick="submitResetPassword()">Cập nhật mật khẩu</button>
       <button class="btn btn-o" onclick="showLoginStep()">← Quay lại đăng nhập</button>
     </div>
-  </div>
-</div>
+    </div>
+  </section>
+</main>
 
 <script>
 let currentEmail = '';
@@ -140,15 +179,20 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Password toggle ──
+function setPasswordToggleState(toggle, isVisible){
+  toggle.textContent = isVisible ? 'Ẩn' : 'Hiện';
+  toggle.classList.toggle('is-visible', isVisible);
+  toggle.setAttribute('aria-label', isVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+}
 function togglePwd(){
   const f = document.getElementById('password');
   f.type = f.type === 'password' ? 'text' : 'password';
-  document.getElementById('eyeBtn').textContent = f.type === 'password' ? '👁' : '🙈';
+  setPasswordToggleState(document.getElementById('eyeBtn'), f.type === 'text');
 }
 function toggleFieldPwd(inputId, eyeId){
   const f = document.getElementById(inputId);
   f.type = f.type === 'password' ? 'text' : 'password';
-  document.getElementById(eyeId).textContent = f.type === 'password' ? '👁' : '🙈';
+  setPasswordToggleState(document.getElementById(eyeId), f.type === 'text');
 }
 
 // ── Alert ──
@@ -167,7 +211,7 @@ function setAuthView(view){
   document.getElementById('step2').style.display = view==='otp' ? '' : 'none';
   document.getElementById('forgotStep').style.display = view==='forgot' ? '' : 'none';
   document.getElementById('resetStep').style.display = view==='reset' ? '' : 'none';
-  document.getElementById('stepTabs').style.display = (view==='forgot'||view==='reset') ? 'none' : 'flex';
+  document.getElementById('stepTabs').style.display = (view==='forgot'||view==='reset') ? 'none' : '';
   document.getElementById('tab1').className = view==='login' ? 'stab active' : 'stab';
   document.getElementById('tab2').className = view==='otp' ? 'stab active' : 'stab';
 }

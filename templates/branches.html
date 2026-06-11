@@ -6,9 +6,9 @@
 <title>Quản lý cửa hàng - FaceAttend</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/nav.css?v=admin-sidebar-3">
+<link rel="stylesheet" href="/static/css/nav.css?v=admin-theme-14">
 <link rel="stylesheet" href="/static/css/components.css">
-<script src="/static/js/auth-guard.js"></script>
+<script src="/static/js/auth-guard.js?v=admin-theme-10"></script>
 <style>
 body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:linear-gradient(120deg,rgba(0,212,170,.07),transparent 40%),linear-gradient(250deg,rgba(58,143,255,.06),transparent 44%)}
 .ops-page{position:relative;z-index:1;max-width:1380px;margin:0 auto;padding:24px}
@@ -57,11 +57,11 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 .employee-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 190px auto;gap:10px;padding:14px;border-bottom:1px solid var(--border);background:var(--panel)}
 .assign-table-wrap{overflow:auto;max-height:520px}
 .assign-table{width:100%;min-width:760px;border-collapse:collapse;font-size:12px}
-.assign-table th{text-align:left;padding:10px 12px;font-size:10px;color:#7fa0c2;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(8,17,31,.28)}
+.assign-table th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(8,17,31,.28)}
 .assign-table td{padding:10px 12px;border-bottom:1px solid rgba(26,47,80,.45);vertical-align:middle;color:var(--text)}
 .assign-table tr:hover td{background:rgba(255,255,255,.025)}
 .person-name{font-size:13px;font-weight:800;color:var(--text)}
-.person-code{font-family:var(--font-mono);font-size:10px;color:#78a6d6;margin-top:2px}
+.person-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
 .empty{padding:26px;color:var(--muted);text-align:center;font-size:13px}
 @media(max-width:1080px){.branch-layout{grid-template-columns:1fr}.form-panel{position:static}.metric-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.ops-page{padding:16px}.ops-head{grid-template-columns:1fr}.head-actions{justify-content:flex-start}.metric-grid{grid-template-columns:1fr}.branch-toolbar,.employee-toolbar{grid-template-columns:1fr}.branch-list{grid-template-columns:1fr}}

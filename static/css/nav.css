@@ -290,6 +290,74 @@ body.admin-shell::after{
   border-color:#ff4d6a;
   transform:translateY(-1px);
 }
+.theme-toggle-btn{
+  width:100%;
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:1px solid var(--admin-nav-border);
+  border-radius:8px;
+  background:var(--admin-nav-surface);
+  color:var(--admin-nav-text);
+  font-family:var(--font-sans);
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .24s var(--ease-press),background-color .24s var(--ease-out),border-color .24s var(--ease-out),color .24s var(--ease-out),box-shadow .24s var(--ease-out);
+}
+.theme-toggle-btn:hover{
+  transform:translateY(-1px);
+  border-color:rgba(0,212,170,.42);
+  background:rgba(0,212,170,.08);
+}
+.theme-toggle-btn.admin-theme-floating{
+  position:fixed;
+  top:18px;
+  right:24px;
+  z-index:60;
+  width:auto;
+  min-height:42px;
+  padding:0 14px 0 12px;
+  border-radius:999px;
+  background:rgba(8,17,31,.78);
+  color:var(--admin-nav-text);
+  border-color:rgba(237,245,255,.13);
+  box-shadow:0 18px 44px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter:blur(18px) saturate(140%);
+}
+.theme-toggle-btn.admin-theme-floating:hover{
+  transform:translateY(-1px);
+  background:rgba(0,212,170,.11);
+  box-shadow:0 22px 52px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.1);
+}
+.theme-toggle-icon{
+  position:relative;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  flex:0 0 auto;
+  background:currentColor;
+  box-shadow:inset -6px -4px 0 var(--admin-nav-surface);
+}
+html[data-admin-theme="light"] .theme-toggle-icon{
+  background:var(--yellow);
+  box-shadow:0 0 0 4px rgba(246,201,14,.14);
+}
+html[data-admin-theme="light"] .theme-toggle-icon::before,
+html[data-admin-theme="light"] .theme-toggle-icon::after{
+  content:"";
+  position:absolute;
+  inset:50% auto auto 50%;
+  width:2px;
+  height:5px;
+  border-radius:999px;
+  background:currentColor;
+  transform-origin:50% -5px;
+}
+html[data-admin-theme="light"] .theme-toggle-icon::before{transform:translate(-50%,3px) rotate(45deg)}
+html[data-admin-theme="light"] .theme-toggle-icon::after{transform:translate(-50%,3px) rotate(-45deg)}
 .sidebar-collapse-btn{
   width:40px;height:40px;
   margin:0 auto 16px;
@@ -316,7 +384,7 @@ body.admin-shell .ops-page{
   max-width:none;
   width:100%;
   margin:0;
-  padding:28px 30px;
+  padding:76px 30px 30px;
 }
 body.admin-shell .panel,
 body.admin-shell .stat-card,
@@ -457,6 +525,2423 @@ body.admin-shell .modal-box{
   box-shadow:0 24px 70px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);
 }
 
+html[data-admin-theme="light"] body.admin-shell{
+  --admin-nav-bg:#f4f8fc;
+  --admin-nav-surface:#ffffff;
+  --admin-nav-panel:#eef4fa;
+  --admin-nav-border:rgba(92,116,145,.2);
+  --admin-nav-teal:#009b82;
+  --admin-nav-teal-glow:rgba(0,155,130,.12);
+  --admin-nav-text:#132235;
+  --admin-nav-muted:#657a92;
+  --bg:#f3f7fb;
+  --surface:#ffffff;
+  --panel:#eef4fa;
+  --surface-elevated:#ffffff;
+  --surface-soft:rgba(255,255,255,.82);
+  --border:#c9d6e5;
+  --border-soft:rgba(92,116,145,.2);
+  --border-strong:rgba(92,116,145,.34);
+  --text:#132235;
+  --muted:#657a92;
+  --muted-dim:#8192a6;
+  --teal:#009b82;
+  --teal-dim:#087965;
+  --teal-glow:rgba(0,155,130,.12);
+  --blue:#226fd3;
+  --red:#d33d58;
+  --yellow:#b88408;
+  --shadow-panel:0 18px 46px rgba(35,54,75,.12),inset 0 1px 0 rgba(255,255,255,.9);
+  background:
+    linear-gradient(180deg,#f8fbff 0%,#eef4f9 100%);
+}
+html[data-admin-theme="light"] body.admin-shell::after{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.68),transparent 34%),
+    linear-gradient(120deg,rgba(0,155,130,.08),transparent 44%),
+    linear-gradient(250deg,rgba(34,111,211,.07),transparent 48%),
+    linear-gradient(rgba(92,116,145,.12) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(92,116,145,.12) 1px,transparent 1px);
+  background-size:auto,auto,auto,44px 44px,44px 44px;
+}
+html[data-admin-theme="light"] .admin-shell header{
+  background:linear-gradient(180deg,#ffffff,#f5f9fd);
+  border-color:var(--admin-nav-border);
+  box-shadow:10px 0 36px rgba(35,54,75,.12),inset -1px 0 0 rgba(255,255,255,.84);
+}
+html[data-admin-theme="light"] .admin-shell .brand{
+  background:linear-gradient(180deg,rgba(255,255,255,.82),transparent);
+}
+html[data-admin-theme="light"] .admin-shell .brand-icon,
+html[data-admin-theme="light"] .brand-icon{
+  background:linear-gradient(180deg,rgba(0,155,130,.14),rgba(0,155,130,.06));
+  border-color:rgba(0,155,130,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 12px 26px rgba(35,54,75,.1);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link:hover{
+  background:rgba(0,155,130,.07);
+  color:var(--admin-nav-text);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link.active{
+  color:#ffffff;
+  background:linear-gradient(180deg,#00a88d,#008a74);
+  box-shadow:0 12px 28px rgba(0,155,130,.18),inset 0 1px 0 rgba(255,255,255,.32);
+}
+html[data-admin-theme="light"] .admin-shell .nav-alert-badge{
+  box-shadow:0 0 0 3px rgba(211,61,88,.16);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-box,
+html[data-admin-theme="light"] .admin-shell .nav-account{
+  border-color:var(--admin-nav-border);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-select,
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill,
+html[data-admin-theme="light"] .admin-shell .user-chip,
+html[data-admin-theme="light"] .admin-shell .theme-toggle-btn{
+  background:#ffffff;
+  border-color:var(--admin-nav-border);
+  color:var(--admin-nav-text);
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .mini-stat,
+html[data-admin-theme="light"] body.admin-shell .provider-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .employee-row,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .branch-card,
+html[data-admin-theme="light"] body.admin-shell .day,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap{
+  background:linear-gradient(180deg,#ffffff,#f8fbfe);
+  border-color:var(--border-soft);
+  color:var(--text);
+  box-shadow:var(--shadow-panel);
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header,
+html[data-admin-theme="light"] body.admin-shell .data-table th{
+  background:linear-gradient(180deg,#f8fbfe,#edf4fa);
+  border-color:var(--border-soft);
+  color:#51677f;
+}
+html[data-admin-theme="light"] body.admin-shell .data-table td{
+  border-bottom-color:rgba(92,116,145,.16);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr:hover{
+  background:rgba(0,155,130,.06);
+}
+html[data-admin-theme="light"] body.admin-shell .input,
+html[data-admin-theme="light"] body.admin-shell .select,
+html[data-admin-theme="light"] body.admin-shell .textarea,
+html[data-admin-theme="light"] body.admin-shell .filter-input,
+html[data-admin-theme="light"] body.admin-shell .form-input,
+html[data-admin-theme="light"] body.admin-shell textarea,
+html[data-admin-theme="light"] body.admin-shell input[type="text"],
+html[data-admin-theme="light"] body.admin-shell input[type="email"],
+html[data-admin-theme="light"] body.admin-shell input[type="date"],
+html[data-admin-theme="light"] body.admin-shell input[type="time"],
+html[data-admin-theme="light"] body.admin-shell input[type="number"],
+html[data-admin-theme="light"] body.admin-shell input[type="password"],
+html[data-admin-theme="light"] body.admin-shell select{
+  background:#ffffff;
+  border-color:var(--border-soft);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .input:focus,
+html[data-admin-theme="light"] body.admin-shell .select:focus,
+html[data-admin-theme="light"] body.admin-shell .textarea:focus,
+html[data-admin-theme="light"] body.admin-shell .filter-input:focus,
+html[data-admin-theme="light"] body.admin-shell .form-input:focus,
+html[data-admin-theme="light"] body.admin-shell textarea:focus,
+html[data-admin-theme="light"] body.admin-shell input:focus,
+html[data-admin-theme="light"] body.admin-shell select:focus{
+  background:#ffffff;
+  border-color:rgba(0,155,130,.5);
+  box-shadow:0 0 0 3px rgba(0,155,130,.1);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn,
+html[data-admin-theme="light"] body.admin-shell .chip-btn,
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .log-btn{
+  background:#ffffff;
+  border-color:var(--border-soft);
+  color:#51677f;
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .chip-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .log-btn:hover{
+  background:rgba(0,155,130,.07);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-teal,
+html[data-admin-theme="light"] body.admin-shell .overview-action.primary{
+  background:linear-gradient(180deg,#00a88d,#008a74);
+  border-color:rgba(0,155,130,.54);
+  color:#ffffff!important;
+  box-shadow:0 12px 28px rgba(0,155,130,.18),inset 0 1px 0 rgba(255,255,255,.32);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-in,
+html[data-admin-theme="light"] body.admin-shell .badge-active{
+  background:rgba(0,155,130,.1);
+  color:#008a74;
+  border-color:rgba(0,155,130,.24);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-out{
+  background:rgba(34,111,211,.1);
+  color:#226fd3;
+  border-color:rgba(34,111,211,.24);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-late{
+  background:rgba(184,132,8,.1);
+  color:#9b6d00;
+  border-color:rgba(184,132,8,.24);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-inactive,
+html[data-admin-theme="light"] body.admin-shell .btn-red{
+  background:rgba(211,61,88,.1);
+  color:#b8324b;
+  border-color:rgba(211,61,88,.24);
+}
+html[data-admin-theme="light"] body.admin-shell .modal,
+html[data-admin-theme="light"] body.admin-shell .modal-box{
+  background:linear-gradient(180deg,#ffffff,#f8fbfe);
+  border-color:var(--border-soft);
+  box-shadow:0 24px 70px rgba(35,54,75,.2),inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+/* Premium light theme recalibration */
+html[data-admin-theme="light"] body.admin-shell{
+  --admin-nav-bg:#151f29;
+  --admin-nav-surface:#1d2a35;
+  --admin-nav-panel:#243340;
+  --admin-nav-border:rgba(236,243,246,.12);
+  --admin-nav-teal:#48dcc3;
+  --admin-nav-teal-glow:rgba(72,220,195,.14);
+  --admin-nav-text:#f4f8f7;
+  --admin-nav-muted:#9dadb8;
+  --bg:#dfe7eb;
+  --surface:#f3f7f7;
+  --panel:#eaf1f1;
+  --surface-elevated:#f8fbfa;
+  --surface-soft:rgba(243,247,247,.86);
+  --border:#b9c7cf;
+  --border-soft:rgba(58,79,96,.18);
+  --border-strong:rgba(58,79,96,.32);
+  --text:#172631;
+  --muted:#5b6f7d;
+  --muted-dim:#7d8e99;
+  --teal:#007e6c;
+  --teal-dim:#056a5c;
+  --teal-glow:rgba(0,126,108,.12);
+  --blue:#245fba;
+  --red:#be344e;
+  --yellow:#8d6500;
+  --shadow-panel:0 18px 48px rgba(32,47,58,.12),0 1px 0 rgba(255,255,255,.7) inset;
+  background:
+    linear-gradient(180deg,#e7eef1 0%,#dce6ea 58%,#d6e1e5 100%);
+}
+html[data-admin-theme="light"] body.admin-shell::after{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.28),transparent 30%),
+    linear-gradient(120deg,rgba(0,126,108,.075),transparent 42%),
+    linear-gradient(250deg,rgba(36,95,186,.055),transparent 46%),
+    linear-gradient(rgba(58,79,96,.075) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(58,79,96,.06) 1px,transparent 1px);
+  background-size:auto,auto,auto,58px 58px,58px 58px;
+}
+html[data-admin-theme="light"] .admin-shell header{
+  background:linear-gradient(180deg,#18232e,#121b24);
+  border-color:rgba(236,243,246,.12);
+  box-shadow:14px 0 44px rgba(20,31,41,.18),inset -1px 0 0 rgba(255,255,255,.04);
+}
+html[data-admin-theme="light"] .admin-shell .brand{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.055),transparent),
+    linear-gradient(135deg,rgba(72,220,195,.08),transparent 52%);
+  border-color:rgba(236,243,246,.12);
+}
+html[data-admin-theme="light"] .admin-shell .brand-name{
+  color:#f6fbfa;
+}
+html[data-admin-theme="light"] .admin-shell .brand-section,
+html[data-admin-theme="light"] .admin-shell .nav-section-title,
+html[data-admin-theme="light"] .admin-shell .branch-scope-label{
+  color:rgba(214,226,232,.68);
+}
+html[data-admin-theme="light"] .admin-shell .brand-icon,
+html[data-admin-theme="light"] .brand-icon{
+  background:linear-gradient(180deg,rgba(72,220,195,.18),rgba(72,220,195,.06));
+  border-color:rgba(72,220,195,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 18px 34px rgba(0,0,0,.18);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link{
+  color:#a9b7c1;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link:hover{
+  background:rgba(255,255,255,.06);
+  color:#f6fbfa;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link.active{
+  color:#041915;
+  background:linear-gradient(180deg,#64f1d9,#28c9ad);
+  box-shadow:0 16px 30px rgba(28,201,173,.2),inset 0 1px 0 rgba(255,255,255,.42);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-box,
+html[data-admin-theme="light"] .admin-shell .nav-account{
+  background:rgba(255,255,255,.025);
+  border-color:rgba(236,243,246,.12);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-select,
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill,
+html[data-admin-theme="light"] .admin-shell .user-chip{
+  background:#1d2a35;
+  border-color:rgba(236,243,246,.12);
+  color:#f4f8f7;
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill{
+  color:#58ead0;
+}
+html[data-admin-theme="light"] .admin-shell .logout-btn{
+  background:rgba(190,52,78,.1);
+  border-color:rgba(255,117,142,.24);
+  color:#ff8da2;
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating{
+  background:rgba(20,30,38,.84);
+  color:#f6fbfa;
+  border-color:rgba(255,255,255,.14);
+  box-shadow:0 18px 44px rgba(32,47,58,.2),inset 0 1px 0 rgba(255,255,255,.1);
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating:hover{
+  background:rgba(17,126,108,.92);
+  border-color:rgba(72,220,195,.36);
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .mini-stat,
+html[data-admin-theme="light"] body.admin-shell .provider-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .employee-row,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .branch-card,
+html[data-admin-theme="light"] body.admin-shell .day,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card,
+html[data-admin-theme="light"] body.admin-shell .roster-metric,
+html[data-admin-theme="light"] body.admin-shell .sdg-box{
+  background:linear-gradient(180deg,#f7faf9,#edf3f2);
+  border-color:rgba(58,79,96,.17);
+  color:var(--text);
+  box-shadow:var(--shadow-panel);
+}
+html[data-admin-theme="light"] body.admin-shell .panel::before,
+html[data-admin-theme="light"] body.admin-shell .stat-card::before{
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.86),transparent);
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header,
+html[data-admin-theme="light"] body.admin-shell .data-table th,
+html[data-admin-theme="light"] body.admin-shell .lv-table th,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th{
+  background:linear-gradient(180deg,#edf4f3,#e4ecec);
+  border-color:rgba(58,79,96,.18);
+  color:#526775;
+}
+html[data-admin-theme="light"] body.admin-shell .data-table td,
+html[data-admin-theme="light"] body.admin-shell .lv-table td,
+html[data-admin-theme="light"] body.admin-shell .work-table td,
+html[data-admin-theme="light"] body.admin-shell .role-row,
+html[data-admin-theme="light"] body.admin-shell .roster-person,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-head,
+html[data-admin-theme="light"] body.admin-shell .quick-row,
+html[data-admin-theme="light"] body.admin-shell .preview-foot,
+html[data-admin-theme="light"] body.admin-shell .atd-foot{
+  border-color:rgba(58,79,96,.14);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr:hover,
+html[data-admin-theme="light"] body.admin-shell .lv-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table tbody tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .quick-row:hover{
+  background:rgba(0,126,108,.055);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th:first-child,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table td:first-child,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th:first-child,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table td:first-child,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table tbody tr:hover td:first-child{
+  background:#e9f0ef;
+}
+html[data-admin-theme="light"] body.admin-shell .filter-bar,
+html[data-admin-theme="light"] body.admin-shell .roster-toolbar,
+html[data-admin-theme="light"] body.admin-shell .roster-summary{
+  background:rgba(238,245,244,.78);
+  border-color:rgba(58,79,96,.16);
+}
+html[data-admin-theme="light"] body.admin-shell .input,
+html[data-admin-theme="light"] body.admin-shell .select,
+html[data-admin-theme="light"] body.admin-shell .textarea,
+html[data-admin-theme="light"] body.admin-shell .filter-input,
+html[data-admin-theme="light"] body.admin-shell .form-input,
+html[data-admin-theme="light"] body.admin-shell .cfg-input,
+html[data-admin-theme="light"] body.admin-shell .lv-filter,
+html[data-admin-theme="light"] body.admin-shell textarea,
+html[data-admin-theme="light"] body.admin-shell input[type="text"],
+html[data-admin-theme="light"] body.admin-shell input[type="email"],
+html[data-admin-theme="light"] body.admin-shell input[type="date"],
+html[data-admin-theme="light"] body.admin-shell input[type="time"],
+html[data-admin-theme="light"] body.admin-shell input[type="number"],
+html[data-admin-theme="light"] body.admin-shell input[type="password"],
+html[data-admin-theme="light"] body.admin-shell select{
+  background:#f7faf9;
+  border-color:rgba(58,79,96,.2);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .input:focus,
+html[data-admin-theme="light"] body.admin-shell .select:focus,
+html[data-admin-theme="light"] body.admin-shell .textarea:focus,
+html[data-admin-theme="light"] body.admin-shell .filter-input:focus,
+html[data-admin-theme="light"] body.admin-shell .form-input:focus,
+html[data-admin-theme="light"] body.admin-shell .cfg-input:focus,
+html[data-admin-theme="light"] body.admin-shell .lv-filter:focus,
+html[data-admin-theme="light"] body.admin-shell textarea:focus,
+html[data-admin-theme="light"] body.admin-shell input:focus,
+html[data-admin-theme="light"] body.admin-shell select:focus{
+  background:#fbfdfc;
+  border-color:rgba(0,126,108,.46);
+  box-shadow:0 0 0 4px rgba(0,126,108,.1);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn,
+html[data-admin-theme="light"] body.admin-shell .chip-btn,
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .log-btn,
+html[data-admin-theme="light"] body.admin-shell .overview-action,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn,
+html[data-admin-theme="light"] body.admin-shell .roster-view-toggle,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn{
+  background:#f7faf9;
+  border-color:rgba(58,79,96,.18);
+  color:#465d6c;
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .chip-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .log-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .overview-action:hover,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn:hover{
+  background:rgba(0,126,108,.07);
+  border-color:rgba(0,126,108,.28);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-teal,
+html[data-admin-theme="light"] body.admin-shell .overview-action.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-save,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn.active,
+html[data-admin-theme="light"] body.admin-shell .roster-view-btn.active{
+  background:linear-gradient(180deg,#009f89,#007e6c);
+  border-color:rgba(0,126,108,.5);
+  color:#ffffff!important;
+  box-shadow:0 14px 28px rgba(0,126,108,.18),inset 0 1px 0 rgba(255,255,255,.3);
+}
+html[data-admin-theme="light"] body.admin-shell .chip-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .quick-btn.active{
+  background:rgba(0,126,108,.1);
+  border-color:rgba(0,126,108,.26);
+  color:#006d5d;
+}
+html[data-admin-theme="light"] body.admin-shell .stat-label,
+html[data-admin-theme="light"] body.admin-shell .metric-label,
+html[data-admin-theme="light"] body.admin-shell .mini-stat-label,
+html[data-admin-theme="light"] body.admin-shell .field-label,
+html[data-admin-theme="light"] body.admin-shell .filter-label,
+html[data-admin-theme="light"] body.admin-shell .chart-title,
+html[data-admin-theme="light"] body.admin-shell .cfg-label,
+html[data-admin-theme="light"] body.admin-shell .sdg-lbl,
+html[data-admin-theme="light"] body.admin-shell .roster-metric-label,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-label{
+  color:#5f7280;
+}
+html[data-admin-theme="light"] body.admin-shell .lv-person-name,
+html[data-admin-theme="light"] body.admin-shell .work-table b,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card b,
+html[data-admin-theme="light"] body.admin-shell .role-name,
+html[data-admin-theme="light"] body.admin-shell .roster-person-name,
+html[data-admin-theme="light"] body.admin-shell .period-shift-name,
+html[data-admin-theme="light"] body.admin-shell .shift-head-name,
+html[data-admin-theme="light"] body.admin-shell .roster-chip b{
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .lv-person-code,
+html[data-admin-theme="light"] body.admin-shell .lv-dates,
+html[data-admin-theme="light"] body.admin-shell .lv-reason,
+html[data-admin-theme="light"] body.admin-shell .lv-submitted,
+html[data-admin-theme="light"] body.admin-shell .lv-note,
+html[data-admin-theme="light"] body.admin-shell .work-table small,
+html[data-admin-theme="light"] body.admin-shell .quick-row span,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card small,
+html[data-admin-theme="light"] body.admin-shell .role-code,
+html[data-admin-theme="light"] body.admin-shell .role-desc,
+html[data-admin-theme="light"] body.admin-shell .roster-person-meta,
+html[data-admin-theme="light"] body.admin-shell .period-shift-time,
+html[data-admin-theme="light"] body.admin-shell .shift-head-time,
+html[data-admin-theme="light"] body.admin-shell .roster-chip span,
+html[data-admin-theme="light"] body.admin-shell .period-names,
+html[data-admin-theme="light"] body.admin-shell .period-empty{
+  color:#607482;
+}
+html[data-admin-theme="light"] body.admin-shell .emp-face-status{
+  background:rgba(58,79,96,.06);
+  border-color:rgba(58,79,96,.2);
+  color:#5b6f7d;
+}
+html[data-admin-theme="light"] body.admin-shell .modal,
+html[data-admin-theme="light"] body.admin-shell .modal-box{
+  background:linear-gradient(180deg,#f8fbfa,#edf3f2);
+  border-color:rgba(58,79,96,.18);
+  box-shadow:0 28px 76px rgba(32,47,58,.22),inset 0 1px 0 rgba(255,255,255,.75);
+}
+html[data-admin-theme="light"] body.admin-shell .modal-overlay{
+  background:rgba(18,29,38,.5);
+}
+
+/* Fresh colorful light pass */
+html[data-admin-theme="light"] body.admin-shell{
+  --admin-nav-bg:#f7fbff;
+  --admin-nav-surface:#ffffff;
+  --admin-nav-panel:#eefbff;
+  --admin-nav-border:rgba(39,92,126,.18);
+  --admin-nav-teal:#00a88f;
+  --admin-nav-teal-glow:rgba(0,168,143,.14);
+  --admin-nav-text:#143047;
+  --admin-nav-muted:#5d7890;
+  --bg:#edf9f6;
+  --surface:#fffaf5;
+  --panel:#effbff;
+  --surface-elevated:#ffffff;
+  --surface-soft:rgba(255,255,255,.82);
+  --border:#b8ced8;
+  --border-soft:rgba(39,92,126,.18);
+  --border-strong:rgba(39,92,126,.3);
+  --text:#132d42;
+  --muted:#5d7486;
+  --muted-dim:#7f93a0;
+  --teal:#008f7c;
+  --teal-dim:#087566;
+  --teal-glow:rgba(0,143,124,.13);
+  --blue:#315eea;
+  --red:#d83d6b;
+  --yellow:#b97200;
+  --shadow-panel:0 20px 46px rgba(49,94,122,.13),0 1px 0 rgba(255,255,255,.9) inset;
+  background:
+    linear-gradient(135deg,#f8fff8 0%,#e6f8ff 34%,#f7f0ff 68%,#fff6e7 100%);
+}
+html[data-admin-theme="light"] body.admin-shell::after{
+  background:
+    linear-gradient(115deg,rgba(0,168,143,.14),transparent 32%),
+    linear-gradient(245deg,rgba(49,94,234,.11),transparent 40%),
+    linear-gradient(18deg,rgba(216,61,107,.08),transparent 36%),
+    linear-gradient(rgba(39,92,126,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(39,92,126,.055) 1px,transparent 1px);
+  background-size:auto,auto,auto,56px 56px,56px 56px;
+}
+html[data-admin-theme="light"] .admin-shell header{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.96),rgba(241,250,255,.92)),
+    linear-gradient(135deg,rgba(0,168,143,.14),rgba(49,94,234,.08));
+  border-color:rgba(39,92,126,.16);
+  box-shadow:14px 0 44px rgba(45,92,119,.13),inset -1px 0 0 rgba(255,255,255,.92);
+}
+html[data-admin-theme="light"] .admin-shell .brand{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.86),rgba(255,255,255,.36)),
+    linear-gradient(135deg,rgba(0,168,143,.16),rgba(49,94,234,.09) 48%,rgba(216,61,107,.08));
+  border-color:rgba(39,92,126,.16);
+}
+html[data-admin-theme="light"] .admin-shell .brand-name{
+  color:#143047;
+}
+html[data-admin-theme="light"] .admin-shell .brand-section,
+html[data-admin-theme="light"] .admin-shell .nav-section-title,
+html[data-admin-theme="light"] .admin-shell .branch-scope-label{
+  color:#628096;
+}
+html[data-admin-theme="light"] .admin-shell .brand-icon,
+html[data-admin-theme="light"] .brand-icon{
+  background:linear-gradient(135deg,rgba(0,168,143,.2),rgba(49,94,234,.13) 58%,rgba(216,61,107,.12));
+  border-color:rgba(0,168,143,.34);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 16px 32px rgba(0,143,124,.12);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link{
+  color:#5d7890;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link:hover{
+  background:linear-gradient(135deg,rgba(0,168,143,.09),rgba(49,94,234,.07));
+  color:#143047;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link.active{
+  color:#ffffff;
+  background:linear-gradient(135deg,#00aa91,#315eea);
+  box-shadow:0 16px 30px rgba(49,94,234,.18),inset 0 1px 0 rgba(255,255,255,.42);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-box,
+html[data-admin-theme="light"] .admin-shell .nav-account{
+  background:rgba(255,255,255,.46);
+  border-color:rgba(39,92,126,.16);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-select,
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill,
+html[data-admin-theme="light"] .admin-shell .user-chip{
+  background:rgba(255,255,255,.82);
+  border-color:rgba(39,92,126,.18);
+  color:#143047;
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill{
+  color:#008f7c;
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating{
+  background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(238,250,255,.84));
+  color:#143047;
+  border-color:rgba(39,92,126,.18);
+  box-shadow:0 18px 44px rgba(49,94,122,.14),inset 0 1px 0 rgba(255,255,255,.95);
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating:hover{
+  background:linear-gradient(135deg,#00aa91,#315eea);
+  color:#ffffff;
+  border-color:rgba(49,94,234,.28);
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .mini-stat,
+html[data-admin-theme="light"] body.admin-shell .provider-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .employee-row,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .branch-card,
+html[data-admin-theme="light"] body.admin-shell .day,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card,
+html[data-admin-theme="light"] body.admin-shell .roster-metric,
+html[data-admin-theme="light"] body.admin-shell .sdg-box{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.94),rgba(246,252,255,.88)),
+    linear-gradient(135deg,rgba(0,168,143,.06),rgba(49,94,234,.045) 56%,rgba(216,61,107,.035));
+  border-color:rgba(39,92,126,.17);
+  box-shadow:var(--shadow-panel);
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header,
+html[data-admin-theme="light"] body.admin-shell .data-table th,
+html[data-admin-theme="light"] body.admin-shell .lv-table th,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th{
+  background:linear-gradient(135deg,rgba(226,250,244,.95),rgba(232,241,255,.94) 56%,rgba(255,239,247,.78));
+  border-color:rgba(39,92,126,.16);
+  color:#49677c;
+}
+html[data-admin-theme="light"] body.admin-shell .filter-bar,
+html[data-admin-theme="light"] body.admin-shell .roster-toolbar,
+html[data-admin-theme="light"] body.admin-shell .roster-summary{
+  background:linear-gradient(135deg,rgba(226,250,244,.74),rgba(232,241,255,.72),rgba(255,244,225,.62));
+  border-color:rgba(39,92,126,.15);
+}
+html[data-admin-theme="light"] body.admin-shell .input,
+html[data-admin-theme="light"] body.admin-shell .select,
+html[data-admin-theme="light"] body.admin-shell .textarea,
+html[data-admin-theme="light"] body.admin-shell .filter-input,
+html[data-admin-theme="light"] body.admin-shell .form-input,
+html[data-admin-theme="light"] body.admin-shell .cfg-input,
+html[data-admin-theme="light"] body.admin-shell .lv-filter,
+html[data-admin-theme="light"] body.admin-shell textarea,
+html[data-admin-theme="light"] body.admin-shell input[type="text"],
+html[data-admin-theme="light"] body.admin-shell input[type="email"],
+html[data-admin-theme="light"] body.admin-shell input[type="date"],
+html[data-admin-theme="light"] body.admin-shell input[type="time"],
+html[data-admin-theme="light"] body.admin-shell input[type="number"],
+html[data-admin-theme="light"] body.admin-shell input[type="password"],
+html[data-admin-theme="light"] body.admin-shell select{
+  background:rgba(255,255,255,.88);
+  border-color:rgba(39,92,126,.19);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn,
+html[data-admin-theme="light"] body.admin-shell .chip-btn,
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .log-btn,
+html[data-admin-theme="light"] body.admin-shell .overview-action,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn,
+html[data-admin-theme="light"] body.admin-shell .roster-view-toggle,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn{
+  background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(244,251,255,.88));
+  border-color:rgba(39,92,126,.18);
+  color:#45677d;
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .chip-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .log-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .overview-action:hover,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn:hover{
+  background:linear-gradient(135deg,rgba(0,168,143,.11),rgba(49,94,234,.08));
+  border-color:rgba(49,94,234,.24);
+  color:#143047;
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-teal,
+html[data-admin-theme="light"] body.admin-shell .overview-action.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-save,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn.active,
+html[data-admin-theme="light"] body.admin-shell .roster-view-btn.active{
+  background:linear-gradient(135deg,#00aa91,#315eea);
+  border-color:rgba(49,94,234,.34);
+  color:#ffffff!important;
+  box-shadow:0 14px 30px rgba(49,94,234,.18),inset 0 1px 0 rgba(255,255,255,.32);
+}
+html[data-admin-theme="light"] body.admin-shell .chip-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .quick-btn.active{
+  background:linear-gradient(135deg,rgba(0,168,143,.13),rgba(49,94,234,.1));
+  border-color:rgba(49,94,234,.24);
+  color:#165aa4;
+}
+html[data-admin-theme="light"] body.admin-shell .badge-in,
+html[data-admin-theme="light"] body.admin-shell .badge-active{
+  background:rgba(0,168,143,.12);
+  color:#007e6c;
+  border-color:rgba(0,168,143,.27);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-out{
+  background:rgba(49,94,234,.11);
+  color:#315eea;
+  border-color:rgba(49,94,234,.24);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-late{
+  background:rgba(255,180,54,.16);
+  color:#9c6400;
+  border-color:rgba(255,180,54,.32);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-inactive,
+html[data-admin-theme="light"] body.admin-shell .btn-red{
+  background:rgba(216,61,107,.11);
+  color:#bd2f58;
+  border-color:rgba(216,61,107,.26);
+}
+
+/* Distinct light navigation and content tabs */
+html[data-admin-theme="light"] .admin-shell header{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.18),transparent 28%),
+    linear-gradient(150deg,#166cf0 0%,#00a8a6 54%,#18c6a3 100%);
+  border-color:rgba(255,255,255,.28);
+  box-shadow:16px 0 46px rgba(22,108,240,.18),inset -1px 0 0 rgba(255,255,255,.2);
+}
+html[data-admin-theme="light"] .admin-shell .brand{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.05)),
+    linear-gradient(135deg,rgba(255,255,255,.2),transparent 58%);
+  border-color:rgba(255,255,255,.24);
+}
+html[data-admin-theme="light"] .admin-shell .brand-name,
+html[data-admin-theme="light"] .admin-shell .brand-section,
+html[data-admin-theme="light"] .admin-shell .nav-section-title,
+html[data-admin-theme="light"] .admin-shell .branch-scope-label{
+  color:#f6fffd;
+}
+html[data-admin-theme="light"] .admin-shell .brand-section,
+html[data-admin-theme="light"] .admin-shell .nav-section-title,
+html[data-admin-theme="light"] .admin-shell .branch-scope-label{
+  opacity:.78;
+}
+html[data-admin-theme="light"] .admin-shell .brand-icon,
+html[data-admin-theme="light"] .brand-icon{
+  background:linear-gradient(135deg,rgba(255,255,255,.34),rgba(255,255,255,.1));
+  border-color:rgba(255,255,255,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.54),0 16px 32px rgba(8,52,106,.16);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link{
+  color:rgba(246,255,253,.82);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link:hover{
+  background:rgba(255,255,255,.16);
+  color:#ffffff;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link.active{
+  color:#06344a;
+  background:linear-gradient(180deg,#ffffff,#dffcff);
+  box-shadow:0 16px 32px rgba(6,52,74,.18),inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-box,
+html[data-admin-theme="light"] .admin-shell .nav-account{
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.22);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-select,
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill,
+html[data-admin-theme="light"] .admin-shell .user-chip{
+  background:rgba(255,255,255,.18);
+  border-color:rgba(255,255,255,.24);
+  color:#ffffff;
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill{
+  color:#e4fffb;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .roster-view-toggle,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn{
+  background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,246,239,.86));
+  border-color:rgba(199,91,72,.18);
+  color:#774b44;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn:hover{
+  background:linear-gradient(135deg,rgba(255,213,191,.45),rgba(255,237,166,.36));
+  border-color:rgba(223,112,74,.34);
+  color:#5e382f;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .quick-btn.active,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn.active,
+html[data-admin-theme="light"] body.admin-shell .roster-view-btn.active{
+  background:linear-gradient(135deg,#ff7f6e,#ffc85a);
+  border-color:rgba(255,127,110,.5);
+  color:#331d13!important;
+  box-shadow:0 12px 26px rgba(255,127,110,.18),inset 0 1px 0 rgba(255,255,255,.42);
+}
+
+/* Light masthead contrast pass */
+html[data-admin-theme="light"] .admin-shell .brand{
+  position:relative;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.16),transparent 30%),
+    linear-gradient(145deg,#072855 0%,#0b5dbd 52%,#009c8a 100%);
+  border-bottom-color:rgba(255,255,255,.22);
+  box-shadow:inset 0 -1px 0 rgba(255,255,255,.16);
+}
+html[data-admin-theme="light"] .admin-shell .brand::before{
+  content:"";
+  position:absolute;
+  inset:10px 12px auto;
+  height:76px;
+  border-radius:8px;
+  background:
+    linear-gradient(120deg,rgba(255,255,255,.18),transparent 58%),
+    linear-gradient(90deg,rgba(0,212,170,.16),rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.14);
+  pointer-events:none;
+}
+html[data-admin-theme="light"] .admin-shell .brand > *{
+  position:relative;
+  z-index:1;
+}
+html[data-admin-theme="light"] .admin-shell .brand-name{
+  color:#ffffff;
+  text-shadow:0 2px 12px rgba(0,25,56,.28);
+}
+html[data-admin-theme="light"] .admin-shell .brand-section{
+  color:#d8fff7;
+  opacity:.92;
+  text-shadow:0 1px 10px rgba(0,25,56,.24);
+}
+html[data-admin-theme="light"] .admin-shell .brand-icon,
+html[data-admin-theme="light"] .brand-icon{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,.08)),
+    rgba(3,26,53,.18);
+  border-color:rgba(223,255,249,.52);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.52),0 16px 34px rgba(2,31,69,.22);
+}
+
+/* Harmonized agency light system */
+html[data-admin-theme="light"] body.admin-shell{
+  --admin-nav-bg:#0f355f;
+  --admin-nav-surface:#164a79;
+  --admin-nav-panel:#1d5d91;
+  --admin-nav-border:rgba(255,255,255,.2);
+  --admin-nav-teal:#7ff4df;
+  --admin-nav-teal-glow:rgba(127,244,223,.18);
+  --admin-nav-text:#ffffff;
+  --admin-nav-muted:rgba(236,249,255,.78);
+  --bg:#eef5f4;
+  --surface:#fbf8f1;
+  --panel:#f6fbf8;
+  --surface-elevated:#ffffff;
+  --surface-soft:rgba(255,255,255,.88);
+  --border:#c6d7da;
+  --border-soft:rgba(56,82,104,.16);
+  --border-strong:rgba(56,82,104,.28);
+  --text:#13243a;
+  --muted:#50667d;
+  --muted-dim:#75889a;
+  --teal:#007e6f;
+  --teal-dim:#096257;
+  --teal-glow:rgba(0,126,111,.12);
+  --blue:#2258c7;
+  --red:#c83a61;
+  --yellow:#9a6700;
+  --shadow-panel:0 18px 46px rgba(38,66,88,.11),inset 0 1px 0 rgba(255,255,255,.86);
+  background:
+    linear-gradient(135deg,#f7fbf8 0%,#edf7f5 36%,#f3f0ff 68%,#fff7ea 100%);
+}
+html[data-admin-theme="light"] body.admin-shell::after{
+  background:
+    linear-gradient(115deg,rgba(0,126,111,.08),transparent 34%),
+    linear-gradient(245deg,rgba(34,88,199,.075),transparent 42%),
+    linear-gradient(rgba(56,82,104,.055) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,82,104,.045) 1px,transparent 1px);
+  background-size:auto,auto,56px 56px,56px 56px;
+}
+html[data-admin-theme="light"] .admin-shell header{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.16),transparent 26%),
+    linear-gradient(160deg,#09284f 0%,#0d5597 50%,#078b80 100%);
+  border-color:rgba(255,255,255,.22);
+  box-shadow:14px 0 42px rgba(20,68,106,.18),inset -1px 0 0 rgba(255,255,255,.16);
+}
+html[data-admin-theme="light"] .admin-shell .brand{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.035)),
+    linear-gradient(145deg,#061f43 0%,#0c4d94 58%,#057c74 100%);
+  border-bottom-color:rgba(255,255,255,.18);
+}
+html[data-admin-theme="light"] .admin-shell .brand::before{
+  background:
+    linear-gradient(120deg,rgba(255,255,255,.16),transparent 58%),
+    linear-gradient(90deg,rgba(127,244,223,.12),rgba(255,255,255,.035));
+  border-color:rgba(255,255,255,.12);
+}
+html[data-admin-theme="light"] .admin-shell .brand-name{
+  color:#ffffff;
+  text-shadow:0 2px 12px rgba(0,21,50,.28);
+}
+html[data-admin-theme="light"] .admin-shell .brand-section,
+html[data-admin-theme="light"] .admin-shell .nav-section-title,
+html[data-admin-theme="light"] .admin-shell .branch-scope-label{
+  color:rgba(232,251,255,.82);
+}
+html[data-admin-theme="light"] .admin-shell .brand-icon,
+html[data-admin-theme="light"] .brand-icon{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,.08)),
+    rgba(255,255,255,.06);
+  border-color:rgba(232,255,250,.46);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link{
+  color:rgba(239,251,255,.82);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link:hover{
+  background:rgba(255,255,255,.13);
+  color:#ffffff;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link.active{
+  color:#08304d;
+  background:linear-gradient(180deg,#ffffff,#dff9f7);
+  box-shadow:0 14px 30px rgba(4,44,78,.18),inset 0 1px 0 rgba(255,255,255,.88);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-box,
+html[data-admin-theme="light"] .admin-shell .nav-account{
+  background:rgba(255,255,255,.09);
+  border-color:rgba(255,255,255,.18);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-select,
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill,
+html[data-admin-theme="light"] .admin-shell .user-chip{
+  background:rgba(255,255,255,.14);
+  border-color:rgba(255,255,255,.22);
+  color:#ffffff;
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating{
+  background:rgba(255,255,255,.9);
+  color:#12304a;
+  border-color:rgba(56,82,104,.16);
+  box-shadow:0 16px 38px rgba(38,66,88,.14),inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating:hover{
+  background:linear-gradient(135deg,#0d5597,#078b80);
+  color:#ffffff;
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .mini-stat,
+html[data-admin-theme="light"] body.admin-shell .provider-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .employee-row,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .branch-card,
+html[data-admin-theme="light"] body.admin-shell .day,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card,
+html[data-admin-theme="light"] body.admin-shell .roster-metric,
+html[data-admin-theme="light"] body.admin-shell .sdg-box{
+  background:linear-gradient(180deg,#fffdfa,#f4faf8);
+  border-color:rgba(56,82,104,.16);
+  color:var(--text);
+  box-shadow:var(--shadow-panel);
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header,
+html[data-admin-theme="light"] body.admin-shell .data-table th,
+html[data-admin-theme="light"] body.admin-shell .lv-table th,
+html[data-admin-theme="light"] body.admin-shell .assign-table th,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th{
+  background:linear-gradient(180deg,#eef7f4,#e6f0ee);
+  border-color:rgba(56,82,104,.16);
+  color:#415a70;
+}
+html[data-admin-theme="light"] body.admin-shell .filter-bar,
+html[data-admin-theme="light"] body.admin-shell .roster-toolbar,
+html[data-admin-theme="light"] body.admin-shell .roster-summary,
+html[data-admin-theme="light"] body.admin-shell .role-form{
+  background:rgba(239,248,245,.76);
+  border-color:rgba(56,82,104,.14);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table td,
+html[data-admin-theme="light"] body.admin-shell .lv-table td,
+html[data-admin-theme="light"] body.admin-shell .assign-table td,
+html[data-admin-theme="light"] body.admin-shell .work-table td,
+html[data-admin-theme="light"] body.admin-shell .role-row,
+html[data-admin-theme="light"] body.admin-shell .roster-person,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-head,
+html[data-admin-theme="light"] body.admin-shell .quick-row,
+html[data-admin-theme="light"] body.admin-shell .preview-foot,
+html[data-admin-theme="light"] body.admin-shell .atd-foot{
+  border-color:rgba(56,82,104,.13);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr:hover,
+html[data-admin-theme="light"] body.admin-shell .lv-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .assign-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table tbody tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .quick-row:hover{
+  background:rgba(0,126,111,.055);
+}
+html[data-admin-theme="light"] body.admin-shell .input,
+html[data-admin-theme="light"] body.admin-shell .select,
+html[data-admin-theme="light"] body.admin-shell .textarea,
+html[data-admin-theme="light"] body.admin-shell .filter-input,
+html[data-admin-theme="light"] body.admin-shell .form-input,
+html[data-admin-theme="light"] body.admin-shell .cfg-input,
+html[data-admin-theme="light"] body.admin-shell .lv-filter,
+html[data-admin-theme="light"] body.admin-shell textarea,
+html[data-admin-theme="light"] body.admin-shell input[type="text"],
+html[data-admin-theme="light"] body.admin-shell input[type="email"],
+html[data-admin-theme="light"] body.admin-shell input[type="date"],
+html[data-admin-theme="light"] body.admin-shell input[type="time"],
+html[data-admin-theme="light"] body.admin-shell input[type="number"],
+html[data-admin-theme="light"] body.admin-shell input[type="password"],
+html[data-admin-theme="light"] body.admin-shell select{
+  background:#fffefa;
+  border-color:rgba(56,82,104,.18);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .input:focus,
+html[data-admin-theme="light"] body.admin-shell .select:focus,
+html[data-admin-theme="light"] body.admin-shell .textarea:focus,
+html[data-admin-theme="light"] body.admin-shell .filter-input:focus,
+html[data-admin-theme="light"] body.admin-shell .form-input:focus,
+html[data-admin-theme="light"] body.admin-shell .cfg-input:focus,
+html[data-admin-theme="light"] body.admin-shell .lv-filter:focus,
+html[data-admin-theme="light"] body.admin-shell textarea:focus,
+html[data-admin-theme="light"] body.admin-shell input:focus,
+html[data-admin-theme="light"] body.admin-shell select:focus{
+  background:#ffffff;
+  border-color:rgba(0,126,111,.44);
+  box-shadow:0 0 0 4px rgba(0,126,111,.1);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .roster-view-toggle,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn,
+html[data-admin-theme="light"] body.admin-shell .icon-btn,
+html[data-admin-theme="light"] body.admin-shell .chip-btn,
+html[data-admin-theme="light"] body.admin-shell .log-btn,
+html[data-admin-theme="light"] body.admin-shell .overview-action,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn{
+  background:linear-gradient(180deg,#fffefa,#f5faf7);
+  border-color:rgba(56,82,104,.16);
+  color:#40596f;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .icon-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .chip-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .log-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .overview-action:hover,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn:hover{
+  background:rgba(0,126,111,.075);
+  border-color:rgba(0,126,111,.24);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .quick-btn.active,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn.active,
+html[data-admin-theme="light"] body.admin-shell .roster-view-btn.active{
+  background:linear-gradient(135deg,#f7b955,#f07a62);
+  border-color:rgba(240,122,98,.46);
+  color:#311a10!important;
+  box-shadow:0 12px 24px rgba(240,122,98,.14),inset 0 1px 0 rgba(255,255,255,.38);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-teal,
+html[data-admin-theme="light"] body.admin-shell .overview-action.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-save{
+  background:linear-gradient(135deg,#007e6f,#2258c7);
+  border-color:rgba(34,88,199,.34);
+  color:#ffffff!important;
+  box-shadow:0 14px 28px rgba(34,88,199,.16),inset 0 1px 0 rgba(255,255,255,.28);
+}
+html[data-admin-theme="light"] body.admin-shell .lv-person-name,
+html[data-admin-theme="light"] body.admin-shell .person-name,
+html[data-admin-theme="light"] body.admin-shell .work-table b,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card b,
+html[data-admin-theme="light"] body.admin-shell .role-name,
+html[data-admin-theme="light"] body.admin-shell .roster-person-name,
+html[data-admin-theme="light"] body.admin-shell .period-shift-name,
+html[data-admin-theme="light"] body.admin-shell .shift-head-name,
+html[data-admin-theme="light"] body.admin-shell .roster-chip b{
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .lv-person-code,
+html[data-admin-theme="light"] body.admin-shell .person-code,
+html[data-admin-theme="light"] body.admin-shell .lv-dates,
+html[data-admin-theme="light"] body.admin-shell .lv-reason,
+html[data-admin-theme="light"] body.admin-shell .lv-submitted,
+html[data-admin-theme="light"] body.admin-shell .lv-note,
+html[data-admin-theme="light"] body.admin-shell .work-table small,
+html[data-admin-theme="light"] body.admin-shell .quick-row span,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card small,
+html[data-admin-theme="light"] body.admin-shell .role-code,
+html[data-admin-theme="light"] body.admin-shell .role-desc,
+html[data-admin-theme="light"] body.admin-shell .roster-person-meta,
+html[data-admin-theme="light"] body.admin-shell .period-shift-time,
+html[data-admin-theme="light"] body.admin-shell .shift-head-time,
+html[data-admin-theme="light"] body.admin-shell .roster-chip span,
+html[data-admin-theme="light"] body.admin-shell .period-names,
+html[data-admin-theme="light"] body.admin-shell .period-empty,
+html[data-admin-theme="light"] body.admin-shell .cal-meta{
+  color:#566d82;
+}
+html[data-admin-theme="light"] body.admin-shell .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-full,
+html[data-admin-theme="light"] body.admin-shell .ls-approved,
+html[data-admin-theme="light"] body.admin-shell .lv-action.approve{
+  color:#007e6f;
+}
+html[data-admin-theme="light"] body.admin-shell .dt-holiday .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-holiday,
+html[data-admin-theme="light"] body.admin-shell .ls-pending{
+  color:#9a6700;
+}
+html[data-admin-theme="light"] body.admin-shell .ls-rejected,
+html[data-admin-theme="light"] body.admin-shell .lv-action.reject{
+  color:#c83a61;
+}
+
+/* Final calm light system */
+html[data-admin-theme="light"] body.admin-shell{
+  --admin-nav-bg:#0b1f34;
+  --admin-nav-surface:#102b45;
+  --admin-nav-panel:#153756;
+  --admin-nav-border:rgba(232,244,247,.16);
+  --admin-nav-teal:#8debd8;
+  --admin-nav-teal-glow:rgba(141,235,216,.16);
+  --admin-nav-text:#f7fbfc;
+  --admin-nav-muted:#a9bfcc;
+  --bg:#edf3f0;
+  --surface:#fffcf6;
+  --panel:#f7faf6;
+  --surface-elevated:#ffffff;
+  --surface-soft:rgba(255,252,246,.9);
+  --border:#c8d5d1;
+  --border-soft:rgba(49,72,88,.16);
+  --border-strong:rgba(49,72,88,.28);
+  --text:#142335;
+  --muted:#566b7c;
+  --muted-dim:#7b8c98;
+  --teal:#007c6e;
+  --teal-dim:#075f55;
+  --teal-glow:rgba(0,124,110,.12);
+  --blue:#2559a8;
+  --red:#b73555;
+  --yellow:#8b6300;
+  --shadow-panel:0 18px 42px rgba(34,57,72,.1),inset 0 1px 0 rgba(255,255,255,.82);
+  background:linear-gradient(180deg,#f2f6f3 0%,#e8f0ec 100%);
+}
+html[data-admin-theme="light"] body.admin-shell::after{
+  background:
+    linear-gradient(115deg,rgba(0,124,110,.055),transparent 36%),
+    linear-gradient(250deg,rgba(37,89,168,.045),transparent 45%),
+    linear-gradient(rgba(49,72,88,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(49,72,88,.035) 1px,transparent 1px);
+  background-size:auto,auto,60px 60px,60px 60px;
+}
+html[data-admin-theme="light"] .admin-shell header{
+  background:linear-gradient(180deg,#102b45,#0b1f34);
+  border-color:rgba(232,244,247,.14);
+  box-shadow:14px 0 38px rgba(13,39,62,.18),inset -1px 0 0 rgba(255,255,255,.06);
+}
+html[data-admin-theme="light"] .admin-shell .brand{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.08),transparent),
+    linear-gradient(150deg,#0f3554,#0b243b);
+  border-bottom-color:rgba(232,244,247,.14);
+}
+html[data-admin-theme="light"] .admin-shell .brand::before{
+  background:
+    linear-gradient(120deg,rgba(255,255,255,.1),transparent 62%),
+    linear-gradient(90deg,rgba(141,235,216,.09),rgba(255,255,255,.02));
+  border-color:rgba(232,244,247,.09);
+}
+html[data-admin-theme="light"] .admin-shell .brand-name{
+  color:#ffffff;
+  text-shadow:0 2px 10px rgba(0,16,32,.32);
+}
+html[data-admin-theme="light"] .admin-shell .brand-section,
+html[data-admin-theme="light"] .admin-shell .nav-section-title,
+html[data-admin-theme="light"] .admin-shell .branch-scope-label{
+  color:rgba(230,247,250,.76);
+}
+html[data-admin-theme="light"] .admin-shell .brand-icon,
+html[data-admin-theme="light"] .brand-icon{
+  background:linear-gradient(180deg,rgba(141,235,216,.17),rgba(255,255,255,.045));
+  border-color:rgba(141,235,216,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 14px 28px rgba(0,19,38,.24);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link{
+  color:rgba(232,244,247,.78);
+}
+html[data-admin-theme="light"] .admin-shell .nav-link:hover{
+  background:rgba(255,255,255,.07);
+  color:#ffffff;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link.active{
+  color:#062a24;
+  background:linear-gradient(180deg,#effffb,#9debdc);
+  box-shadow:0 14px 28px rgba(0,35,58,.2),inset 0 1px 0 rgba(255,255,255,.8);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-box,
+html[data-admin-theme="light"] .admin-shell .nav-account{
+  background:rgba(255,255,255,.035);
+  border-color:rgba(232,244,247,.14);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-select,
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill,
+html[data-admin-theme="light"] .admin-shell .user-chip{
+  background:#102b45;
+  border-color:rgba(232,244,247,.14);
+  color:#f7fbfc;
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill{
+  color:#b8f3e8;
+}
+html[data-admin-theme="light"] .admin-shell .logout-btn{
+  background:rgba(183,53,85,.12);
+  border-color:rgba(255,153,174,.26);
+  color:#ff9bad;
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating{
+  background:rgba(255,252,246,.94);
+  color:#142335;
+  border-color:rgba(49,72,88,.14);
+  box-shadow:0 16px 34px rgba(34,57,72,.12),inset 0 1px 0 rgba(255,255,255,.88);
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating:hover{
+  background:#102b45;
+  color:#ffffff;
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .mini-stat,
+html[data-admin-theme="light"] body.admin-shell .provider-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .employee-row,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .branch-card,
+html[data-admin-theme="light"] body.admin-shell .day,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card,
+html[data-admin-theme="light"] body.admin-shell .roster-metric,
+html[data-admin-theme="light"] body.admin-shell .sdg-box{
+  background:linear-gradient(180deg,#fffdf8,#f7faf6);
+  border-color:rgba(49,72,88,.14);
+  color:var(--text);
+  box-shadow:var(--shadow-panel);
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header,
+html[data-admin-theme="light"] body.admin-shell .data-table th,
+html[data-admin-theme="light"] body.admin-shell .lv-table th,
+html[data-admin-theme="light"] body.admin-shell .assign-table th,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th{
+  background:#edf5f1;
+  border-color:rgba(49,72,88,.14);
+  color:#455c70;
+}
+html[data-admin-theme="light"] body.admin-shell .filter-bar,
+html[data-admin-theme="light"] body.admin-shell .roster-toolbar,
+html[data-admin-theme="light"] body.admin-shell .roster-summary,
+html[data-admin-theme="light"] body.admin-shell .role-form{
+  background:#f1f7f3;
+  border-color:rgba(49,72,88,.13);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table td,
+html[data-admin-theme="light"] body.admin-shell .lv-table td,
+html[data-admin-theme="light"] body.admin-shell .assign-table td,
+html[data-admin-theme="light"] body.admin-shell .work-table td,
+html[data-admin-theme="light"] body.admin-shell .role-row,
+html[data-admin-theme="light"] body.admin-shell .roster-person,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-head,
+html[data-admin-theme="light"] body.admin-shell .quick-row,
+html[data-admin-theme="light"] body.admin-shell .preview-foot,
+html[data-admin-theme="light"] body.admin-shell .atd-foot{
+  border-color:rgba(49,72,88,.12);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr:hover,
+html[data-admin-theme="light"] body.admin-shell .lv-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .assign-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table tbody tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .quick-row:hover{
+  background:rgba(0,124,110,.052);
+}
+html[data-admin-theme="light"] body.admin-shell .input,
+html[data-admin-theme="light"] body.admin-shell .select,
+html[data-admin-theme="light"] body.admin-shell .textarea,
+html[data-admin-theme="light"] body.admin-shell .filter-input,
+html[data-admin-theme="light"] body.admin-shell .form-input,
+html[data-admin-theme="light"] body.admin-shell .cfg-input,
+html[data-admin-theme="light"] body.admin-shell .lv-filter,
+html[data-admin-theme="light"] body.admin-shell textarea,
+html[data-admin-theme="light"] body.admin-shell input[type="text"],
+html[data-admin-theme="light"] body.admin-shell input[type="email"],
+html[data-admin-theme="light"] body.admin-shell input[type="date"],
+html[data-admin-theme="light"] body.admin-shell input[type="time"],
+html[data-admin-theme="light"] body.admin-shell input[type="number"],
+html[data-admin-theme="light"] body.admin-shell input[type="password"],
+html[data-admin-theme="light"] body.admin-shell select{
+  background:#fffdf8;
+  border-color:rgba(49,72,88,.16);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .input:focus,
+html[data-admin-theme="light"] body.admin-shell .select:focus,
+html[data-admin-theme="light"] body.admin-shell .textarea:focus,
+html[data-admin-theme="light"] body.admin-shell .filter-input:focus,
+html[data-admin-theme="light"] body.admin-shell .form-input:focus,
+html[data-admin-theme="light"] body.admin-shell .cfg-input:focus,
+html[data-admin-theme="light"] body.admin-shell .lv-filter:focus,
+html[data-admin-theme="light"] body.admin-shell textarea:focus,
+html[data-admin-theme="light"] body.admin-shell input:focus,
+html[data-admin-theme="light"] body.admin-shell select:focus{
+  background:#ffffff;
+  border-color:rgba(0,124,110,.42);
+  box-shadow:0 0 0 4px rgba(0,124,110,.1);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .roster-view-toggle,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn,
+html[data-admin-theme="light"] body.admin-shell .icon-btn,
+html[data-admin-theme="light"] body.admin-shell .chip-btn,
+html[data-admin-theme="light"] body.admin-shell .log-btn,
+html[data-admin-theme="light"] body.admin-shell .overview-action,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn{
+  background:#fffdf8;
+  border-color:rgba(49,72,88,.14);
+  color:#43586a;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .icon-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .chip-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .log-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .overview-action:hover,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn:hover{
+  background:rgba(0,124,110,.07);
+  border-color:rgba(0,124,110,.23);
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .quick-btn.active,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn.active,
+html[data-admin-theme="light"] body.admin-shell .roster-view-btn.active,
+html[data-admin-theme="light"] body.admin-shell .chip-btn.primary{
+  background:linear-gradient(180deg,#eafff9,#b7eadf);
+  border-color:rgba(0,124,110,.28);
+  color:#075044!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-teal,
+html[data-admin-theme="light"] body.admin-shell .overview-action.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-save{
+  background:linear-gradient(180deg,#008878,#006f62);
+  border-color:rgba(0,124,110,.48);
+  color:#ffffff!important;
+  box-shadow:0 13px 26px rgba(0,124,110,.15),inset 0 1px 0 rgba(255,255,255,.25);
+}
+html[data-admin-theme="light"] body.admin-shell .badge-in,
+html[data-admin-theme="light"] body.admin-shell .badge-active,
+html[data-admin-theme="light"] body.admin-shell .ls-approved,
+html[data-admin-theme="light"] body.admin-shell .lv-action.approve,
+html[data-admin-theme="light"] body.admin-shell .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-full{
+  color:#007c6e;
+}
+html[data-admin-theme="light"] body.admin-shell .badge-out{
+  color:#2559a8;
+}
+html[data-admin-theme="light"] body.admin-shell .badge-late,
+html[data-admin-theme="light"] body.admin-shell .ls-pending,
+html[data-admin-theme="light"] body.admin-shell .dt-holiday .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-holiday{
+  color:#8b6300;
+}
+html[data-admin-theme="light"] body.admin-shell .badge-inactive,
+html[data-admin-theme="light"] body.admin-shell .btn-red,
+html[data-admin-theme="light"] body.admin-shell .ls-rejected,
+html[data-admin-theme="light"] body.admin-shell .lv-action.reject{
+  color:#b73555;
+}
+html[data-admin-theme="light"] body.admin-shell .lv-person-name,
+html[data-admin-theme="light"] body.admin-shell .person-name,
+html[data-admin-theme="light"] body.admin-shell .work-table b,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card b,
+html[data-admin-theme="light"] body.admin-shell .role-name,
+html[data-admin-theme="light"] body.admin-shell .roster-person-name,
+html[data-admin-theme="light"] body.admin-shell .period-shift-name,
+html[data-admin-theme="light"] body.admin-shell .shift-head-name,
+html[data-admin-theme="light"] body.admin-shell .roster-chip b{
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .lv-person-code,
+html[data-admin-theme="light"] body.admin-shell .person-code,
+html[data-admin-theme="light"] body.admin-shell .lv-dates,
+html[data-admin-theme="light"] body.admin-shell .lv-reason,
+html[data-admin-theme="light"] body.admin-shell .lv-submitted,
+html[data-admin-theme="light"] body.admin-shell .lv-note,
+html[data-admin-theme="light"] body.admin-shell .work-table small,
+html[data-admin-theme="light"] body.admin-shell .quick-row span,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card small,
+html[data-admin-theme="light"] body.admin-shell .role-code,
+html[data-admin-theme="light"] body.admin-shell .role-desc,
+html[data-admin-theme="light"] body.admin-shell .roster-person-meta,
+html[data-admin-theme="light"] body.admin-shell .period-shift-time,
+html[data-admin-theme="light"] body.admin-shell .shift-head-time,
+html[data-admin-theme="light"] body.admin-shell .roster-chip span,
+html[data-admin-theme="light"] body.admin-shell .period-names,
+html[data-admin-theme="light"] body.admin-shell .period-empty,
+html[data-admin-theme="light"] body.admin-shell .cal-meta{
+  color:#586d7d;
+}
+
+/* Agency light polish pass */
+html[data-admin-theme="light"] body.admin-shell{
+  --bg:#edf4f1;
+  --surface:#fffdf8;
+  --panel:#f6faf6;
+  --surface-elevated:#ffffff;
+  --surface-soft:#f3f8f4;
+  --border:#c7d5cf;
+  --border-soft:rgba(43,68,83,.16);
+  --border-strong:rgba(43,68,83,.3);
+  --text:#142335;
+  --muted:#52687a;
+  --muted-dim:#778895;
+  --teal:#007f73;
+  --green:#007f73;
+  --blue:#2f61b6;
+  --cyan:#2f61b6;
+  --yellow:#946500;
+  --amber:#946500;
+  --red:#b73555;
+  --violet:#7257d8;
+  --ink:#142335;
+  --shadow-panel:0 18px 46px rgba(27,55,69,.1),inset 0 1px 0 rgba(255,255,255,.86);
+  background:
+    radial-gradient(circle at 72% 0%,rgba(255,170,108,.12),transparent 34%),
+    radial-gradient(circle at 18% 8%,rgba(0,127,115,.12),transparent 30%),
+    linear-gradient(180deg,#f5f8f1 0%,#edf4f1 44%,#e8f0ed 100%);
+}
+html[data-admin-theme="light"] body.admin-shell::before{
+  opacity:.22;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.55),transparent 34%),
+    linear-gradient(115deg,rgba(0,127,115,.075),transparent 38%),
+    linear-gradient(245deg,rgba(47,97,182,.06),transparent 42%);
+}
+html[data-admin-theme="light"] body.admin-shell::after{
+  background:
+    linear-gradient(115deg,rgba(0,127,115,.05),transparent 36%),
+    linear-gradient(250deg,rgba(255,150,80,.045),transparent 42%),
+    linear-gradient(rgba(43,68,83,.038) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(43,68,83,.032) 1px,transparent 1px);
+  background-size:auto,auto,64px 64px,64px 64px;
+}
+html[data-admin-theme="light"] .admin-shell header{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.06),transparent 20%),
+    linear-gradient(180deg,#123451,#0b2036);
+  border-color:rgba(235,246,247,.16);
+  box-shadow:14px 0 42px rgba(10,33,54,.2),inset -1px 0 0 rgba(255,255,255,.07);
+}
+html[data-admin-theme="light"] .admin-shell .brand{
+  background:
+    linear-gradient(150deg,rgba(0,127,115,.18),transparent 42%),
+    linear-gradient(180deg,#153e60,#0b263f);
+  border-bottom-color:rgba(235,246,247,.15);
+}
+html[data-admin-theme="light"] .admin-shell .brand::before{
+  content:none;
+  display:none;
+}
+html[data-admin-theme="light"] .admin-shell .brand-name{color:#ffffff}
+html[data-admin-theme="light"] .admin-shell .brand-section,
+html[data-admin-theme="light"] .admin-shell .nav-section-title,
+html[data-admin-theme="light"] .admin-shell .branch-scope-label{color:rgba(231,247,249,.78)}
+html[data-admin-theme="light"] .admin-shell .nav-link{color:rgba(231,247,249,.78)}
+html[data-admin-theme="light"] .admin-shell .nav-link:hover{
+  background:rgba(255,255,255,.075);
+  color:#ffffff;
+}
+html[data-admin-theme="light"] .admin-shell .nav-link.active{
+  color:#07372f;
+  background:linear-gradient(180deg,#f4fffb,#a6eadf);
+  box-shadow:0 14px 30px rgba(0,30,54,.22),inset 0 1px 0 rgba(255,255,255,.82);
+}
+html[data-admin-theme="light"] .admin-shell .branch-scope-select,
+html[data-admin-theme="light"] .admin-shell .branch-scope-pill,
+html[data-admin-theme="light"] .admin-shell .user-chip{
+  background:rgba(8,31,52,.82);
+  border-color:rgba(235,246,247,.18);
+  color:#f8fcfc;
+}
+html[data-admin-theme="light"] .theme-toggle-btn.admin-theme-floating{
+  top:16px;
+  right:22px;
+  background:rgba(255,253,248,.96);
+  color:#132434;
+  border-color:rgba(43,68,83,.15);
+  box-shadow:0 16px 34px rgba(27,55,69,.13),inset 0 1px 0 rgba(255,255,255,.9);
+}
+html[data-admin-theme="light"] body.admin-shell .page,
+html[data-admin-theme="light"] body.admin-shell .ops-page{
+  color:var(--text);
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .mini-stat,
+html[data-admin-theme="light"] body.admin-shell .provider-card,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card,
+html[data-admin-theme="light"] body.admin-shell .roster-metric,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .branch-card,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .employee-row,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .sdg-box{
+  background:linear-gradient(180deg,#fffdf8,#f7faf6);
+  border-color:rgba(43,68,83,.14);
+  color:var(--text);
+  box-shadow:var(--shadow-panel);
+}
+html[data-admin-theme="light"] body.admin-shell .panel::before,
+html[data-admin-theme="light"] body.admin-shell .stat-card::before{
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header,
+html[data-admin-theme="light"] body.admin-shell .data-table th,
+html[data-admin-theme="light"] body.admin-shell .lv-table th,
+html[data-admin-theme="light"] body.admin-shell .assign-table th,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th{
+  background:linear-gradient(180deg,#f0f6f2,#e9f1ed);
+  border-color:rgba(43,68,83,.14);
+  color:#40586b;
+}
+html[data-admin-theme="light"] body.admin-shell .panel-title,
+html[data-admin-theme="light"] body.admin-shell .panel-title-strong,
+html[data-admin-theme="light"] body.admin-shell .ops-title,
+html[data-admin-theme="light"] body.admin-shell .overview-title,
+html[data-admin-theme="light"] body.admin-shell .month-label,
+html[data-admin-theme="light"] body.admin-shell .week-label,
+html[data-admin-theme="light"] body.admin-shell .modal-title,
+html[data-admin-theme="light"] body.admin-shell .metric-value,
+html[data-admin-theme="light"] body.admin-shell .stat-value,
+html[data-admin-theme="light"] body.admin-shell .shift-name,
+html[data-admin-theme="light"] body.admin-shell .emp-name,
+html[data-admin-theme="light"] body.admin-shell .assignment-name,
+html[data-admin-theme="light"] body.admin-shell .slot-title,
+html[data-admin-theme="light"] body.admin-shell .week-day-name,
+html[data-admin-theme="light"] body.admin-shell .cal-num{
+  color:#142335;
+}
+html[data-admin-theme="light"] body.admin-shell .stat-label,
+html[data-admin-theme="light"] body.admin-shell .metric-label,
+html[data-admin-theme="light"] body.admin-shell .chart-title,
+html[data-admin-theme="light"] body.admin-shell .filter-label,
+html[data-admin-theme="light"] body.admin-shell .field-label,
+html[data-admin-theme="light"] body.admin-shell .cfg-label,
+html[data-admin-theme="light"] body.admin-shell .cal-dow,
+html[data-admin-theme="light"] body.admin-shell .week-day-date,
+html[data-admin-theme="light"] body.admin-shell .selected-sub,
+html[data-admin-theme="light"] body.admin-shell .shift-code,
+html[data-admin-theme="light"] body.admin-shell .code-note,
+html[data-admin-theme="light"] body.admin-shell .io-note,
+html[data-admin-theme="light"] body.admin-shell .empty,
+html[data-admin-theme="light"] body.admin-shell .note-box,
+html[data-admin-theme="light"] body.admin-shell .source-pill{
+  color:#52687a;
+}
+html[data-admin-theme="light"] body.admin-shell .filter-bar,
+html[data-admin-theme="light"] body.admin-shell .roster-toolbar,
+html[data-admin-theme="light"] body.admin-shell .roster-summary,
+html[data-admin-theme="light"] body.admin-shell .role-form,
+html[data-admin-theme="light"] body.admin-shell .cal-toolbar,
+html[data-admin-theme="light"] body.admin-shell .week-toolbar,
+html[data-admin-theme="light"] body.admin-shell .schedule-toolbar,
+html[data-admin-theme="light"] body.admin-shell .modal-head,
+html[data-admin-theme="light"] body.admin-shell .modal-foot,
+html[data-admin-theme="light"] body.admin-shell .attendance-subnav,
+html[data-admin-theme="light"] body.admin-shell .audit-tabs,
+html[data-admin-theme="light"] body.admin-shell .save-strip{
+  background:#f0f6f2;
+  border-color:rgba(43,68,83,.14);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table td,
+html[data-admin-theme="light"] body.admin-shell .work-table td,
+html[data-admin-theme="light"] body.admin-shell .lv-table td,
+html[data-admin-theme="light"] body.admin-shell .assign-table td,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table td,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table td,
+html[data-admin-theme="light"] body.admin-shell .role-row,
+html[data-admin-theme="light"] body.admin-shell .quick-row,
+html[data-admin-theme="light"] body.admin-shell .preview-foot,
+html[data-admin-theme="light"] body.admin-shell .atd-foot,
+html[data-admin-theme="light"] body.admin-shell .roster-person{
+  border-color:rgba(43,68,83,.11);
+}
+html[data-admin-theme="light"] body.admin-shell .quick-row:hover,
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr:hover,
+html[data-admin-theme="light"] body.admin-shell .work-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .lv-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .assign-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table tbody tr:hover td{
+  background:rgba(0,127,115,.055);
+}
+html[data-admin-theme="light"] body.admin-shell .input,
+html[data-admin-theme="light"] body.admin-shell .select,
+html[data-admin-theme="light"] body.admin-shell .textarea,
+html[data-admin-theme="light"] body.admin-shell .filter-input,
+html[data-admin-theme="light"] body.admin-shell .form-input,
+html[data-admin-theme="light"] body.admin-shell .cfg-input,
+html[data-admin-theme="light"] body.admin-shell .lv-filter,
+html[data-admin-theme="light"] body.admin-shell textarea,
+html[data-admin-theme="light"] body.admin-shell input[type="text"],
+html[data-admin-theme="light"] body.admin-shell input[type="email"],
+html[data-admin-theme="light"] body.admin-shell input[type="date"],
+html[data-admin-theme="light"] body.admin-shell input[type="time"],
+html[data-admin-theme="light"] body.admin-shell input[type="number"],
+html[data-admin-theme="light"] body.admin-shell input[type="password"],
+html[data-admin-theme="light"] body.admin-shell select{
+  background:#fffefa;
+  border-color:rgba(43,68,83,.18);
+  color:#142335;
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn,
+html[data-admin-theme="light"] body.admin-shell .chip-btn,
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn,
+html[data-admin-theme="light"] body.admin-shell .overview-action,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn,
+html[data-admin-theme="light"] body.admin-shell .roster-view-toggle,
+html[data-admin-theme="light"] body.admin-shell .log-btn{
+  background:#fffdf8;
+  border-color:rgba(43,68,83,.16);
+  color:#40586b;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.82);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .chip-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .overview-action:hover,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .log-btn:hover{
+  background:#edf8f4;
+  border-color:rgba(0,127,115,.28);
+  color:#142335;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .quick-btn.active,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn.active,
+html[data-admin-theme="light"] body.admin-shell .roster-view-btn.active,
+html[data-admin-theme="light"] body.admin-shell .chip-btn.primary{
+  background:linear-gradient(180deg,#edfff9,#b7eadf);
+  border-color:rgba(0,127,115,.3);
+  color:#075044!important;
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-teal,
+html[data-admin-theme="light"] body.admin-shell .overview-action.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-save{
+  background:linear-gradient(180deg,#008e7f,#006f64);
+  border-color:rgba(0,127,115,.48);
+  color:#ffffff!important;
+}
+html[data-admin-theme="light"] body.admin-shell .btn-outline{
+  background:#fffdf8;
+  border-color:rgba(43,68,83,.18);
+  color:#40586b;
+}
+html[data-admin-theme="light"] body.admin-shell .calendar-surface,
+html[data-admin-theme="light"] body.admin-shell .audit-table-wrap,
+html[data-admin-theme="light"] body.admin-shell .atd-capture-box{
+  background:#f4f8f3;
+  border-color:rgba(43,68,83,.14);
+}
+html[data-admin-theme="light"] body.admin-shell .cal-day,
+html[data-admin-theme="light"] body.admin-shell .day,
+html[data-admin-theme="light"] body.admin-shell .matrix-corner,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head,
+html[data-admin-theme="light"] body.admin-shell .shift-row-head,
+html[data-admin-theme="light"] body.admin-shell .shift-cell{
+  background:#fffdf8;
+  border-color:rgba(43,68,83,.15);
+  color:#142335;
+}
+html[data-admin-theme="light"] body.admin-shell .cal-day:hover,
+html[data-admin-theme="light"] body.admin-shell .day:hover,
+html[data-admin-theme="light"] body.admin-shell .shift-cell.drag-over{
+  background:#edf8f4;
+  border-color:rgba(0,127,115,.34);
+}
+html[data-admin-theme="light"] body.admin-shell .cal-day::before,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head::before,
+html[data-admin-theme="light"] body.admin-shell .shift-row-head::before{
+  background:#007f73;
+}
+html[data-admin-theme="light"] body.admin-shell .cal-day.selected,
+html[data-admin-theme="light"] body.admin-shell .cal-day.multi-selected,
+html[data-admin-theme="light"] body.admin-shell .day.today{
+  background:#e8fbf5;
+  border-color:rgba(0,127,115,.46);
+  box-shadow:0 0 0 1px rgba(0,127,115,.16) inset;
+}
+html[data-admin-theme="light"] body.admin-shell .cal-label{color:#25384a}
+html[data-admin-theme="light"] body.admin-shell .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .dt-full .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-full,
+html[data-admin-theme="light"] body.admin-shell .bulk-count,
+html[data-admin-theme="light"] body.admin-shell .assignment-role,
+html[data-admin-theme="light"] body.admin-shell .emp-role,
+html[data-admin-theme="light"] body.admin-shell .shift-time,
+html[data-admin-theme="light"] body.admin-shell .today-mark{
+  color:#007f73;
+}
+html[data-admin-theme="light"] body.admin-shell .cal-meta,
+html[data-admin-theme="light"] body.admin-shell .week-day-pay,
+html[data-admin-theme="light"] body.admin-shell .dt-holiday .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .dt-holiday .cal-num,
+html[data-admin-theme="light"] body.admin-shell .day.weekend .date-badge,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-holiday{
+  color:#946500;
+}
+html[data-admin-theme="light"] body.admin-shell .dt-full,
+html[data-admin-theme="light"] body.admin-shell .cal-day.weekend.dt-full,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head.dt-full{
+  background:linear-gradient(135deg,rgba(0,127,115,.09),#fffdf8 58%);
+}
+html[data-admin-theme="light"] body.admin-shell .dt-off,
+html[data-admin-theme="light"] body.admin-shell .cal-day.weekend.dt-off,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head.dt-off,
+html[data-admin-theme="light"] body.admin-shell .shift-cell.day-off{
+  background:linear-gradient(135deg,rgba(183,53,85,.08),#fffdf8 58%);
+  border-color:rgba(183,53,85,.22);
+}
+html[data-admin-theme="light"] body.admin-shell .dt-off::before,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head.dt-off::before{
+  background:#b73555;
+}
+html[data-admin-theme="light"] body.admin-shell .dt-off .cal-num,
+html[data-admin-theme="light"] body.admin-shell .dt-off .cal-chip,
+html[data-admin-theme="light"] body.admin-shell .slot-empty.off,
+html[data-admin-theme="light"] body.admin-shell .week-day-note{
+  color:#b73555;
+}
+html[data-admin-theme="light"] body.admin-shell .dt-holiday,
+html[data-admin-theme="light"] body.admin-shell .cal-day.weekend.dt-holiday,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head.dt-holiday{
+  background:linear-gradient(135deg,rgba(148,101,0,.11),#fffdf8 58%);
+  border-color:rgba(148,101,0,.28);
+}
+html[data-admin-theme="light"] body.admin-shell .slot-time,
+html[data-admin-theme="light"] body.admin-shell .slot-empty,
+html[data-admin-theme="light"] body.admin-shell .date-badge,
+html[data-admin-theme="light"] body.admin-shell .assignment-chip,
+html[data-admin-theme="light"] body.admin-shell .pill,
+html[data-admin-theme="light"] body.admin-shell .role-chip,
+html[data-admin-theme="light"] body.admin-shell .emp-role-pill,
+html[data-admin-theme="light"] body.admin-shell .source-pill{
+  background:#f2f7f3;
+  border-color:rgba(43,68,83,.16);
+  color:#40586b;
+}
+html[data-admin-theme="light"] body.admin-shell .assignment-person{
+  background:#fffdf8;
+  border-color:rgba(43,68,83,.16);
+  box-shadow:0 10px 22px rgba(27,55,69,.08);
+}
+html[data-admin-theme="light"] body.admin-shell .assignment-person.leave{
+  background:linear-gradient(180deg,rgba(47,97,182,.1),#fffdf8);
+  border-color:rgba(47,97,182,.3);
+}
+html[data-admin-theme="light"] body.admin-shell .modal-overlay,
+html[data-admin-theme="light"] body.admin-shell .atd-ovl{
+  background:rgba(18,35,53,.26);
+}
+html[data-admin-theme="light"] body.admin-shell .modal,
+html[data-admin-theme="light"] body.admin-shell .modal-box,
+html[data-admin-theme="light"] body.admin-shell .atd-box{
+  background:#fffdf8;
+  border-color:rgba(43,68,83,.16);
+  box-shadow:0 24px 70px rgba(18,35,53,.18);
+}
+html[data-admin-theme="light"] body.admin-shell .notice,
+html[data-admin-theme="light"] body.admin-shell .io-warning,
+html[data-admin-theme="light"] body.admin-shell .atd-review,
+html[data-admin-theme="light"] body.admin-shell .scope-required{
+  background:linear-gradient(180deg,rgba(148,101,0,.09),rgba(255,253,248,.86));
+  border-color:rgba(148,101,0,.24);
+  color:#946500;
+}
+html[data-admin-theme="light"] body.admin-shell .switch-row,
+html[data-admin-theme="light"] body.admin-shell .note-box,
+html[data-admin-theme="light"] body.admin-shell .import-result{
+  background:#f4f8f3;
+  border-color:rgba(43,68,83,.14);
+  color:#52687a;
+}
+html[data-admin-theme="light"] body.admin-shell .status-pill.on,
+html[data-admin-theme="light"] body.admin-shell .pill.active,
+html[data-admin-theme="light"] body.admin-shell .badge-in,
+html[data-admin-theme="light"] body.admin-shell .badge-active,
+html[data-admin-theme="light"] body.admin-shell .ls-approved,
+html[data-admin-theme="light"] body.admin-shell .lv-action.approve{
+  background:rgba(0,127,115,.09);
+  border-color:rgba(0,127,115,.28);
+  color:#007f73;
+}
+html[data-admin-theme="light"] body.admin-shell .badge-out,
+html[data-admin-theme="light"] body.admin-shell .risk-pill.low{
+  background:rgba(47,97,182,.09);
+  border-color:rgba(47,97,182,.26);
+  color:#2f61b6;
+}
+html[data-admin-theme="light"] body.admin-shell .badge-late,
+html[data-admin-theme="light"] body.admin-shell .pill.warn,
+html[data-admin-theme="light"] body.admin-shell .ls-pending,
+html[data-admin-theme="light"] body.admin-shell .risk-pill.medium{
+  background:rgba(148,101,0,.09);
+  border-color:rgba(148,101,0,.25);
+  color:#946500;
+}
+html[data-admin-theme="light"] body.admin-shell .badge-inactive,
+html[data-admin-theme="light"] body.admin-shell .btn-red,
+html[data-admin-theme="light"] body.admin-shell .ls-rejected,
+html[data-admin-theme="light"] body.admin-shell .lv-action.reject,
+html[data-admin-theme="light"] body.admin-shell .risk-pill.high{
+  background:rgba(183,53,85,.09);
+  border-color:rgba(183,53,85,.26);
+  color:#b73555;
+}
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th:first-child,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table td:first-child,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th:first-child,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table td:first-child,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table tbody tr:hover td:first-child{
+  background:#f4f8f3;
+}
+
+/* Premium component depth pass */
+html[data-admin-theme="light"] body.admin-shell{
+  --bg:#e8f0ec;
+  --surface:#fffef9;
+  --panel:#f3f8f4;
+  --surface-elevated:#ffffff;
+  --surface-soft:#eef6f1;
+  --border:#b6c8c3;
+  --border-soft:rgba(33,58,73,.22);
+  --border-strong:rgba(33,58,73,.38);
+  --component-shadow:0 22px 52px rgba(28,50,63,.14),0 5px 18px rgba(28,50,63,.08),inset 0 1px 0 rgba(255,255,255,.92);
+  --component-shadow-hover:0 28px 64px rgba(28,50,63,.18),0 8px 22px rgba(28,50,63,.1),inset 0 1px 0 rgba(255,255,255,.96);
+  background:
+    radial-gradient(circle at 74% 0%,rgba(255,168,94,.14),transparent 34%),
+    radial-gradient(circle at 18% 4%,rgba(0,127,115,.16),transparent 30%),
+    linear-gradient(180deg,#f2f7f1 0%,#e8f0ec 46%,#dde8e4 100%);
+}
+html[data-admin-theme="light"] body.admin-shell .page,
+html[data-admin-theme="light"] body.admin-shell .ops-page{
+  background:linear-gradient(180deg,rgba(255,255,255,.18),transparent 220px);
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .mini-stat,
+html[data-admin-theme="light"] body.admin-shell .provider-card,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card,
+html[data-admin-theme="light"] body.admin-shell .roster-metric,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .branch-card,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .employee-row,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .sdg-box,
+html[data-admin-theme="light"] body.admin-shell .calendar-surface{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,253,247,.96)),
+    #fffef9;
+  border-color:rgba(33,58,73,.22);
+  box-shadow:var(--component-shadow);
+}
+html[data-admin-theme="light"] body.admin-shell .panel,
+html[data-admin-theme="light"] body.admin-shell .stat-card,
+html[data-admin-theme="light"] body.admin-shell .metric,
+html[data-admin-theme="light"] body.admin-shell .chart-wrap{
+  outline:1px solid rgba(255,255,255,.82);
+  outline-offset:-2px;
+}
+html[data-admin-theme="light"] body.admin-shell .panel:hover,
+html[data-admin-theme="light"] body.admin-shell .stat-card:hover,
+html[data-admin-theme="light"] body.admin-shell .metric:hover,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card:hover,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card:hover,
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card:hover,
+html[data-admin-theme="light"] body.admin-shell .branch-card:hover,
+html[data-admin-theme="light"] body.admin-shell .shift-card:hover,
+html[data-admin-theme="light"] body.admin-shell .employee-row:hover{
+  border-color:rgba(0,127,115,.34);
+  box-shadow:var(--component-shadow-hover);
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header,
+html[data-admin-theme="light"] body.admin-shell .data-table th,
+html[data-admin-theme="light"] body.admin-shell .lv-table th,
+html[data-admin-theme="light"] body.admin-shell .assign-table th,
+html[data-admin-theme="light"] body.admin-shell .roster-period-table th,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table th{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.76),rgba(232,242,237,.96)),
+    #e8f1ec;
+  border-color:rgba(33,58,73,.18);
+  color:#2f4f62;
+}
+html[data-admin-theme="light"] body.admin-shell .panel-header-left .dot,
+html[data-admin-theme="light"] body.admin-shell .dot{
+  box-shadow:0 0 0 5px rgba(0,127,115,.12),0 0 16px rgba(0,127,115,.28);
+}
+html[data-admin-theme="light"] body.admin-shell .filter-bar,
+html[data-admin-theme="light"] body.admin-shell .roster-toolbar,
+html[data-admin-theme="light"] body.admin-shell .roster-summary,
+html[data-admin-theme="light"] body.admin-shell .role-form,
+html[data-admin-theme="light"] body.admin-shell .cal-toolbar,
+html[data-admin-theme="light"] body.admin-shell .week-toolbar,
+html[data-admin-theme="light"] body.admin-shell .schedule-toolbar,
+html[data-admin-theme="light"] body.admin-shell .attendance-subnav,
+html[data-admin-theme="light"] body.admin-shell .audit-tabs{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.74),rgba(235,245,240,.92)),
+    #eff7f2;
+  border-color:rgba(33,58,73,.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.86);
+}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card,
+html[data-admin-theme="light"] body.admin-shell .ops-module-card,
+html[data-admin-theme="light"] body.admin-shell .roster-metric,
+html[data-admin-theme="light"] body.admin-shell .sdg-box,
+html[data-admin-theme="light"] body.admin-shell .io-card,
+html[data-admin-theme="light"] body.admin-shell .assigned-row,
+html[data-admin-theme="light"] body.admin-shell .shift-card,
+html[data-admin-theme="light"] body.admin-shell .employee-row{
+  position:relative;
+}
+html[data-admin-theme="light"] body.admin-shell .ops-module-card::before,
+html[data-admin-theme="light"] body.admin-shell .roster-metric::before,
+html[data-admin-theme="light"] body.admin-shell .sdg-box::before,
+html[data-admin-theme="light"] body.admin-shell .io-card::before,
+html[data-admin-theme="light"] body.admin-shell .shift-card::before,
+html[data-admin-theme="light"] body.admin-shell .employee-row::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:3px;
+  border-radius:8px 0 0 8px;
+  background:linear-gradient(180deg,#007f73,#2f61b6);
+  opacity:.72;
+}
+html[data-admin-theme="light"] body.admin-shell .ops-module-icon,
+html[data-admin-theme="light"] body.admin-shell .ops-alert-icon,
+html[data-admin-theme="light"] body.admin-shell .roster-avatar,
+html[data-admin-theme="light"] body.admin-shell .avatar,
+html[data-admin-theme="light"] body.admin-shell .emp-avatar{
+  background:linear-gradient(135deg,rgba(0,127,115,.14),rgba(47,97,182,.12));
+  border-color:rgba(0,127,115,.26);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 8px 18px rgba(28,50,63,.08);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar,
+html[data-admin-theme="light"] body.admin-shell .quick-btns,
+html[data-admin-theme="light"] body.admin-shell .dtype-picker,
+html[data-admin-theme="light"] body.admin-shell .workday-row{
+  gap:9px;
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn,
+html[data-admin-theme="light"] body.admin-shell .quick-btn,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn,
+html[data-admin-theme="light"] body.admin-shell .roster-view-toggle,
+html[data-admin-theme="light"] body.admin-shell .icon-btn,
+html[data-admin-theme="light"] body.admin-shell .chip-btn,
+html[data-admin-theme="light"] body.admin-shell .overview-action,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn,
+html[data-admin-theme="light"] body.admin-shell .log-btn{
+  background:linear-gradient(180deg,#ffffff,#f4f8f5);
+  border-color:rgba(33,58,73,.2);
+  color:#304c5e;
+  box-shadow:0 7px 16px rgba(28,50,63,.06),inset 0 1px 0 rgba(255,255,255,.9);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .quick-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .icon-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .chip-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .overview-action:hover,
+html[data-admin-theme="light"] body.admin-shell .roster-date-btn:hover,
+html[data-admin-theme="light"] body.admin-shell .log-btn:hover{
+  background:linear-gradient(180deg,#f4fffb,#e4f4ee);
+  border-color:rgba(0,127,115,.36);
+  color:#142335;
+  box-shadow:0 10px 22px rgba(0,127,115,.1),inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-btn.active,
+html[data-admin-theme="light"] body.admin-shell .quick-btn.active,
+html[data-admin-theme="light"] body.admin-shell .dtype-btn.active,
+html[data-admin-theme="light"] body.admin-shell .roster-view-btn.active,
+html[data-admin-theme="light"] body.admin-shell .chip-btn.primary{
+  background:
+    linear-gradient(180deg,#ffffff 0%,#c9f3ea 100%);
+  border-color:rgba(0,127,115,.44);
+  color:#053d36!important;
+  box-shadow:0 12px 28px rgba(0,127,115,.14),inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-admin-theme="light"] body.admin-shell .icon-btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-teal,
+html[data-admin-theme="light"] body.admin-shell .overview-action.primary,
+html[data-admin-theme="light"] body.admin-shell .btn-save{
+  background:linear-gradient(180deg,#009887,#006f64);
+  border-color:rgba(0,127,115,.56);
+  box-shadow:0 16px 30px rgba(0,127,115,.18),inset 0 1px 0 rgba(255,255,255,.28);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr,
+html[data-admin-theme="light"] body.admin-shell .lv-table tr,
+html[data-admin-theme="light"] body.admin-shell .assign-table tr,
+html[data-admin-theme="light"] body.admin-shell .work-table tr{
+  background:rgba(255,255,255,.34);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr:nth-child(even),
+html[data-admin-theme="light"] body.admin-shell .lv-table tr:nth-child(even),
+html[data-admin-theme="light"] body.admin-shell .assign-table tr:nth-child(even),
+html[data-admin-theme="light"] body.admin-shell .work-table tr:nth-child(even){
+  background:rgba(243,248,244,.72);
+}
+html[data-admin-theme="light"] body.admin-shell .data-table tbody tr:hover,
+html[data-admin-theme="light"] body.admin-shell .lv-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .assign-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .work-table tr:hover td,
+html[data-admin-theme="light"] body.admin-shell .shift-roster-table tbody tr:hover td{
+  background:rgba(0,127,115,.085);
+}
+html[data-admin-theme="light"] body.admin-shell .cal-day,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m,
+html[data-admin-theme="light"] body.admin-shell .day,
+html[data-admin-theme="light"] body.admin-shell .matrix-corner,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head,
+html[data-admin-theme="light"] body.admin-shell .shift-row-head,
+html[data-admin-theme="light"] body.admin-shell .shift-cell,
+html[data-admin-theme="light"] body.admin-shell .period-cell,
+html[data-admin-theme="light"] body.admin-shell .roster-cell{
+  background:linear-gradient(180deg,#ffffff,#f6faf6);
+  border-color:rgba(33,58,73,.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.86);
+}
+html[data-admin-theme="light"] body.admin-shell .cal-day:hover,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m:hover,
+html[data-admin-theme="light"] body.admin-shell .day:hover,
+html[data-admin-theme="light"] body.admin-shell .period-cell:hover,
+html[data-admin-theme="light"] body.admin-shell .shift-cell.drag-over{
+  background:linear-gradient(180deg,#f6fffb,#e8f7f1);
+  border-color:rgba(0,127,115,.38);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-cell.assigned,
+html[data-admin-theme="light"] body.admin-shell .assignment-chip,
+html[data-admin-theme="light"] body.admin-shell .assignment-person,
+html[data-admin-theme="light"] body.admin-shell .slot-time,
+html[data-admin-theme="light"] body.admin-shell .slot-empty,
+html[data-admin-theme="light"] body.admin-shell .date-badge,
+html[data-admin-theme="light"] body.admin-shell .role-chip,
+html[data-admin-theme="light"] body.admin-shell .emp-role-pill,
+html[data-admin-theme="light"] body.admin-shell .pill,
+html[data-admin-theme="light"] body.admin-shell .badge,
+html[data-admin-theme="light"] body.admin-shell .risk-pill,
+html[data-admin-theme="light"] body.admin-shell .source-pill{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.82),0 4px 10px rgba(28,50,63,.05);
+}
+html[data-admin-theme="light"] body.admin-shell .input,
+html[data-admin-theme="light"] body.admin-shell .select,
+html[data-admin-theme="light"] body.admin-shell .textarea,
+html[data-admin-theme="light"] body.admin-shell .filter-input,
+html[data-admin-theme="light"] body.admin-shell .form-input,
+html[data-admin-theme="light"] body.admin-shell .cfg-input,
+html[data-admin-theme="light"] body.admin-shell .lv-filter,
+html[data-admin-theme="light"] body.admin-shell textarea,
+html[data-admin-theme="light"] body.admin-shell input[type="text"],
+html[data-admin-theme="light"] body.admin-shell input[type="email"],
+html[data-admin-theme="light"] body.admin-shell input[type="date"],
+html[data-admin-theme="light"] body.admin-shell input[type="time"],
+html[data-admin-theme="light"] body.admin-shell input[type="number"],
+html[data-admin-theme="light"] body.admin-shell input[type="password"],
+html[data-admin-theme="light"] body.admin-shell select{
+  background:linear-gradient(180deg,#ffffff,#f7fbf8);
+  border-color:rgba(33,58,73,.24);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 12px rgba(28,50,63,.04);
+}
+html[data-admin-theme="light"] body.admin-shell .input:focus,
+html[data-admin-theme="light"] body.admin-shell .select:focus,
+html[data-admin-theme="light"] body.admin-shell .textarea:focus,
+html[data-admin-theme="light"] body.admin-shell .filter-input:focus,
+html[data-admin-theme="light"] body.admin-shell .form-input:focus,
+html[data-admin-theme="light"] body.admin-shell .cfg-input:focus,
+html[data-admin-theme="light"] body.admin-shell .lv-filter:focus,
+html[data-admin-theme="light"] body.admin-shell textarea:focus,
+html[data-admin-theme="light"] body.admin-shell input:focus,
+html[data-admin-theme="light"] body.admin-shell select:focus{
+  border-color:rgba(0,127,115,.5);
+  box-shadow:0 0 0 4px rgba(0,127,115,.12),inset 0 1px 0 rgba(255,255,255,.95);
+}
+
+/* Light component colorway pass */
+html[data-admin-theme="light"] body.admin-shell{
+  --tone-teal-bg:#e5fbf4;
+  --tone-teal-border:rgba(0,127,115,.28);
+  --tone-teal-text:#006d62;
+  --tone-blue-bg:#eaf2ff;
+  --tone-blue-border:rgba(47,97,182,.28);
+  --tone-blue-text:#2f61b6;
+  --tone-amber-bg:#fff2d5;
+  --tone-amber-border:rgba(148,101,0,.3);
+  --tone-amber-text:#946500;
+  --tone-rose-bg:#ffecef;
+  --tone-rose-border:rgba(183,53,85,.28);
+  --tone-rose-text:#b73555;
+  --tone-violet-bg:#f1edff;
+  --tone-violet-border:rgba(114,87,216,.28);
+  --tone-violet-text:#6149c7;
+}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .ops-module-grid .ops-module-card:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .io-grid .io-card:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .provider-card:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+1){
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-teal-bg) 100%);
+  border-color:var(--tone-teal-border);
+}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .ops-module-grid .ops-module-card:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .io-grid .io-card:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .provider-card:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+2){
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-blue-bg) 100%);
+  border-color:var(--tone-blue-border);
+}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .ops-module-grid .ops-module-card:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .io-grid .io-card:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .provider-card:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+3){
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-amber-bg) 100%);
+  border-color:var(--tone-amber-border);
+}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .ops-module-grid .ops-module-card:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .io-grid .io-card:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .provider-card:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+4){
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-rose-bg) 100%);
+  border-color:var(--tone-rose-border);
+}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .ops-module-grid .ops-module-card:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .io-grid .io-card:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .provider-card:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n){
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-violet-bg) 100%);
+  border-color:var(--tone-violet-border);
+}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n)::after{
+  content:"";
+  position:absolute;
+  inset:auto 16px 12px 16px;
+  height:3px;
+  border-radius:999px;
+  opacity:.82;
+}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+1)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+1)::after{background:#007f73}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+2)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+2)::after{background:#2f61b6}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+3)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+3)::after{background:#946500}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n+4)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n+4)::after{background:#b73555}
+html[data-admin-theme="light"] body.admin-shell .stats-row .stat-card:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .metric-grid .metric:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .stat-detail-grid .sdg-box:nth-child(5n)::after,
+html[data-admin-theme="light"] body.admin-shell .branch-card:nth-child(5n)::after{background:#6149c7}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card{
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-teal-bg) 100%);
+  border-color:var(--tone-teal-border);
+}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card.info{
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-blue-bg) 100%);
+  border-color:var(--tone-blue-border);
+}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card.warn{
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-amber-bg) 100%);
+  border-color:var(--tone-amber-border);
+}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card.danger{
+  background:linear-gradient(145deg,#ffffff 0%,var(--tone-rose-bg) 100%);
+  border-color:var(--tone-rose-border);
+}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card::before{background:#007f73}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card.info::before{background:#2f61b6}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card.warn::before{background:#946500}
+html[data-admin-theme="light"] body.admin-shell .ops-alert-card.danger::before{background:#b73555}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .dtype-picker .dtype-btn:nth-child(5n+1),
+html[data-admin-theme="light"] body.admin-shell .workday-row .dtype-btn:nth-child(5n+1){
+  border-color:var(--tone-teal-border);
+  background:linear-gradient(180deg,#ffffff,var(--tone-teal-bg));
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .dtype-picker .dtype-btn:nth-child(5n+2),
+html[data-admin-theme="light"] body.admin-shell .workday-row .dtype-btn:nth-child(5n+2){
+  border-color:var(--tone-blue-border);
+  background:linear-gradient(180deg,#ffffff,var(--tone-blue-bg));
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .dtype-picker .dtype-btn:nth-child(5n+3),
+html[data-admin-theme="light"] body.admin-shell .workday-row .dtype-btn:nth-child(5n+3){
+  border-color:var(--tone-amber-border);
+  background:linear-gradient(180deg,#ffffff,var(--tone-amber-bg));
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .dtype-picker .dtype-btn:nth-child(5n+4),
+html[data-admin-theme="light"] body.admin-shell .workday-row .dtype-btn:nth-child(5n+4){
+  border-color:var(--tone-rose-border);
+  background:linear-gradient(180deg,#ffffff,var(--tone-rose-bg));
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .dtype-picker .dtype-btn:nth-child(5n),
+html[data-admin-theme="light"] body.admin-shell .workday-row .dtype-btn:nth-child(5n){
+  border-color:var(--tone-violet-border);
+  background:linear-gradient(180deg,#ffffff,var(--tone-violet-bg));
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+2).active,
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n+2).active{
+  color:#163f82!important;
+  background:linear-gradient(180deg,#ffffff,#cfe1ff);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+3).active,
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n+3).active{
+  color:#6f4a00!important;
+  background:linear-gradient(180deg,#ffffff,#ffe2a6);
+}
+html[data-admin-theme="light"] body.admin-shell .tab-bar .tab-btn:nth-child(5n+4).active,
+html[data-admin-theme="light"] body.admin-shell .quick-btns .quick-btn:nth-child(5n+4).active{
+  color:#8f263f!important;
+  background:linear-gradient(180deg,#ffffff,#ffd2dc);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-morning,
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.morning,
+html[data-admin-theme="light"] body.admin-shell .assignment-person.morning,
+html[data-admin-theme="light"] body.admin-shell .assignment-chip.morning{
+  background:linear-gradient(145deg,#ffffff,var(--tone-amber-bg));
+  border-color:var(--tone-amber-border);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-evening,
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.evening,
+html[data-admin-theme="light"] body.admin-shell .assignment-person.evening,
+html[data-admin-theme="light"] body.admin-shell .assignment-chip.evening{
+  background:linear-gradient(145deg,#ffffff,var(--tone-blue-bg));
+  border-color:var(--tone-blue-border);
+}
+html[data-admin-theme="light"] body.admin-shell .roster-shift-card.shift-tone-night,
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.night,
+html[data-admin-theme="light"] body.admin-shell .assignment-person.night,
+html[data-admin-theme="light"] body.admin-shell .assignment-chip.night{
+  background:linear-gradient(145deg,#ffffff,var(--tone-violet-bg));
+  border-color:var(--tone-violet-border);
+}
+html[data-admin-theme="light"] body.admin-shell .shift-row-head.lunch,
+html[data-admin-theme="light"] body.admin-shell .assignment-person.lunch,
+html[data-admin-theme="light"] body.admin-shell .assignment-chip.lunch{
+  background:linear-gradient(145deg,#ffffff,#ffe7d6);
+  border-color:rgba(203,91,24,.3);
+}
+html[data-admin-theme="light"] body.admin-shell .employee-list .employee-row:nth-child(5n+1){background:linear-gradient(145deg,#ffffff,var(--tone-teal-bg));border-color:var(--tone-teal-border)}
+html[data-admin-theme="light"] body.admin-shell .employee-list .employee-row:nth-child(5n+2){background:linear-gradient(145deg,#ffffff,var(--tone-blue-bg));border-color:var(--tone-blue-border)}
+html[data-admin-theme="light"] body.admin-shell .employee-list .employee-row:nth-child(5n+3){background:linear-gradient(145deg,#ffffff,var(--tone-amber-bg));border-color:var(--tone-amber-border)}
+html[data-admin-theme="light"] body.admin-shell .employee-list .employee-row:nth-child(5n+4){background:linear-gradient(145deg,#ffffff,var(--tone-rose-bg));border-color:var(--tone-rose-border)}
+html[data-admin-theme="light"] body.admin-shell .employee-list .employee-row:nth-child(5n){background:linear-gradient(145deg,#ffffff,var(--tone-violet-bg));border-color:var(--tone-violet-border)}
+html[data-admin-theme="light"] body.admin-shell .calendar-surface{
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.94),rgba(232,251,244,.8)),
+    #f6fbf8;
+}
+html[data-admin-theme="light"] body.admin-shell .dt-full,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-full,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head.dt-full{
+  background:linear-gradient(145deg,#ffffff,var(--tone-teal-bg));
+  border-color:var(--tone-teal-border);
+}
+html[data-admin-theme="light"] body.admin-shell .dt-off,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-off,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head.dt-off{
+  background:linear-gradient(145deg,#ffffff,var(--tone-rose-bg));
+  border-color:var(--tone-rose-border);
+}
+html[data-admin-theme="light"] body.admin-shell .dt-holiday,
+html[data-admin-theme="light"] body.admin-shell .cal-day-m.dt-holiday,
+html[data-admin-theme="light"] body.admin-shell .matrix-day-head.dt-holiday{
+  background:linear-gradient(145deg,#ffffff,var(--tone-amber-bg));
+  border-color:var(--tone-amber-border);
+}
+html[data-admin-theme="light"] body.admin-shell .chart-wrap:nth-child(2n+1){
+  background:linear-gradient(145deg,#ffffff,var(--tone-blue-bg));
+  border-color:var(--tone-blue-border);
+}
+html[data-admin-theme="light"] body.admin-shell .chart-wrap:nth-child(2n){
+  background:linear-gradient(145deg,#ffffff,var(--tone-violet-bg));
+  border-color:var(--tone-violet-border);
+}
+html[data-admin-theme="light"] body.admin-shell::after{
+  background:
+    linear-gradient(115deg,rgba(0,127,115,.048),transparent 36%),
+    linear-gradient(250deg,rgba(47,97,182,.04),transparent 42%),
+    linear-gradient(rgba(33,58,73,.058) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(33,58,73,.048) 1px,transparent 1px);
+  background-size:auto,auto,42px 42px,42px 42px;
+}
+
 body.admin-shell.nav-collapsed{
   padding-left:76px;
 }
@@ -473,6 +2958,24 @@ body.admin-shell.nav-collapsed{
 .admin-shell.nav-collapsed .brand > div:not(.brand-icon),
 .admin-shell.nav-collapsed .user-chip{
   display:none;
+}
+.admin-shell.nav-collapsed .theme-toggle-btn{
+  width:46px;
+  min-height:42px;
+  margin:0 auto;
+  padding:0;
+}
+.admin-shell.nav-collapsed .theme-toggle-text{
+  display:none;
+}
+.admin-shell.nav-collapsed .theme-toggle-btn.admin-theme-floating{
+  width:auto;
+  min-height:42px;
+  margin:0;
+  padding:0 14px 0 12px;
+}
+.admin-shell.nav-collapsed .theme-toggle-btn.admin-theme-floating .theme-toggle-text{
+  display:inline;
 }
 .admin-shell.nav-collapsed .nav-links{
   padding:14px 10px;
@@ -531,6 +3034,12 @@ body.admin-shell.nav-collapsed{
 
 @media(max-width:900px){
   body.admin-shell{padding-left:0;padding-top:0}
+  .theme-toggle-btn.admin-theme-floating{
+    top:12px;
+    right:12px;
+    min-height:40px;
+    padding:0 12px;
+  }
   .admin-shell header{
     position:relative;width:auto;height:auto;
   }
@@ -548,4 +3057,15 @@ body.admin-shell.nav-collapsed{
   .admin-shell.nav-collapsed .nav-link{width:auto;font-size:14px;justify-content:flex-start;padding:0 14px;gap:12px}
   body.admin-shell .page,
   body.admin-shell .ops-page{padding:18px 16px}
+}
+
+@media(max-width:520px){
+  .theme-toggle-btn.admin-theme-floating{
+    width:42px;
+    padding:0;
+  }
+  .theme-toggle-btn.admin-theme-floating .theme-toggle-text,
+  .admin-shell.nav-collapsed .theme-toggle-btn.admin-theme-floating .theme-toggle-text{
+    display:none;
+  }
 }

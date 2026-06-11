@@ -11,6 +11,21 @@
   const LOGIN_PAGE = '/auth/login-page';
   const ADMIN_ONLY = ['/branches'];
   const MANAGER_ONLY = ['/dashboard', '/employees', '/shifts', '/report', '/users', '/settings', '/integrations'];
+  const ADMIN_THEME_KEY = 'admin_theme';
+
+  function getStoredAdminTheme() {
+    const value = localStorage.getItem(ADMIN_THEME_KEY);
+    return value === 'light' ? 'light' : 'dark';
+  }
+
+  function applyAdminTheme(theme) {
+    const nextTheme = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-admin-theme', nextTheme);
+    window.dispatchEvent(new CustomEvent('admin-theme-change', { detail: { theme: nextTheme } }));
+    return nextTheme;
+  }
+
+  applyAdminTheme(getStoredAdminTheme());
 
   function getToken() {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
@@ -291,6 +306,38 @@
     header.insertBefore(box, account);
   }
 
+  function installAdminThemeToggle() {
+    if (!document.body.classList.contains('admin-shell')) return;
+    if (document.querySelector('[data-admin-theme-toggle]')) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'theme-toggle-btn admin-theme-floating';
+    button.setAttribute('data-admin-theme-toggle', '');
+
+    const syncButton = function () {
+      const theme = document.documentElement.getAttribute('data-admin-theme') || getStoredAdminTheme();
+      const light = theme === 'light';
+      button.setAttribute('aria-pressed', light ? 'true' : 'false');
+      button.setAttribute('aria-label', light ? 'Chuyển sang giao diện tối' : 'Chuyển sang giao diện sáng');
+      button.setAttribute('title', light ? 'Chuyển sang giao diện tối' : 'Chuyển sang giao diện sáng');
+      button.innerHTML =
+        '<span class="theme-toggle-icon" aria-hidden="true"></span>' +
+        '<span class="theme-toggle-text">' + (light ? 'Sáng' : 'Tối') + '</span>';
+    };
+
+    button.addEventListener('click', function () {
+      const current = document.documentElement.getAttribute('data-admin-theme') || getStoredAdminTheme();
+      const next = current === 'light' ? 'dark' : 'light';
+      localStorage.setItem(ADMIN_THEME_KEY, next);
+      applyAdminTheme(next);
+      syncButton();
+    });
+
+    syncButton();
+    document.body.appendChild(button);
+  }
+
   // Nút logout nếu có + hiện tên user
   document.addEventListener('DOMContentLoaded', async function () {
     if (document.getElementById('mainNav')) {
@@ -322,6 +369,7 @@
         applySidebarState(collapsed);
       });
     }
+    installAdminThemeToggle();
 
     // Hiện tên user ở nav nếu có element #navUserName
     const nameEl = document.getElementById('navUserName');
