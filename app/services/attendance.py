@@ -34,6 +34,11 @@ from app.services.attendance_period import (
     ensure_period_unlocked,
     log_snapshot,
 )
+from app.services.attendance_policy import (
+    review_status_label,
+    session_counts_as_work,
+    session_status_label,
+)
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 
 LOW_CONFIDENCE_THRESHOLD = 0.70
@@ -674,6 +679,47 @@ def _matching_event(db, log: AttendanceLog) -> AttendanceEvent | None:
     )
 
 
+def _session_for_log(db, log: AttendanceLog, event: AttendanceEvent | None = None) -> AttendanceSession | None:
+    if event and event.session_id:
+        session = db.query(AttendanceSession).filter_by(id=event.session_id).first()
+        if session:
+            return session
+    if not log or not log.employee_id:
+        return None
+    time_field = AttendanceSession.check_in_at if log.check_type == "check_in" else AttendanceSession.check_out_at
+    return (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.employee_id == log.employee_id,
+              time_field == log.timestamp,
+          )
+          .order_by(AttendanceSession.id.desc())
+          .first()
+    )
+
+
+def _session_payroll_status(session: AttendanceSession | None) -> tuple[str, str, str]:
+    if not session:
+        return "no_assignment", "Chưa có ca phân công", "Log đã ghi nhận nhưng chưa gắn với phiên công/ca phân công"
+    if session.review_status == "pending_review":
+        if session.review_type == "unscheduled":
+            return "pending_review", "Chờ duyệt", "Chấm công ngoài phân ca, chưa được tính công"
+        return "pending_review", "Chờ duyệt", f"{session_status_label(session)} cần quản lý duyệt"
+    if session.review_status == "rejected":
+        return "not_counted", "Không tính công", "Phiên công đã bị từ chối"
+    if session.status == "cancelled":
+        return "not_counted", "Không tính công", "Phiên công đã hủy"
+    if session.status == "open":
+        return "open", "Chưa đủ check-out", "Đã check-in, cần checkout để hoàn tất công"
+    if session.check_in_at and not session.check_out_at:
+        return "open", "Chưa đủ check-out", "Đã check-in, cần checkout để hoàn tất công"
+    if session_counts_as_work(session):
+        return "counted", "Đã tính công", "Phiên công đủ điều kiện tính vào bảng công"
+    if session.status == "absent":
+        return "not_counted", "Không tính công", "Phiên vắng không tính là công làm"
+    return "not_counted", "Chưa tính công", f"{session_status_label(session)} chưa đủ điều kiện tính công"
+
+
 def _matching_evidence(db, log: AttendanceLog) -> AttendanceEvidence | None:
     return (
         db.query(AttendanceEvidence)
@@ -706,6 +752,7 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
     evidence = None
     finding = None
     manual_review = None
+    session = None
     emp = None
     branch_id = None
     branch_name = ""
@@ -715,6 +762,7 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
             evidence = _matching_evidence(db, log)
             finding = _top_finding(db, log)
             manual_review = _manual_review_finding(db, log)
+            session = _session_for_log(db, log, event)
             if log.employee_id:
                 emp = db.query(Employee).filter_by(id=log.employee_id).first()
             if not emp and log.emp_code:
@@ -770,6 +818,7 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
         else:
             evidence_status = "ok"
             evidence_status_text = "Bằng chứng hợp lệ, chưa ghi nhận ảnh trùng"
+    payroll_status, payroll_text, payroll_note = _session_payroll_status(session)
     return {
         "id":          log.id,
         "emp_code":    log.emp_code,
@@ -800,6 +849,15 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
         "manual_review_status": manual_review.review_status if manual_review else "",
         "manual_reviewed_by": manual_review.reviewed_by if manual_review else "",
         "manual_reviewed_at": manual_review.reviewed_at.isoformat() if manual_review and manual_review.reviewed_at else "",
+        "session_id": session.id if session else None,
+        "session_status": session.status if session else "",
+        "session_status_label": session_status_label(session) if session else "",
+        "session_review_status": session.review_status if session else "",
+        "session_review_status_label": review_status_label(session.review_status) if session else "",
+        "session_review_type": session.review_type if session else "",
+        "session_payroll_status": payroll_status,
+        "session_status_text": payroll_text,
+        "session_payroll_note": payroll_note,
         "is_low_confidence": 0 < confidence < LOW_CONFIDENCE_THRESHOLD,
         "status":      log.note,
     }

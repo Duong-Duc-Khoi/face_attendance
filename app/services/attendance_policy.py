@@ -18,6 +18,8 @@ def session_counts_as_work(session: AttendanceSession | None) -> bool:
         return False
     if session.review_status in ("pending_review", "rejected"):
         return False
+    if session.status == "open":
+        return False
     if session.status == "missing_checkout":
         return bool(session.review_status == "approved" and session.check_in_at and session.check_out_at)
     if session.status in ("absent", "cancelled"):

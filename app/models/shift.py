@@ -5,7 +5,7 @@ Model ca làm việc và phân công ca cho nhân viên.
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from app.models.base import Base
 
 
@@ -52,7 +52,7 @@ class ShiftAssignment(Base):
     emp_code    = Column(String(20), index=True, nullable=False)
     shift_id    = Column(Integer, ForeignKey("shifts.id", ondelete="RESTRICT"), index=True, nullable=False)
     work_date   = Column(Date, index=True, nullable=False)
-    status      = Column(String(20), default="scheduled", index=True)  # scheduled | swapped | cancelled
+    status      = Column(String(20), default="scheduled", index=True)  # scheduled | swapped | cancelled | leave_approved
     note        = Column(String(255), default="")
     assigned_by = Column(String(150), default="")
     assigned_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -63,6 +63,10 @@ class ShiftAssignment(Base):
         # Nhà hàng cho phép một nhân viên có nhiều ca trong ngày,
         # nhưng không phân cùng một ca lặp lại trong cùng ngày.
         UniqueConstraint("emp_code", "work_date", "shift_id", name="uq_emp_date_shift"),
+        CheckConstraint(
+            "status IN ('scheduled', 'swapped', 'cancelled', 'leave_approved')",
+            name="ck_shift_assignments_status",
+        ),
     )
 
 

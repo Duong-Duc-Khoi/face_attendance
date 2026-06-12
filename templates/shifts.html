@@ -377,6 +377,7 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
 .import-result{display:none;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:10px 12px;font-size:12px;line-height:1.5}
 .import-result.show{display:block}
 .import-result.error{border-color:rgba(255,77,106,.4);color:#ffb2bf;background:rgba(255,77,106,.08)}
+.import-result.warning{border-color:rgba(246,201,14,.4);color:#f6c90e;background:rgba(246,201,14,.08)}
 .import-result.success{border-color:rgba(0,212,170,.35);color:var(--green);background:rgba(0,212,170,.08)}
 @media(max-width:1120px){
   .planner-grid{grid-template-columns:1fr}
@@ -1260,10 +1261,18 @@ async function exportAssignmentsExcel(){
   }
 }
 
+function importErrorText(error){
+  if (typeof error === "string") return error;
+  if (!error || typeof error !== "object") return String(error || "");
+  const where = error.source || [error.emp_code, error.work_date].filter(Boolean).join(" ");
+  const message = error.message || error.msg || JSON.stringify(error);
+  return where ? `${where}: ${message}` : message;
+}
+
 function showImportResult(message, type = "", errors = []){
   const box = document.getElementById("importResult");
   if (!box) return;
-  const detail = errors.length ? `<ul>${errors.slice(0, 8).map(e => `<li>${esc(e)}</li>`).join("")}</ul>${errors.length > 8 ? `<div>Còn ${errors.length - 8} lỗi khác.</div>` : ""}` : "";
+  const detail = errors.length ? `<ul>${errors.slice(0, 8).map(e => `<li>${esc(importErrorText(e))}</li>`).join("")}</ul>${errors.length > 8 ? `<div>Còn ${errors.length - 8} lỗi khác.</div>` : ""}` : "";
   box.className = `import-result show ${type}`;
   box.innerHTML = `<div>${esc(message)}</div>${detail}`;
 }
@@ -1290,11 +1299,20 @@ async function importAssignmentsExcel(){
     showImportResult(message, "error", errors);
     return showToast(message, "error");
   }
-  showImportResult(data.message || "Đã nhập lịch phân ca", "success");
+  const errors = Array.isArray(data.errors) ? data.errors : [];
+  const successCount = Number(data.success_count || data.assigned || 0);
+  const errorCount = Number(data.error_count || errors.length || 0);
+  const message = data.message || "Đã nhập lịch phân ca";
+  if (!successCount){
+    showImportResult(message, "error", errors);
+    return showToast(message, "error");
+  }
+  const resultType = errorCount ? "warning" : "success";
+  showImportResult(message, resultType, errors);
   if (input) input.value = "";
   await loadCalendar();
   await loadTodayAssignments();
-  showToast(data.message || "Đã nhập lịch phân ca", "success");
+  showToast(message, errorCount ? "error" : "success");
 }
 
 function isCalendarDayOff(iso){

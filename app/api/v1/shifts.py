@@ -30,7 +30,7 @@ from app.services.branch_scope import (
 from app.services.leave_policy import ensure_can_assign_employee
 from app.services.shift_service import (
     list_shifts, get_shift, create_shift, update_shift, delete_shift,
-    assign_shift, bulk_assign_shift, delete_assignment,
+    assign_shift, delete_assignment,
     get_assignments_by_emp, get_assignments_by_date, get_assignments_by_range,
     update_assignment,
     get_shift_for_employee,
@@ -783,8 +783,9 @@ def _validate_assignment_import_rows(
             continue
 
         rows_to_apply.append({
-            "emp": emp,
-            "shift": shift,
+            "source": source,
+            "emp_code": emp.emp_code,
+            "shift_id": shift.id,
             "work_date": work_date,
             "note": raw_row.get("note") or "",
         })
@@ -919,23 +920,74 @@ def api_bulk_assign(
     if not body.emp_codes:
         raise HTTPException(400, "Danh sách nhân viên không được rỗng")
     _ensure_shift_assignable_scope(db, current_user, body.shift_id)
-    for emp_code in body.emp_codes:
-        ensure_active_branch_access(db, current_user, _employee_branch_id(db, emp_code))
 
     days  = _date_range(body.from_date, body.to_date)
     _ensure_assignment_dates_editable(days)
-    try:
-        count = bulk_assign_shift(
-            emp_codes   = body.emp_codes,
-            shift_id    = body.shift_id,
-            dates       = days,
-            assigned_by = current_user.email,
-            note        = body.note or "",
-            db          = db,
-        )
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    return {"assigned": count, "message": f"Đã phân công {count} ca thành công"}
+    assignments = []
+    errors = []
+    seen_pairs = set()
+    for emp_code in body.emp_codes:
+        code = str(emp_code or "").strip()
+        if not code:
+            for work_date in days:
+                errors.append({
+                    "emp_code": code,
+                    "work_date": work_date.isoformat(),
+                    "shift_id": body.shift_id,
+                    "message": "Thiếu nhân viên",
+                })
+            continue
+        for work_date in days:
+            key = (code, work_date.isoformat(), body.shift_id)
+            if key in seen_pairs:
+                continue
+            seen_pairs.add(key)
+            try:
+                ensure_active_branch_access(db, current_user, _employee_branch_id(db, code))
+                assignment = assign_shift(
+                    emp_code=code,
+                    shift_id=body.shift_id,
+                    work_date=work_date,
+                    assigned_by=current_user.email,
+                    note=body.note or "",
+                    db=db,
+                    commit=False,
+                )
+                db.commit()
+                assignments.append(assignment)
+            except HTTPException as exc:
+                db.rollback()
+                errors.append({
+                    "emp_code": code,
+                    "work_date": work_date.isoformat(),
+                    "shift_id": body.shift_id,
+                    "message": exc.detail,
+                })
+            except ValueError as exc:
+                db.rollback()
+                errors.append({
+                    "emp_code": code,
+                    "work_date": work_date.isoformat(),
+                    "shift_id": body.shift_id,
+                    "message": str(exc),
+                })
+            except Exception as exc:
+                db.rollback()
+                errors.append({
+                    "emp_code": code,
+                    "work_date": work_date.isoformat(),
+                    "shift_id": body.shift_id,
+                    "message": f"Không phân công được: {exc}",
+                })
+    assigned = len(assignments)
+    return {
+        "assigned": assigned,
+        "success_count": assigned,
+        "error_count": len(errors),
+        "errors": errors,
+        "assignments": assignments,
+        "message": f"Đã phân công {assigned} ca" + (f", lỗi {len(errors)}" if errors else ""),
+    }
 
 
 @router.post("/assignments/multi", status_code=201)
@@ -1061,39 +1113,60 @@ async def api_import_assignments(
     )
     errors = collect_errors + validate_errors
 
-    if errors:
-        raise HTTPException(400, {
-            "message": "File có lỗi, chưa nhập dữ liệu",
+    if not raw_rows and errors:
+        return {
+            "success": False,
+            "partial_success": False,
+            "total_rows": 0,
+            "success_count": 0,
+            "error_count": len(errors),
             "errors": errors,
-            "total_rows": len(raw_rows),
-        })
-    if not rows_to_apply:
+            "message": f"Không nhập được phân ca nào, lỗi {len(errors)}",
+        }
+    if not raw_rows and not rows_to_apply:
         raise HTTPException(400, "File không có dòng phân ca để nhập")
 
     applied = []
-    try:
-        for row in rows_to_apply:
-            applied.append(assign_shift(
-                emp_code=row["emp"].emp_code,
-                shift_id=row["shift"].id,
+    for row in rows_to_apply:
+        try:
+            assignment = assign_shift(
+                emp_code=row["emp_code"],
+                shift_id=row["shift_id"],
                 work_date=row["work_date"],
                 assigned_by=current_user.email,
                 note=row["note"],
                 db=db,
                 commit=False,
-            ))
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise HTTPException(400, f"Không nhập được file: {exc}")
+            )
+            db.commit()
+            applied.append(assignment)
+        except Exception as exc:
+            db.rollback()
+            errors.append({
+                "source": row["source"],
+                "emp_code": row["emp_code"],
+                "work_date": row["work_date"].isoformat(),
+                "shift_id": row["shift_id"],
+                "message": f"Không nhập được: {exc}",
+            })
+
+    success_count = len(applied)
+    error_count = len(errors)
+    if success_count and error_count:
+        message = f"Đã nhập {success_count} phân ca, lỗi {error_count}"
+    elif success_count:
+        message = f"Đã nhập {success_count} phân ca"
+    else:
+        message = f"Không nhập được phân ca nào, lỗi {error_count}"
 
     return {
-        "success": True,
-        "total_rows": len(rows_to_apply),
-        "success_count": len(applied),
-        "error_count": 0,
-        "errors": [],
-        "message": f"Đã nhập {len(applied)} phân ca",
+        "success": success_count > 0,
+        "partial_success": success_count > 0 and error_count > 0,
+        "total_rows": len(raw_rows),
+        "success_count": success_count,
+        "error_count": error_count,
+        "errors": errors,
+        "message": message,
     }
 
 

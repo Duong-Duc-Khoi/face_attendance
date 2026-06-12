@@ -585,6 +585,8 @@ def transfer_employee_branch(
     emp = db.query(Employee).filter_by(id=emp_id).first()
     if not emp:
         raise HTTPException(404, "Nhân viên không tồn tại")
+    if not emp.is_active:
+        raise HTTPException(400, "Nhân viên đã nghỉ, không thể chuyển chi nhánh")
 
     target_branch = db.query(Branch).filter_by(id=body.branch_id, is_active=True).first()
     if not target_branch:
@@ -602,8 +604,7 @@ def transfer_employee_branch(
         raise HTTPException(400, "Nhân viên đã thuộc chi nhánh này")
 
     store_role = emp.store_role or "staff"
-    if emp.is_active:
-        _ensure_store_role_slot(db, target_branch.id, store_role, emp.id)
+    _ensure_store_role_slot(db, target_branch.id, store_role, emp.id)
 
     from_branch_id, cancelled_count = transfer_employee_to_branch(
         db,

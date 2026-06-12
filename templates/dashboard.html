@@ -145,11 +145,15 @@ html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:n
 .roster-count-pill{font-family:var(--font-mono);font-size:12px;font-weight:800;border-radius:999px;padding:4px 9px;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.28);color:var(--teal);white-space:nowrap}
 .roster-people-list{display:flex;flex-direction:column}
 .roster-person{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(26,47,80,.35)}
+.roster-person.is-leave{background:rgba(246,201,14,.055)}
 .roster-person:last-child{border-bottom:none}
 .roster-person-main{min-width:0;flex:1}
 .roster-person-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .roster-person-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .roster-note{font-size:10px;color:var(--muted);max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roster-person-flags{display:flex;align-items:center;gap:6px;flex-shrink:0;max-width:150px}
+.roster-status-pill{display:inline-flex;align-items:center;justify-content:center;min-height:22px;border-radius:999px;padding:0 8px;border:1px solid rgba(90,122,154,.26);font-size:10px;font-weight:800;white-space:nowrap}
+.roster-status-pill.leave{color:var(--yellow);background:rgba(246,201,14,.1);border-color:rgba(246,201,14,.34)}
 .roster-no-people{padding:18px 14px;color:var(--muted);font-size:12px;text-align:center}
 .roster-period-wrap{display:none;overflow:auto;padding:16px;max-height:680px}
 .roster-period-table{width:100%;min-width:980px;border-collapse:separate;border-spacing:0;font-size:12px}
@@ -164,7 +168,9 @@ html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:n
 .period-cell{min-height:58px;border-radius:7px;border:1px solid transparent;padding:7px;background:rgba(255,255,255,.018);cursor:pointer}
 .period-cell:hover{border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.055)}
 .period-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;border-radius:999px;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.28);color:var(--teal);font-family:var(--font-mono);font-size:11px;font-weight:800;margin-bottom:5px}
+.period-count.zero{background:rgba(90,122,154,.1);border-color:rgba(90,122,154,.24);color:var(--muted)}
 .period-names{display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--muted);line-height:1.25}
+.period-names .is-leave{color:var(--yellow)}
 .period-empty{color:rgba(90,122,154,.72);font-family:var(--font-mono);font-size:11px}
 .period-shift-name{font-weight:800;font-size:12px;color:var(--text)}
 .period-shift-time{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
@@ -182,6 +188,7 @@ html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:n
 .shift-head-time{font-family:var(--font-mono);font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none}
 .roster-cell{min-width:118px;height:42px;border-radius:7px;border:1px dashed rgba(90,122,154,.28);display:flex;align-items:center;justify-content:center;color:rgba(90,122,154,.75)}
 .roster-cell.assigned{justify-content:flex-start;padding:7px 9px;border-style:solid;background:rgba(0,212,170,.08);border-color:rgba(0,212,170,.26);color:var(--text)}
+.roster-cell.leave{justify-content:flex-start;padding:7px 9px;border-style:solid;background:rgba(246,201,14,.08);border-color:rgba(246,201,14,.3);color:var(--text)}
 .roster-chip{display:flex;flex-direction:column;gap:1px;line-height:1.2}
 .roster-chip b{font-size:11px;color:var(--text)}
 .roster-chip span{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
@@ -414,6 +421,12 @@ html[data-admin-theme="light"] body.admin-shell .attendance-view-btn.active .tab
 .risk-pill.medium{color:var(--yellow);border-color:rgba(246,201,14,.45);background:rgba(246,201,14,.1)}
 .risk-pill.low{color:var(--blue);border-color:rgba(58,143,255,.38);background:rgba(58,143,255,.1)}
 .risk-pill.clear{color:var(--teal);border-color:rgba(0,212,170,.3);background:rgba(0,212,170,.08)}
+.payroll-pill{display:inline-flex;align-items:center;justify-content:center;min-height:22px;border-radius:999px;border:1px solid rgba(90,122,154,.35);padding:0 9px;font-size:10px;font-weight:900;white-space:nowrap}
+.payroll-pill.counted{color:var(--teal);border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.09)}
+.payroll-pill.pending_review{color:var(--yellow);border-color:rgba(246,201,14,.42);background:rgba(246,201,14,.1)}
+.payroll-pill.no_assignment{color:#38bdf8;border-color:rgba(56,189,248,.32);background:rgba(56,189,248,.08)}
+.payroll-pill.open{color:var(--blue);border-color:rgba(58,143,255,.34);background:rgba(58,143,255,.08)}
+.payroll-pill.not_counted{color:var(--red);border-color:rgba(255,77,106,.36);background:rgba(255,77,106,.08)}
 .source-pill{display:inline-flex;align-items:center;height:20px;border-radius:999px;border:1px solid rgba(90,122,154,.32);padding:0 7px;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted)}
 .source-pill.ai{color:var(--teal);border-color:rgba(0,212,170,.35);background:rgba(0,212,170,.08)}
 .atd-risk-strip{display:none;margin-bottom:10px;padding:10px 12px;border-radius:8px;border:1px solid rgba(58,143,255,.28);background:rgba(58,143,255,.08);font-size:12px;line-height:1.55;max-height:180px;overflow-y:auto;white-space:pre-wrap}
@@ -1468,6 +1481,17 @@ function _manualReviewPill(log){
   }
   return log.is_low_confidence?'<span class="risk-pill medium">Cần soát</span>':'<span class="risk-pill clear">Chưa soát</span>';
 }
+function _sessionPayrollClass(log){
+  return ['counted','pending_review','no_assignment','open','not_counted'].includes(log.session_payroll_status)
+    ? log.session_payroll_status
+    : 'not_counted';
+}
+function _sessionStatusCell(log){
+  const text=log.session_status_text||'Chưa có ca phân công';
+  const note=log.session_payroll_note||'Log đã ghi nhận nhưng chưa được xác nhận là công đã chốt';
+  const raw=log.status?`<br><span style="color:var(--muted);font-size:10px">${rosterSafe(log.status)}</span>`:'';
+  return `<span class="payroll-pill ${_sessionPayrollClass(log)}" title="${rosterSafe(note)}">${rosterSafe(text)}</span>${raw}`;
+}
 function _aiSnippet(finding){
   const ai=finding&&finding.metrics&&finding.metrics.ai?finding.metrics.ai:null;
   if(!ai)return '';
@@ -1576,7 +1600,7 @@ function renderLogs(list){
       <td><span class="badge ${l.check_type==='check_in'?'badge-in':'badge-out'}">${l.check_type==='check_in'?'▲ Vào':'▼ Ra'}</span></td>
       <td style="font-family:var(--font-mono);font-size:12px">${l.time}<br><span style="color:var(--muted);font-size:10px">${l.date}</span></td>
       <td>${rosterSafe(l.role_label||roleLabel(l.job_role)||'—')}</td>
-      <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
+      <td>${_sessionStatusCell(l)}</td>
       <td>${_confidenceCell(l,false)}</td>
       <td>${_evidenceCell(l,false,'history')}</td>
       <td class="col-act" style="text-align:right">
@@ -1790,7 +1814,7 @@ function renderRecentLogPreview(list){
       <td><div style="font-weight:700;font-size:12px">${l.name||'—'}</div><div style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">${l.emp_code||''}</div></td>
       <td><span class="badge ${l.check_type==='check_in'?'badge-in':'badge-out'}">${l.check_type==='check_in'?'Vào':'Ra'}</span></td>
       <td style="font-family:var(--font-mono);font-size:11px">${l.time||'—'}</td>
-      <td>${l.status?`<span class="badge ${l.status.includes('muộn')?'badge-late':'badge-in'}">${l.status}</span>`:'—'}</td>
+      <td>${_sessionStatusCell(l)}</td>
     </tr>`).join('');
 }
 // ── Leave management ──
@@ -1841,13 +1865,26 @@ function _leaveInfoHtml(id){
 }
 function approveLeave(id){_leaveActionId=id;document.getElementById('approveLeaveInfo').innerHTML=_leaveInfoHtml(id);document.getElementById('approveLeaveNote').value='';document.getElementById('approveLeaveModal').classList.add('open');setTimeout(()=>document.getElementById('approveLeaveNote').focus(),100);}
 function closeApproveModal(){document.getElementById('approveLeaveModal').classList.remove('open');_leaveActionId=null;}
+async function responseErrorMessage(r,fallback='Lỗi'){
+  try{
+    const data=await r.clone().json();
+    const detail=data.detail||data.message||data.error;
+    if(Array.isArray(detail))return detail.map(x=>typeof x==='string'?x:(x.msg||JSON.stringify(x))).join('; ');
+    if(detail)return String(detail);
+  }catch{}
+  try{
+    const text=await r.text();
+    if(text)return text.slice(0,220);
+  }catch{}
+  return fallback;
+}
 async function submitApproveLeave(){
   const id=_leaveActionId;if(!id)return;
   const note=document.getElementById('approveLeaveNote').value.trim();
   const btn=document.getElementById('approveLeaveBtn');btn.disabled=true;btn.textContent='Đang duyệt...';
   try{
     const r=await authFetch(`/api/leave/${id}/approve`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({note})});
-    if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');
+    if(!r.ok)throw new Error(await responseErrorMessage(r,'Lỗi duyệt đơn'));
     closeApproveModal();showToast('Đã duyệt đơn thành công','success');await loadLeaveRequests();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='✓ Duyệt';}
@@ -1862,7 +1899,7 @@ async function submitRejectLeave(){
   const btn=document.getElementById('rejectLeaveBtn');btn.disabled=true;btn.textContent='Đang gửi...';
   try{
     const r=await authFetch(`/api/leave/${id}/reject`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({note})});
-    if(!r.ok)throw new Error((await r.json()).detail||'Lỗi');
+    if(!r.ok)throw new Error(await responseErrorMessage(r,'Lỗi từ chối đơn'));
     closeRejectModal();showToast('Đã từ chối đơn','success');await loadLeaveRequests();
   }catch(e){showToast('Lỗi: '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='✕ Từ chối';}
@@ -2082,11 +2119,31 @@ function rosterAvatar(emp){
     ? `<img src="${rosterSafe(emp.avatar_url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='?'">`
     : rosterSafe((emp.name||'?')[0]);
 }
+function rosterIsLeaveAssignment(a){
+  return a?.status==='leave_approved';
+}
+function rosterWorkingAssignments(rows){
+  return (rows||[]).filter(a=>!rosterIsLeaveAssignment(a));
+}
+function rosterSortAssignmentRows(rows,empMap){
+  return [...(rows||[])].sort((a,b)=>{
+    if(rosterIsLeaveAssignment(a)!==rosterIsLeaveAssignment(b))return rosterIsLeaveAssignment(a)?1:-1;
+    const ea=empMap.get(a.emp_code),eb=empMap.get(b.emp_code);
+    return String(ea?.name||a.emp_code).localeCompare(String(eb?.name||b.emp_code),'vi');
+  });
+}
+function rosterPersonStatusHtml(a){
+  return rosterIsLeaveAssignment(a)?'<span class="roster-status-pill leave">Nghỉ phép</span>':'';
+}
+function rosterPeriodNameHtml(text,a){
+  return `<span class="${rosterIsLeaveAssignment(a)?'is-leave':''}">${rosterSafe(text)}${rosterIsLeaveAssignment(a)?' · nghỉ phép':''}</span>`;
+}
 function renderRosterStats(){
   const activeEmployees=employees.filter(e=>e.is_active!==false);
   const activeCodes=new Set(activeEmployees.map(e=>e.emp_code));
-  const scheduledCodes=new Set(rosterAssignments.map(a=>a.emp_code).filter(code=>activeCodes.has(code)));
-  document.getElementById('rosterMetricAssigned').textContent=rosterAssignments.length;
+  const workingAssignments=rosterWorkingAssignments(rosterAssignments);
+  const scheduledCodes=new Set(workingAssignments.map(a=>a.emp_code).filter(code=>activeCodes.has(code)));
+  document.getElementById('rosterMetricAssigned').textContent=workingAssignments.length;
   document.getElementById('rosterMetricEmployees').textContent=scheduledCodes.size;
   document.getElementById('rosterMetricUnassigned').textContent=Math.max(activeEmployees.length-scheduledCodes.size,0);
   document.getElementById('rosterMetricShifts').textContent=rosterShifts.length;
@@ -2110,19 +2167,21 @@ function renderRosterByShift(){
     assignmentsByShift.get(a.shift_id).push(a);
   });
   groupEl.innerHTML=rosterShifts.map(shift=>{
-    const rows=(assignmentsByShift.get(shift.id)||[]).sort((a,b)=>{
-      const ea=empMap.get(a.emp_code),eb=empMap.get(b.emp_code);
-      return String(ea?.name||a.emp_code).localeCompare(String(eb?.name||b.emp_code),'vi');
-    });
+    const rows=rosterSortAssignmentRows(assignmentsByShift.get(shift.id)||[],empMap);
+    const workingCount=rosterWorkingAssignments(rows).length;
+    const leaveCount=rows.length-workingCount;
     const people=rows.length?rows.map(a=>{
       const emp=empMap.get(a.emp_code);
-      return `<div class="roster-person">
+      return `<div class="roster-person ${rosterIsLeaveAssignment(a)?'is-leave':''}">
         <div class="roster-avatar">${rosterAvatar(emp)}</div>
         <div class="roster-person-main">
           <div class="roster-person-name">${rosterSafe(emp?.name||a.emp_code)}</div>
           <div class="roster-person-meta">${rosterSafe(a.emp_code)} · ${rosterSafe(roleLabel(employeeRoleCode(emp||{})))}</div>
         </div>
-        ${a.note?`<div class="roster-note" title="${rosterSafe(a.note)}">${rosterSafe(a.note)}</div>`:''}
+        <div class="roster-person-flags">
+          ${rosterPersonStatusHtml(a)}
+          ${a.note?`<div class="roster-note" title="${rosterSafe(a.note)}">${rosterSafe(a.note)}</div>`:''}
+        </div>
       </div>`;
     }).join(''):'<div class="roster-no-people">Chưa có nhân viên trong ca này</div>';
     return `<section class="roster-shift-card ${rosterTone(shift)} ${rows.length?'':'is-empty'}">
@@ -2131,7 +2190,7 @@ function renderRosterByShift(){
           <div class="roster-shift-name">${rosterSafe(shift.name)}</div>
           <div class="roster-shift-time">${rosterSafe(rosterTime(shift.work_start))} - ${rosterSafe(rosterTime(shift.work_end))}</div>
         </div>
-        <div class="roster-count-pill">${rows.length}</div>
+        <div class="roster-count-pill" title="${workingCount} đi ca${leaveCount?`, ${leaveCount} nghỉ phép`:''}">${workingCount}</div>
       </div>
       <div class="roster-people-list">${people}</div>
     </section>`;
@@ -2163,11 +2222,15 @@ function renderRosterPeriodByShift(){
   head.innerHTML=`<tr><th>Ca</th>${rosterDates.map(d=>`<th>${rosterDayLabel(d)}</th>`).join('')}</tr>`;
   body.innerHTML=rosterShifts.map(shift=>{
     const cells=rosterDates.map(ds=>{
-      const rows=(rosterAssignmentsByDate.get(ds)||[]).filter(a=>a.shift_id===shift.id&&visibleCodes.has(a.emp_code));
-      const names=rows.slice(0,3).map(a=>`<span>${rosterSafe(empMap.get(a.emp_code)?.name||a.emp_code)}</span>`).join('');
+      const rows=rosterSortAssignmentRows(
+        (rosterAssignmentsByDate.get(ds)||[]).filter(a=>a.shift_id===shift.id&&visibleCodes.has(a.emp_code)),
+        empMap
+      );
+      const workingCount=rosterWorkingAssignments(rows).length;
+      const names=rows.slice(0,3).map(a=>rosterPeriodNameHtml(empMap.get(a.emp_code)?.name||a.emp_code,a)).join('');
       const more=rows.length>3?`<span>+${rows.length-3} người</span>`:'';
       return `<td><div class="period-cell" onclick="rosterJumpToDay('${ds}')">
-        ${rows.length?`<div class="period-count">${rows.length}</div><div class="period-names">${names}${more}</div>`:'<span class="period-empty">—</span>'}
+        ${rows.length?`<div class="period-count ${workingCount?'':'zero'}" title="${workingCount} đi ca">${workingCount}</div><div class="period-names">${names}${more}</div>`:'<span class="period-empty">—</span>'}
       </div></td>`;
     }).join('');
     return `<tr>
@@ -2191,9 +2254,10 @@ function renderRosterPeriodByEmployee(){
   body.innerHTML=visibleEmployees.map(emp=>{
     const cells=rosterDates.map(ds=>{
       const rows=(rosterAssignmentsByDate.get(ds)||[]).filter(a=>a.emp_code===emp.emp_code);
-      const shiftNames=rows.map(a=>shiftMap.get(a.shift_id)?.name||'Ca').map(rosterSafe);
+      const workingCount=rosterWorkingAssignments(rows).length;
+      const shiftNames=rows.map(a=>rosterPeriodNameHtml(shiftMap.get(a.shift_id)?.name||'Ca',a));
       return `<td><div class="period-cell" onclick="rosterJumpToDay('${ds}')">
-        ${rows.length?`<div class="period-count">${rows.length}</div><div class="period-names">${shiftNames.map(n=>`<span>${n}</span>`).join('')}</div>`:'<span class="period-empty">—</span>'}
+        ${rows.length?`<div class="period-count ${workingCount?'':'zero'}" title="${workingCount} ca đi làm">${workingCount}</div><div class="period-names">${shiftNames.join('')}</div>`:'<span class="period-empty">—</span>'}
       </div></td>`;
     }).join('');
     return `<tr>
@@ -2247,6 +2311,9 @@ function renderRosterMatrix(){
     const cells=rosterShifts.map(shift=>{
       const a=byShift.get(shift.id);
       if(!a)return `<td class="${rosterTone(shift)}"><div class="roster-cell">—</div></td>`;
+      if(rosterIsLeaveAssignment(a)){
+        return `<td class="${rosterTone(shift)}"><div class="roster-cell leave"><div class="roster-chip"><b>Nghỉ phép</b><span>${rosterSafe(rosterTime(shift.work_start))}-${rosterSafe(rosterTime(shift.work_end))}</span></div></div></td>`;
+      }
       return `<td class="${rosterTone(shift)}"><div class="roster-cell assigned"><div class="roster-chip"><b>Có ca</b><span>${rosterSafe(rosterTime(shift.work_start))}-${rosterSafe(rosterTime(shift.work_end))}</span></div></div></td>`;
     }).join('');
     const notes=empAssignments.map(a=>a.note).filter(Boolean).map(rosterSafe).join('<br>')||'—';

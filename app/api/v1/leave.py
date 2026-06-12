@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -152,14 +153,14 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
     request_type = payload.get("request_type", "leave")
     if request_type != "leave":
         raise HTTPException(400, "Hiện chỉ hỗ trợ đơn nghỉ phép, không còn tạo đơn làm từ xa")
-    leave_scope = payload.get("leave_scope", "day")
-    if leave_scope not in ("day", "shift"):
-        raise HTTPException(400, "leave_scope phải là 'day' hoặc 'shift'")
-    dates_raw    = payload.get("dates", [])   # [{"date":"2026-05-12","half":null}, ...]
+    leave_scope = payload.get("leave_scope", "shift")
+    if leave_scope != "shift":
+        raise HTTPException(400, "Hiện chỉ hỗ trợ nghỉ theo ca. Vui lòng chọn ca cần nghỉ.")
+    dates_raw    = payload.get("dates", [])   # [{"date":"2026-05-12","assignment_ids":[1,2]}, ...]
     reason       = payload.get("reason", "").strip()
 
     if not dates_raw:
-        raise HTTPException(400, "Vui lòng chọn ít nhất 1 ngày")
+        raise HTTPException(400, "Vui lòng chọn ít nhất 1 ca nghỉ")
 
     # Admin có thể gửi đơn hộ người khác (override emp_code)
     target_emp_code = payload.get("emp_code")
@@ -181,7 +182,7 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
     validated_dates = []
     for entry in dates_raw:
         d_str = entry.get("date", "")
-        half  = entry.get("half")   # None | "am" | "pm"
+        half  = entry.get("half")
         try:
             d = date.fromisoformat(d_str)
         except Exception:
@@ -193,20 +194,21 @@ def submit_leave(payload: dict, db: Session = Depends(get_db),
                 f"Chỉ được gửi đơn từ ngày {min_date.isoformat()} trở đi "
                 f"(tối thiểu 1 ngày trước)")
 
-        if half not in (None, "am", "pm"):
-            raise HTTPException(400, f"Giá trị 'half' không hợp lệ: {half}")
+        if half not in (None, "", "null"):
+            raise HTTPException(400, "Nghỉ phép hiện chỉ theo ca, không hỗ trợ nghỉ nửa ngày")
 
-        normalized = {"date": d_str, "half": half, "scope": leave_scope}
-        if leave_scope == "shift":
-            assignment_ids = _validate_leave_assignment_ids(
-                db,
-                emp,
-                d,
-                assignment_ids_from_entry(entry),
-            )
-            normalized["assignment_ids"] = assignment_ids
-        else:
-            normalized["assignment_ids"] = []
+        assignment_ids = _validate_leave_assignment_ids(
+            db,
+            emp,
+            d,
+            assignment_ids_from_entry(entry),
+        )
+        normalized = {
+            "date": d_str,
+            "half": None,
+            "scope": "shift",
+            "assignment_ids": assignment_ids,
+        }
         validated_dates.append(normalized)
 
     # Giới hạn số ngày (chỉ áp dụng nhân viên/manager thường)
@@ -329,8 +331,22 @@ def approve_leave(req_id: int, payload: dict = {},
     req.reviewed_at = datetime.now()
     req.reviewed_by = current_user.email
     req.note        = payload.get("note", "")
-    apply_approved_leave_to_assignments(db, req, current_user.email)
-    db.commit()
+    try:
+        apply_approved_leave_to_assignments(db, req, current_user.email)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc))
+    except SQLAlchemyError as exc:
+        db.rollback()
+        detail = str(getattr(exc, "orig", exc))
+        if "ck_shift_assignments_status" in detail:
+            raise HTTPException(
+                400,
+                "Database chưa cho phép trạng thái leave_approved cho phân ca. "
+                "Hãy chạy migration mới nhất để cập nhật ck_shift_assignments_status.",
+            )
+        raise HTTPException(500, "Không thể duyệt đơn nghỉ do lỗi cơ sở dữ liệu")
     db.refresh(req)
 
     try:

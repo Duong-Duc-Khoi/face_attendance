@@ -210,7 +210,7 @@ async function loadBranches(){
 }
 
 async function loadEmployees(){
-  const res = await authFetch("/api/employees?active_only=false");
+  const res = await authFetch("/api/employees?active_only=true");
   if (!res.ok) throw new Error("Không tải được nhân viên");
   employees = await res.json();
   renderAll();
@@ -234,7 +234,7 @@ function branchName(id){
 }
 
 function employeeCount(branchId){
-  return employees.filter(e => Number(e.branch_id) === Number(branchId)).length;
+  return employees.filter(e => Number(e.branch_id) === Number(branchId) && e.is_active !== false).length;
 }
 
 function renderStats(){
@@ -363,6 +363,7 @@ function renderEmployeeAssignments(){
   const q = document.getElementById("employeeSearch").value.trim().toLowerCase();
   const filter = document.getElementById("employeeBranchFilter").value;
   let rows = employees.filter(e => {
+    if (e.is_active === false) return false;
     const haystack = `${e.name || ""} ${e.full_name || ""} ${e.emp_code || ""} ${e.job_role_label || ""}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
     if (filter === "none" && e.branch_id) return false;
@@ -377,7 +378,7 @@ function renderEmployeeAssignments(){
   }
 
   const branchOptions = ['<option value="">Chọn cửa hàng</option>'].concat(
-    branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`)
+    branches.filter(b => b.is_active).map(b => `<option value="${b.id}">${esc(b.name)}</option>`)
   ).join("");
 
   body.innerHTML = rows.map(e => `
@@ -411,6 +412,7 @@ function todayIso(){
 async function transferEmployeeBranch(empId){
   const emp = employees.find(e => Number(e.id) === Number(empId));
   if (!emp) return;
+  if (emp.is_active === false) return show("Nhân viên đã nghỉ, không thể chuyển cửa hàng", "error");
   const select = document.getElementById(`empBranch${empId}`);
   const branchId = select.value ? Number(select.value) : null;
   if (!branchId) return show("Vui lòng chọn cửa hàng cần chuyển đến", "error");
