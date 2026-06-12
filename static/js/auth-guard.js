@@ -107,6 +107,21 @@
   // Kiểm tra role — staff không được vào trang quản lý, manager không vào trang admin-only
   let user = getUser();
   const currentPath = window.location.pathname;
+  const ADMIN_NAV_TITLES = {
+    '/dashboard': 'Tổng quan',
+    '/attendance': 'Chấm công',
+    '/employees': 'Nhân sự',
+    '/branches': 'Chi nhánh',
+    '/shifts': 'Ca làm việc',
+    '/roster': 'Phân ca',
+    '/work-calendar': 'Lịch vận hành',
+    '/leave': 'Nghỉ phép',
+    '/report': 'Báo cáo',
+    '/users': 'Tài khoản',
+    '/settings': 'Cấu hình',
+    '/integrations': 'Tích hợp AI'
+  };
+  const BRANCH_REQUIRED_PATHS = ['/shifts', '/roster'];
 
   function isPathIn(paths) {
     return paths.some(function (p) { return currentPath.startsWith(p); });
@@ -253,14 +268,92 @@
     }
   }
 
+  function ensureNavUtilities() {
+    if (!document.body || !document.body.classList.contains('admin-shell')) return null;
+    let utilities = document.querySelector('[data-nav-utilities]');
+    if (!utilities) {
+      utilities = document.createElement('div');
+      utilities.className = 'nav-utilities admin-top-utilities';
+      utilities.setAttribute('data-nav-utilities', '');
+      document.body.appendChild(utilities);
+    }
+    return utilities;
+  }
+
+  function normalizeAdminNavLabels() {
+    Object.keys(ADMIN_NAV_TITLES).forEach(function (href) {
+      document.querySelectorAll('body.admin-shell a.nav-link[href="' + href + '"]').forEach(function (link) {
+        let textNode = Array.from(link.childNodes).find(function (node) {
+          return node.nodeType === Node.TEXT_NODE;
+        });
+        if (!textNode) {
+          textNode = document.createTextNode('');
+          link.insertBefore(textNode, link.firstChild);
+        }
+        textNode.textContent = ADMIN_NAV_TITLES[href];
+      });
+    });
+  }
+
+  function reorderAdminNavLinks() {
+    const nav = document.querySelector('body.admin-shell #mainNav');
+    if (!nav) return;
+    const branchLink = nav.querySelector('a.nav-link[href="/branches"]');
+    const systemTitle = nav.querySelector('#navSystemTitle');
+    if (!branchLink || !systemTitle || branchLink.nextElementSibling === systemTitle) return;
+    nav.insertBefore(branchLink, systemTitle);
+  }
+
+  function getAdminPageTitle() {
+    const active = document.querySelector('body.admin-shell .nav-link.active');
+    if (active) {
+      const href = active.getAttribute('href') || '';
+      if (ADMIN_NAV_TITLES[href]) return ADMIN_NAV_TITLES[href];
+    }
+    const match = Object.keys(ADMIN_NAV_TITLES)
+      .sort(function (a, b) { return b.length - a.length; })
+      .find(function (path) { return currentPath.startsWith(path); });
+    return match ? ADMIN_NAV_TITLES[match] : 'Quản trị';
+  }
+
+  function ensureBrandScopeChip() {
+    const section = document.querySelector('body.admin-shell .brand-section');
+    if (!section || !section.parentNode) return null;
+    let chip = section.parentNode.querySelector('[data-brand-scope]');
+    if (!chip) {
+      chip = document.createElement('span');
+      chip.className = 'brand-scope-chip';
+      chip.setAttribute('data-brand-scope', '');
+      chip.innerHTML =
+        '<span class="brand-scope-dot" aria-hidden="true"></span>' +
+        '<span class="brand-scope-text"></span>';
+      section.parentNode.insertBefore(chip, section.nextSibling);
+    }
+    return chip;
+  }
+
+  function updateAdminBrandContext(branchLabel, state) {
+    if (!document.body || !document.body.classList.contains('admin-shell')) return;
+    normalizeAdminNavLabels();
+    reorderAdminNavLinks();
+    const section = document.querySelector('body.admin-shell .brand-section');
+    if (section) section.textContent = getAdminPageTitle();
+    const chip = ensureBrandScopeChip();
+    if (!chip) return;
+    const label = branchLabel || 'Tất cả chi nhánh';
+    chip.dataset.scopeState = state || (label === 'Tất cả chi nhánh' ? 'all' : 'branch');
+    const text = chip.querySelector('.brand-scope-text');
+    if (text) text.textContent = label;
+    chip.setAttribute('title', 'Phạm vi dữ liệu: ' + label);
+  }
+
   async function installBranchScopeControl() {
     const current = getUser();
     if (!current || !document.body.classList.contains('admin-shell')) return;
     if (document.body.hasAttribute('data-no-branch-scope')) return;
     if (current.role !== 'admin' && current.role !== 'manager') return;
-    const header = document.querySelector('body.admin-shell header');
-    const account = header ? header.querySelector('.nav-account') : null;
-    if (!header || !account || document.querySelector('[data-branch-scope]')) return;
+    const utilities = ensureNavUtilities();
+    if (!utilities || document.querySelector('[data-branch-scope]')) return;
     let branches = [];
     try {
       const res = await window.authFetch('/api/branches');
@@ -274,45 +367,122 @@
     box.className = 'branch-scope-box';
     box.setAttribute('data-branch-scope', '');
     if (current.role === 'admin') {
-      const branchRequired = currentPath.startsWith('/shifts') || currentPath.startsWith('/roster');
+      const branchRequired = isPathIn(BRANCH_REQUIRED_PATHS);
       const selected = getSelectedBranchId();
       const validSelected = selected && branches.some(function (b) { return String(b.id) === String(selected); });
       if (selected && !validSelected) localStorage.removeItem('admin_branch_id');
-      box.innerHTML =
-        '<label class="branch-scope-label" for="branchScopeSelect">Chi nhánh</label>' +
-        '<select id="branchScopeSelect" class="branch-scope-select">' +
-        (branchRequired
-          ? '<option value=""' + (validSelected ? '' : ' selected') + ' disabled>Chọn chi nhánh</option>'
-          : '<option value="">Tất cả chi nhánh</option>') +
-        branches.map(function (b) {
+      const selectedBranch = validSelected ? branches.find(function (b) { return String(b.id) === String(selected); }) : null;
+      const selectedLabel = selectedBranch
+        ? (selectedBranch.name || ('Chi nhánh #' + selectedBranch.id))
+        : (branchRequired ? 'Chọn chi nhánh' : 'Tất cả chi nhánh');
+      updateAdminBrandContext(
+        selectedBranch ? selectedLabel : (branchRequired ? 'Chưa chọn chi nhánh' : 'Tất cả chi nhánh'),
+        selectedBranch ? 'branch' : (branchRequired ? 'required' : 'all')
+      );
+      const optionHtml = function (value, label, meta, isSelected, isDisabled, extraClass) {
+        return '<button type="button" class="branch-scope-option' +
+          (isSelected ? ' is-selected' : '') +
+          (extraClass ? ' ' + extraClass : '') +
+          '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '"' +
+          ' data-branch-value="' + escapeHtml(value) + '"' +
+          (isDisabled ? ' disabled aria-disabled="true"' : '') + '>' +
+          '<span class="branch-scope-option-label">' + escapeHtml(label) + '</span>' +
+          '<span class="branch-scope-option-meta">' + escapeHtml(meta) + '</span>' +
+          '</button>';
+      };
+      let optionsHtml = branchRequired
+        ? ''
+        : optionHtml('', 'Tất cả chi nhánh', 'Xem dữ liệu toàn hệ thống', !validSelected, false, 'is-all');
+      optionsHtml += branches.length
+        ? branches.map(function (b) {
+          const branchName = b.name || ('Chi nhánh #' + b.id);
           const isSelected = String(b.id) === String(validSelected ? selected : '');
-          return '<option value="' + b.id + '"' + (isSelected ? ' selected' : '') + '>' + escapeHtml(b.name || ('Chi nhánh #' + b.id)) + '</option>';
-        }).join('') +
-        '</select>';
-      header.insertBefore(box, account);
-      const select = box.querySelector('select');
-      select.addEventListener('change', function () {
-        if (select.value) localStorage.setItem('admin_branch_id', select.value);
+          return optionHtml(String(b.id), branchName, 'Chi nhánh cửa hàng', isSelected, false, '');
+        }).join('')
+        : optionHtml('', 'Chưa có chi nhánh', 'Tạo chi nhánh trước khi lọc', false, true, 'is-empty');
+      box.innerHTML =
+        '<div class="branch-scope-label" id="branchScopeLabel">Chi nhánh</div>' +
+        '<div class="branch-scope-dropdown" data-branch-dropdown>' +
+        '<button type="button" id="branchScopeTrigger" class="branch-scope-trigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="branchScopeLabel branchScopeValue">' +
+        '<span class="branch-scope-value" id="branchScopeValue">' + escapeHtml(selectedLabel) + '</span>' +
+        '<span class="branch-scope-chev" aria-hidden="true"></span>' +
+        '</button>' +
+        '<div class="branch-scope-menu" role="listbox" aria-labelledby="branchScopeLabel">' + optionsHtml + '</div>' +
+        '</div>';
+      utilities.insertBefore(box, utilities.firstChild);
+      const dropdown = box.querySelector('[data-branch-dropdown]');
+      const trigger = box.querySelector('.branch-scope-trigger');
+      const menu = box.querySelector('.branch-scope-menu');
+      const setOpen = function (open) {
+        dropdown.classList.toggle('is-open', open);
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      const chooseBranch = function (value) {
+        if (value) localStorage.setItem('admin_branch_id', value);
         else localStorage.removeItem('admin_branch_id');
         window.location.reload();
+      };
+      trigger.addEventListener('click', function (event) {
+        event.stopPropagation();
+        setOpen(!dropdown.classList.contains('is-open'));
+      });
+      trigger.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        setOpen(true);
+        const selectedOption = menu.querySelector('.branch-scope-option.is-selected:not(:disabled)');
+        const firstOption = menu.querySelector('.branch-scope-option:not(:disabled)');
+        (selectedOption || firstOption || trigger).focus();
+      });
+      menu.addEventListener('click', function (event) {
+        const option = event.target.closest('.branch-scope-option');
+        if (!option || option.disabled) return;
+        chooseBranch(option.getAttribute('data-branch-value') || '');
+      });
+      menu.addEventListener('keydown', function (event) {
+        const options = Array.from(menu.querySelectorAll('.branch-scope-option:not(:disabled)'));
+        const index = options.indexOf(document.activeElement);
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setOpen(false);
+          trigger.focus();
+          return;
+        }
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+        event.preventDefault();
+        const nextIndex = event.key === 'ArrowDown'
+          ? Math.min(options.length - 1, index + 1)
+          : Math.max(0, index - 1);
+        (options[nextIndex] || options[0] || trigger).focus();
+      });
+      document.addEventListener('click', function (event) {
+        if (!box.contains(event.target)) setOpen(false);
+      });
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') setOpen(false);
       });
       return;
     }
     const branchId = scope.branch_id || (scope.branch_ids && scope.branch_ids[0]);
     const branch = branches.find(function (b) { return Number(b.id) === Number(branchId); });
+    updateAdminBrandContext(
+      (branch && branch.name) || (branchId ? ('Chi nhánh #' + branchId) : 'Chưa gán chi nhánh'),
+      branch || branchId ? 'branch' : 'required'
+    );
     box.innerHTML =
       '<div class="branch-scope-label">Chi nhánh</div>' +
       '<div class="branch-scope-pill">' + escapeHtml((branch && branch.name) || (branchId ? ('Chi nhánh #' + branchId) : 'Chưa gán')) + '</div>';
-    header.insertBefore(box, account);
+    utilities.insertBefore(box, utilities.firstChild);
   }
 
   function installAdminThemeToggle() {
     if (!document.body.classList.contains('admin-shell')) return;
     if (document.querySelector('[data-admin-theme-toggle]')) return;
+    const utilities = ensureNavUtilities();
 
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'theme-toggle-btn admin-theme-floating';
+    button.className = 'theme-toggle-btn';
     button.setAttribute('data-admin-theme-toggle', '');
 
     const syncButton = function () {
@@ -335,7 +505,12 @@
     });
 
     syncButton();
-    document.body.appendChild(button);
+    if (utilities) {
+      utilities.appendChild(button);
+    } else {
+      button.classList.add('admin-theme-floating');
+      document.body.appendChild(button);
+    }
   }
 
   // Nút logout nếu có + hiện tên user
@@ -370,6 +545,12 @@
       });
     }
     installAdminThemeToggle();
+    const initialBranchId = getSelectedBranchId();
+    const initialBranchRequired = isPathIn(BRANCH_REQUIRED_PATHS);
+    updateAdminBrandContext(
+      initialBranchId ? ('Chi nhánh #' + initialBranchId) : (initialBranchRequired ? 'Chưa chọn chi nhánh' : 'Tất cả chi nhánh'),
+      initialBranchId ? 'branch' : (initialBranchRequired ? 'required' : 'all')
+    );
 
     // Hiện tên user ở nav nếu có element #navUserName
     const nameEl = document.getElementById('navUserName');
