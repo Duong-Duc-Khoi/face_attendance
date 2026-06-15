@@ -91,7 +91,7 @@
 <script src="/static/js/toast.js"></script>
 <script>
 const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-const defaultModels = {openai:"gpt-4.1-mini", gemini:"gemini-2.0-flash"};
+const defaultModels = {openai:"gpt-4.1-mini", gemini:"gemini-3-flash-preview"};
 
 document.addEventListener("DOMContentLoaded", () => {
   const user = getUser();

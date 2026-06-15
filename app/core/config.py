@@ -38,7 +38,7 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL:   str = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL:   str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    GEMINI_MODEL:   str = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     # ── Email ──────────────────────────────────────────
     EMAIL_HOST:     str = os.getenv("EMAIL_HOST",     "smtp.gmail.com")
