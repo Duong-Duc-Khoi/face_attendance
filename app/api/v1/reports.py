@@ -55,7 +55,9 @@ from app.services.attendance import (
     get_logs_by_date, get_summary_today,
     get_log_by_id, update_attendance_log,
     delete_attendance_log, create_manual_attendance_log,
+    create_absent_session_manual_logs,
 )
+from app.services.shift_service import shift_window
 from app.services.employee_branch_history import branch_for_log, filter_logs_by_branch_ids
 from app.services.attendance_audit import (
     get_audit_run,
@@ -981,6 +983,13 @@ class AttendanceSessionReviewRequest(BaseModel):
     note: Optional[str] = ""
 
 
+class AbsentSessionManualLogsRequest(BaseModel):
+    check_in_at: str
+    check_out_at: str
+    note: Optional[str] = ""
+    reason: str
+
+
 def _unscheduled_shift_code(start: datetime, end: datetime) -> str:
     suffix = "-next" if end.date() != start.date() else ""
     return f"outside-{start.strftime('%H%M')}-{end.strftime('%H%M')}{suffix}"
@@ -1117,6 +1126,12 @@ def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
     emp = db.query(Employee).filter_by(id=session.employee_id).first()
     shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
     branch = db.query(Branch).filter_by(id=session.branch_id).first() if session.branch_id else None
+    shift_start = None
+    shift_end = None
+    checkin_from = None
+    checkout_until = None
+    if shift and session.work_date:
+        shift_start, shift_end, checkin_from, checkout_until = shift_window(session.work_date, shift)
     return {
         "id": session.id,
         "employee_id": session.employee_id,
@@ -1132,6 +1147,10 @@ def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
         "shift_assignment_id": session.shift_assignment_id,
         "shift_id": session.shift_id,
         "shift_name": shift.name if shift else "",
+        "shift_start": shift_start.isoformat() if shift_start else None,
+        "shift_end": shift_end.isoformat() if shift_end else None,
+        "checkin_from": checkin_from.isoformat() if checkin_from else None,
+        "checkout_until": checkout_until.isoformat() if checkout_until else None,
         "work_date": session.work_date.isoformat() if session.work_date else "",
         "check_in_at": session.check_in_at.isoformat() if session.check_in_at else None,
         "check_out_at": session.check_out_at.isoformat() if session.check_out_at else None,
@@ -1232,6 +1251,42 @@ def get_attendance_review_count(
         if review_type in counts:
             counts[review_type] += 1
     return counts
+
+
+@router.post("/attendance/sessions/{session_id}/absent-manual-logs")
+def create_absent_manual_logs(
+    session_id: int,
+    body: AbsentSessionManualLogsRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_manager_or_admin(current_user)
+    session = db.query(AttendanceSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
+    _ensure_session_scope(db, current_user, session)
+    try:
+        result = create_absent_session_manual_logs(
+            session_id=session_id,
+            check_in_timestamp_str=body.check_in_at,
+            check_out_timestamp_str=body.check_out_at,
+            note=body.note or "",
+            created_by=current_user.full_name or current_user.email,
+            created_by_id=current_user.id,
+            reason=body.reason,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
+    db.expire_all()
+    fresh = db.query(AttendanceSession).filter_by(id=session_id).first()
+    return {
+        "success": True,
+        "message": "Đã tạo log vào/ra cho ca vắng",
+        "logs": [result["check_in_log"], result["check_out_log"]],
+        "session": _session_review_to_dict(fresh, db) if fresh else None,
+    }
 
 
 @router.put("/attendance/sessions/{session_id}/review")

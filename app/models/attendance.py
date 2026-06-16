@@ -11,7 +11,7 @@ AttendanceLog được giữ lại để các màn hình/API cũ tiếp tục ch
 """
 
 from datetime import datetime
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from app.models.base import Base
 
 
@@ -31,9 +31,9 @@ class AttendanceSession(Base):
     # open | completed | missing_checkout | absent | cancelled
     status = Column(String(30), default="open", index=True)
 
-    # on_time | late | early | manual | auto
+    # on_time | late | early | manual | auto | unscheduled
     check_in_status = Column(String(30), default="")
-    # normal | early_leave | overtime | manual | auto
+    # normal | early_leave | overtime | manual | auto | unscheduled
     check_out_status = Column(String(30), default="")
 
     late_minutes        = Column(Integer, default=0)
@@ -45,7 +45,9 @@ class AttendanceSession(Base):
     # face | manual | auto
     source        = Column(String(20), default="face")
     note          = Column(Text, default="")
+    # none | pending_review | approved | rejected
     review_status = Column(String(30), default="none", index=True)
+    # absent | missing_checkout | overtime | unscheduled
     review_type   = Column(String(30), default="", index=True)
     review_note   = Column(Text, default="")
     reviewed_by   = Column(String(150), default="")
@@ -58,6 +60,18 @@ class AttendanceSession(Base):
 
     __table_args__ = (
         UniqueConstraint("shift_assignment_id", name="uq_attendance_session_assignment"),
+        CheckConstraint(
+            "check_in_status IN ('', 'on_time', 'late', 'early', 'manual', 'auto', 'unscheduled')",
+            name="ck_attendance_sessions_check_in_status",
+        ),
+        CheckConstraint(
+            "check_out_status IN ('', 'normal', 'early_leave', 'overtime', 'manual', 'auto', 'unscheduled')",
+            name="ck_attendance_sessions_check_out_status",
+        ),
+        CheckConstraint(
+            "review_type IN ('', 'absent', 'missing_checkout', 'overtime', 'unscheduled')",
+            name="ck_attendance_sessions_review_type",
+        ),
     )
 
 

@@ -24,6 +24,7 @@ from app.services.shift_service import (
     find_shift_assignment_for_checkin,
     find_shift_assignment_for_time,
     find_leave_assignment_for_time,
+    rebuild_session_for_assignment,
     rebuild_sessions_for_log_change,
     shift_window,
 )
@@ -1100,6 +1101,143 @@ def create_manual_attendance_log(
         result["audit_id"] = audit.id
         return result
 
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
+
+
+def create_absent_session_manual_logs(
+    session_id: int,
+    check_in_timestamp_str: str,
+    check_out_timestamp_str: str,
+    note: str = "",
+    created_by: str = "",
+    created_by_id: int | None = None,
+    reason: str = "",
+) -> dict | None:
+    """Tạo cặp check-in/check-out thủ công để thay một phiên vắng đang chờ duyệt."""
+    if not (reason or "").strip():
+        raise ValueError("Vui lòng nhập lý do chỉnh sửa công")
+    db = SessionLocal()
+    try:
+        session = db.query(AttendanceSession).filter_by(id=session_id).first()
+        if not session:
+            return None
+        if session.review_type != "absent" or session.status != "absent":
+            raise ValueError("Chỉ có thể tạo log bù từ mục vắng")
+        if session.review_status != "pending_review":
+            raise ValueError("Mục vắng này không còn ở trạng thái chờ duyệt")
+
+        assignment = db.query(ShiftAssignment).filter_by(id=session.shift_assignment_id).first()
+        if not assignment:
+            raise ValueError("Mục vắng chưa gắn với phân ca")
+        if assignment.status in ("cancelled", LEAVE_ASSIGNMENT_STATUS):
+            raise ValueError("Phân ca đã hủy hoặc đã duyệt nghỉ phép, không thể tạo log bù")
+
+        shift = db.query(Shift).filter_by(id=session.shift_id or assignment.shift_id, is_active=True).first()
+        if not shift:
+            raise ValueError("Không tìm thấy ca làm của mục vắng")
+
+        emp = db.query(Employee).filter_by(id=session.employee_id).first()
+        if not emp:
+            emp = db.query(Employee).filter_by(emp_code=assignment.emp_code, is_active=True).first()
+        if not emp:
+            raise ValueError("Không tìm thấy nhân viên của mục vắng")
+        if not _branch_active(db, session.branch_id or assignment.branch_id or shift.branch_id or emp.branch_id):
+            raise ValueError("Cửa hàng đã ngừng hoạt động, không thể tạo chấm công")
+
+        check_in_at = _parse_log_timestamp(check_in_timestamp_str)
+        check_out_at = _parse_log_timestamp(check_out_timestamp_str)
+        if check_out_at <= check_in_at:
+            raise ValueError("Giờ ra phải sau giờ vào")
+
+        shift_start, shift_end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+        if not (checkin_from <= check_in_at <= checkout_until):
+            raise ValueError("Giờ vào phải nằm trong cửa sổ chấm công của ca")
+        if not (checkin_from <= check_out_at <= checkout_until):
+            raise ValueError("Giờ ra phải nằm trong cửa sổ chấm công của ca")
+
+        branch_id = session.branch_id or assignment.branch_id or shift.branch_id or emp.branch_id
+        locked_from = min(session.work_date, check_in_at.date(), check_out_at.date())
+        locked_to = max(session.work_date, check_in_at.date(), check_out_at.date())
+        ensure_period_unlocked(db, branch_id, locked_from, locked_to)
+
+        manual_trail = f"[Tạo thủ công bởi {created_by} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
+        final_note = f"{note} {manual_trail}".strip() if note else manual_trail
+        check_in_note = f"{_calc_status_for_employee_shift(emp.emp_code, check_in_at, 'check_in', db)} {final_note}".strip()
+
+        check_in_log = AttendanceLog(
+            employee_id=emp.id,
+            emp_code=emp.emp_code,
+            emp_name=emp.name,
+            department=emp.department,
+            check_type="check_in",
+            timestamp=check_in_at,
+            confidence=0.0,
+            capture_path="",
+            note=check_in_note,
+        )
+        check_out_log = AttendanceLog(
+            employee_id=emp.id,
+            emp_code=emp.emp_code,
+            emp_name=emp.name,
+            department=emp.department,
+            check_type="check_out",
+            timestamp=check_out_at,
+            confidence=0.0,
+            capture_path="",
+            note=final_note,
+        )
+        db.add(check_in_log)
+        db.add(check_out_log)
+        db.flush()
+
+        rebuilt_session = rebuild_session_for_assignment(assignment, db, shift=shift, emp=emp)
+        if not rebuilt_session or not rebuilt_session.check_in_at or not rebuilt_session.check_out_at:
+            raise ValueError("Không thể dựng lại phiên công từ log bù vừa tạo")
+        rebuilt_session.note = "Đã tạo log bù từ xác nhận ca vắng"
+        affected_session_ids = [rebuilt_session.id]
+
+        create_correction_audit(
+            db,
+            action="create",
+            reason=reason,
+            log=check_in_log,
+            before_data={},
+            after_data=log_snapshot(check_in_log),
+            affected_session_ids=affected_session_ids,
+            created_by=created_by,
+            created_by_id=created_by_id,
+            branch_id=branch_id,
+            employee_id=emp.id,
+            emp_code=emp.emp_code,
+        )
+        create_correction_audit(
+            db,
+            action="create",
+            reason=reason,
+            log=check_out_log,
+            before_data={},
+            after_data=log_snapshot(check_out_log),
+            affected_session_ids=affected_session_ids,
+            created_by=created_by,
+            created_by_id=created_by_id,
+            branch_id=branch_id,
+            employee_id=emp.id,
+            emp_code=emp.emp_code,
+        )
+
+        db.commit()
+        return {
+            "check_in_log": _log_to_dict(check_in_log),
+            "check_out_log": _log_to_dict(check_out_log),
+            "session_id": rebuilt_session.id,
+            "session_status": rebuilt_session.status,
+            "review_status": rebuilt_session.review_status,
+            "worked_minutes": rebuilt_session.worked_minutes or 0,
+        }
     except Exception as e:
         db.rollback()
         raise e

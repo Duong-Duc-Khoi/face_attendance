@@ -336,6 +336,11 @@ html[data-admin-theme="light"] body.admin-shell .roster-shift-card .roster-shift
 .atd-meta-item{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 10px}
 .atd-meta-item b{display:block;font-size:10px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px}
 .atd-meta-item span{font-size:12px;color:var(--text);font-family:var(--font-mono)}
+.absent-log-box{max-width:620px}
+.absent-log-summary{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.absent-log-timegrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.absent-log-hint{background:rgba(58,143,255,.08);border:1px solid rgba(58,143,255,.28);border-radius:8px;color:#9ecbff;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.55}
+@media(max-width:680px){.absent-log-summary,.absent-log-timegrid{grid-template-columns:1fr}}
 .confidence-pill{display:inline-flex;align-items:center;justify-content:center;min-width:45px;height:22px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:var(--teal);font-family:var(--font-mono);font-size:11px;font-weight:800}
 .confidence-pill.low{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.4);color:var(--yellow)}
 .evidence-empty{font-size:11px;color:var(--muted)}
@@ -781,12 +786,55 @@ html[data-admin-theme="light"] body.admin-shell .roster-scope-required{
   </div>
 </div>
 
+<!-- ══ Modal: Xác nhận ca vắng bằng log bù ══ -->
+<div class="atd-ovl" id="absentLogOvl">
+  <div class="atd-box absent-log-box">
+    <button class="atd-x" onclick="closeAtd('absentLogOvl')">✕</button>
+    <div class="atd-ttl">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--teal);display:inline-block;flex-shrink:0"></span>
+      Xác nhận ca vắng bằng log vào / ra
+    </div>
+    <div class="absent-log-summary">
+      <div class="atd-meta-item"><b>Nhân viên</b><span id="absentLogEmp">—</span></div>
+      <div class="atd-meta-item"><b>Ca làm</b><span id="absentLogShift">—</span></div>
+      <div class="atd-meta-item"><b>Ngày công</b><span id="absentLogDate">—</span></div>
+    </div>
+    <div class="absent-log-hint" id="absentLogHint">
+      Hệ thống sẽ tạo 2 bản ghi thủ công cho ca này và dựng lại phiên công. Giờ mặc định lấy theo lịch ca, quản lý có thể chỉnh trước khi lưu.
+    </div>
+    <div class="absent-log-timegrid">
+      <div>
+        <div class="atd-lbl">Giờ vào</div>
+        <input type="datetime-local" class="atd-inp" id="absentLogIn">
+      </div>
+      <div>
+        <div class="atd-lbl">Giờ ra</div>
+        <input type="datetime-local" class="atd-inp" id="absentLogOut">
+      </div>
+    </div>
+    <div class="atd-row full">
+      <div>
+        <div class="atd-lbl">Lý do / ghi chú</div>
+        <input type="text" class="atd-inp" id="absentLogReason" placeholder="Bắt buộc: VD nhân viên quên chấm, xác nhận từ quản lý ca...">
+      </div>
+    </div>
+    <div class="atd-foot">
+      <button class="btn btn-outline" onclick="closeAtd('absentLogOvl')">Huỷ</button>
+      <button class="btn btn-teal" id="absentLogBtn" onclick="saveAbsentManualLogs()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Tạo log & xác nhận
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
 let employees=[],employeeRoles=[],allLogs=[],editingId=null;
 let _isMgr=false,_isAdmin=false,_currentEmployeeId=null;
 let _atdEditId=null,_atdDelId=null;
+let _absentLogSessionId=null;
 let _captureObjectUrl='',_activeFindingId=null,_activeManualLogId=null;
 let auditFindings=[],manualReviewLogs=[],auditVisionConfigured=false,auditProvider='',auditMode='manual',manualLowOnly=false,auditLastRunNote='',auditAiCount=0;
 let attendanceReviewItems=[],attendanceReviewCount=0;
@@ -809,7 +857,7 @@ const KIOSK_URL='{{ kiosk_url }}';
   _isAdmin=!!(user&&user.role==='admin');
 
   // Close atd overlays on backdrop click
-  ['atdCaptureOvl','atdEditOvl','atdDelOvl','atdAddOvl'].forEach(id=>{
+  ['atdCaptureOvl','atdEditOvl','atdDelOvl','atdAddOvl','absentLogOvl'].forEach(id=>{
     const ovl=document.getElementById(id);
     if(!ovl)return;
     ovl.addEventListener('click',function(e){
@@ -1538,6 +1586,15 @@ function _reviewDetail(item){
   }
   return item.note||'Cần quản lý xác nhận';
 }
+function _reviewActionButtons(item){
+  const approve=item.review_type==='absent'
+    ? `<button class="log-btn approve" onclick="openAbsentLogModal(${item.id})">Xác nhận</button>`
+    : `<button class="log-btn approve" onclick="reviewAttendanceSession(${item.id},'approved')">Duyệt</button>`;
+  return `<div class="review-actions">
+        ${approve}
+        <button class="log-btn reject" onclick="reviewAttendanceSession(${item.id},'rejected')">Từ chối</button>
+      </div>`;
+}
 async function loadAttendanceReviewItems(){
   if(!_isMgr)return;
   const body=document.getElementById('attendanceReviewBody');
@@ -1569,11 +1626,65 @@ function renderAttendanceReviewItems(){
       <td>${rosterSafe(item.shift_name||(item.review_type==='unscheduled'?'Chưa gắn ca':'—'))}<br><span style="color:var(--muted);font-size:10px">${item.work_date||'—'}</span></td>
       <td style="font-family:var(--font-mono);font-size:12px">Vào: ${_fmtDateTime(item.check_in_at)}<br>Ra: ${_fmtDateTime(item.check_out_at)}</td>
       <td>${rosterSafe(_reviewDetail(item))}<br><span style="color:var(--muted);font-size:10px">Muộn ${item.late_minutes||0}p · OT ${item.overtime_minutes||0}p</span></td>
-      <td style="text-align:right"><div class="review-actions">
-        <button class="log-btn approve" onclick="reviewAttendanceSession(${item.id},'approved')">Duyệt</button>
-        <button class="log-btn reject" onclick="reviewAttendanceSession(${item.id},'rejected')">Từ chối</button>
-      </div></td>
+      <td style="text-align:right">${_reviewActionButtons(item)}</td>
     </tr>`).join('');
+}
+function _dateLabel(isoDate){
+  if(!isoDate)return '—';
+  const [y,m,d]=isoDate.split('-');
+  return y&&m&&d?`${d}/${m}/${y}`:isoDate;
+}
+function _dtLocalFromDateTimeParts(dateText,timeText){
+  if(!dateText||!timeText)return '';
+  return `${dateText}T${String(timeText).slice(0,5)}`;
+}
+function _shiftTimeFallback(item,key){
+  const time=(key==='start'?(item.shift_start||''):(item.shift_end||'')).slice(11,16);
+  if(time)return time;
+  const name=item.shift_name||'';
+  const match=name.match(/(\d{1,2}:\d{2})\D+(\d{1,2}:\d{2})/);
+  if(match)return key==='start'?match[1].padStart(5,'0'):match[2].padStart(5,'0');
+  return key==='start'?'09:00':'18:00';
+}
+function openAbsentLogModal(sessionId){
+  const item=attendanceReviewItems.find(x=>Number(x.id)===Number(sessionId));
+  if(!item)return;
+  _absentLogSessionId=sessionId;
+  const inValue=item.shift_start?_dtLocal(item.shift_start):_dtLocalFromDateTimeParts(item.work_date,_shiftTimeFallback(item,'start'));
+  const outValue=item.shift_end?_dtLocal(item.shift_end):_dtLocalFromDateTimeParts(item.work_date,_shiftTimeFallback(item,'end'));
+  document.getElementById('absentLogEmp').textContent=`${item.emp_name||'—'} (${item.emp_code||'—'})`;
+  document.getElementById('absentLogShift').textContent=item.shift_name||'—';
+  document.getElementById('absentLogDate').textContent=_dateLabel(item.work_date);
+  document.getElementById('absentLogIn').value=inValue;
+  document.getElementById('absentLogOut').value=outValue;
+  document.getElementById('absentLogReason').value='';
+  document.getElementById('absentLogHint').textContent=`Ca ${item.shift_name||'—'} · mặc định ${_fmtDateTime(item.shift_start)||'giờ vào'} đến ${_fmtDateTime(item.shift_end)||'giờ ra'}. Hãy chỉnh nếu nhân viên vào/ra lệch thực tế.`;
+  document.getElementById('absentLogOvl').classList.add('open');
+  setTimeout(()=>document.getElementById('absentLogIn')?.focus(),80);
+}
+async function saveAbsentManualLogs(){
+  if(!_absentLogSessionId)return;
+  const checkIn=document.getElementById('absentLogIn').value;
+  const checkOut=document.getElementById('absentLogOut').value;
+  const reason=document.getElementById('absentLogReason').value.trim();
+  if(!checkIn||!checkOut){showToast('Vui lòng nhập đủ giờ vào và giờ ra','error');return;}
+  if(new Date(checkOut)<=new Date(checkIn)){showToast('Giờ ra phải sau giờ vào','error');return;}
+  if(!reason){showToast('Vui lòng nhập lý do tạo log bù','error');return;}
+  const btn=document.getElementById('absentLogBtn');
+  btn.innerHTML='<span class="atd-sp"></span> Đang tạo log...';btn.disabled=true;
+  try{
+    const res=await authFetch(`/api/attendance/sessions/${_absentLogSessionId}/absent-manual-logs`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({check_in_at:_tsApi(checkIn),check_out_at:_tsApi(checkOut),note:reason,reason})
+    });
+    if(!res.ok)throw new Error((await res.json()).detail||'Không tạo được log bù');
+    closeAtd('absentLogOvl');
+    _absentLogSessionId=null;
+    showToast('Đã tạo log vào/ra và cập nhật ca vắng','success');
+    await Promise.all([loadAttendanceReviewItems(),loadSummary(),loadLogs({refreshAudit:false})]);
+  }catch(e){showToast('Lỗi: '+e.message,'error');}
+  finally{btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Tạo log & xác nhận';btn.disabled=false;}
 }
 async function reviewAttendanceSession(sessionId,status){
   const note=prompt(status==='approved'?'Ghi chú duyệt (tuỳ chọn)':'Lý do từ chối (tuỳ chọn)')||'';
