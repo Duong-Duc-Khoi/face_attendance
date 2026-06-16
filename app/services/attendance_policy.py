@@ -20,7 +20,7 @@ def session_counts_as_work(session: AttendanceSession | None) -> bool:
         return False
     if session.status == "open":
         return False
-    if session.status == "missing_checkout":
+    if session.status in ("missing_checkout", "missing_checkin"):
         return bool(session.review_status == "approved" and session.check_in_at and session.check_out_at)
     if session.status in ("absent", "cancelled"):
         return False
@@ -37,6 +37,10 @@ def confirmed_absent(session: AttendanceSession | None) -> bool:
 
 def missing_checkout_recorded(session: AttendanceSession | None) -> bool:
     return bool(session and (session.status == "missing_checkout" or session.review_type == "missing_checkout"))
+
+
+def missing_checkin_recorded(session: AttendanceSession | None) -> bool:
+    return bool(session and (session.status == "missing_checkin" or session.review_type == "missing_checkin"))
 
 
 def payable_work_minutes(session: AttendanceSession | None) -> int:
@@ -81,6 +85,7 @@ def session_status_label(session: AttendanceSession | None) -> str:
         "open": "Đang mở",
         "completed": "Hoàn tất",
         "missing_checkout": "Quên checkout",
+        "missing_checkin": "Thiếu check-in",
         "absent": "Vắng",
         "cancelled": "Đã hủy",
     }.get(session.status or "", session.status or "Chưa xác định")

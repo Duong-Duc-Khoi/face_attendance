@@ -68,6 +68,7 @@ class Settings:
     # ── Chấm công ──────────────────────────────────────
     COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "5"))
     CHECKIN_GRACE_MINUTES: int = int(os.getenv("CHECKIN_GRACE_MINUTES", "15"))
+    MISSING_CHECKIN_CHECKOUT_WINDOW_MINUTES: int = int(os.getenv("MISSING_CHECKIN_CHECKOUT_WINDOW_MINUTES", "30"))
     OVERTIME_APPROVAL_THRESHOLD_MINUTES: int = int(os.getenv("OVERTIME_APPROVAL_THRESHOLD_MINUTES", "30"))
     WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5,6,7")
     NOTIFY_LEAVE_CANCEL:    bool = os.getenv("NOTIFY_LEAVE_CANCEL", "true").lower() == "true"

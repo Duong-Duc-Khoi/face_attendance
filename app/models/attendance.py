@@ -28,7 +28,7 @@ class AttendanceSession(Base):
     check_in_at  = Column(DateTime, nullable=True, index=True)
     check_out_at = Column(DateTime, nullable=True, index=True)
 
-    # open | completed | missing_checkout | absent | cancelled
+    # open | completed | missing_checkout | missing_checkin | absent | cancelled
     status = Column(String(30), default="open", index=True)
 
     # on_time | late | early | manual | auto | unscheduled
@@ -47,7 +47,7 @@ class AttendanceSession(Base):
     note          = Column(Text, default="")
     # none | pending_review | approved | rejected
     review_status = Column(String(30), default="none", index=True)
-    # absent | missing_checkout | overtime | unscheduled
+    # absent | missing_checkout | missing_checkin | overtime | unscheduled
     review_type   = Column(String(30), default="", index=True)
     review_note   = Column(Text, default="")
     reviewed_by   = Column(String(150), default="")
@@ -69,7 +69,7 @@ class AttendanceSession(Base):
             name="ck_attendance_sessions_check_out_status",
         ),
         CheckConstraint(
-            "review_type IN ('', 'absent', 'missing_checkout', 'overtime', 'unscheduled')",
+            "review_type IN ('', 'absent', 'missing_checkout', 'missing_checkin', 'overtime', 'unscheduled')",
             name="ck_attendance_sessions_review_type",
         ),
     )

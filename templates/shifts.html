@@ -235,11 +235,15 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
 .assignment-person.evening{border-color:rgba(58,143,255,.42)}
 .assignment-person.night{border-color:rgba(167,139,250,.46)}
 .assignment-person.leave{border-color:rgba(58,143,255,.58);background:linear-gradient(180deg,rgba(58,143,255,.14),rgba(8,17,31,.58));cursor:default}
+.assignment-person.unscheduled{border-color:rgba(56,189,248,.62);background:linear-gradient(180deg,rgba(56,189,248,.13),rgba(8,17,31,.58));cursor:default}
+.assignment-person.attendance-locked{border-color:rgba(246,201,14,.58);background:linear-gradient(180deg,rgba(246,201,14,.12),rgba(8,17,31,.58));cursor:default}
 .assignment-person:active{cursor:grabbing}
 .assignment-main{min-width:0}
 .assignment-name{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .assignment-role{font-size:9px;color:var(--green);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .assignment-leave-badge{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;background:rgba(58,143,255,.16);border:1px solid rgba(58,143,255,.4);color:#8ec2ff;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.assignment-unscheduled-badge{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.38);color:#8fd9ff;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.assignment-attendance-badge{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;background:rgba(246,201,14,.14);border:1px solid rgba(246,201,14,.38);color:#ffd76a;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 .mini-danger{width:22px;height:22px;min-height:22px;padding:0}
 .empty-board{padding:22px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:13px;text-align:center;background:var(--surface)}
 .scope-required{
@@ -1058,14 +1062,20 @@ function assignmentChip(row){
   const tone = shiftTone(row.shift);
   const role = employeeRole(emp);
   const isLeave = row.status === "leave_approved";
+  const isUnscheduled = row.status === "unscheduled_approved";
+  const isAttendanceLocked = !!row.attendance_locked;
+  const locked = isLeave || isUnscheduled || isAttendanceLocked;
+  const lockClass = isLeave ? "leave" : (isUnscheduled ? "unscheduled" : (isAttendanceLocked ? "attendance-locked" : tone));
   return `
-    <div class="assignment-person ${isLeave ? "leave" : tone}" draggable="${isLeave ? "false" : "true"}" ${isLeave ? "" : `ondragstart="dragAssignment(event,${row.id})"`}>
+    <div class="assignment-person ${lockClass}" draggable="${locked ? "false" : "true"}" title="${isAttendanceLocked ? esc(row.attendance_lock_reason || "Đã có chấm công") : ""}" ${locked ? "" : `ondragstart="dragAssignment(event,${row.id})"`}>
       <div class="assignment-main">
         <div class="assignment-name">${esc(emp?.name || row.emp_code)}</div>
         <div class="assignment-role">${esc(role)}</div>
         ${isLeave ? `<div class="assignment-leave-badge">Nghỉ phép</div>` : ""}
+        ${isUnscheduled ? `<div class="assignment-unscheduled-badge">Ngoài ca đã duyệt</div>` : ""}
+        ${isAttendanceLocked ? `<div class="assignment-attendance-badge">Đã có chấm công</div>` : ""}
       </div>
-      ${isLeave ? "" : `<button class="icon-btn icon-only danger mini-danger" aria-label="Xoá phân ca" onclick="event.stopPropagation();deleteAssignment(${row.id})">×</button>`}
+      ${locked ? "" : `<button class="icon-btn icon-only danger mini-danger" aria-label="Xoá phân ca" onclick="event.stopPropagation();deleteAssignment(${row.id})">×</button>`}
     </div>`;
 }
 
@@ -1100,6 +1110,10 @@ async function dropOnShift(event, iso, shiftId){
   try{ payload = JSON.parse(event.dataTransfer.getData("application/json") || "{}"); }
   catch{ payload = null; }
   if (!payload?.type) return;
+  if (payload.type === "assignment"){
+    const moving = weekAssignments.find(r => Number(r.id) === Number(payload.id));
+    if (moving?.attendance_locked) return showToast(moving.attendance_lock_reason || "Phân ca đã có chấm công, không thể chuyển", "error");
+  }
 
   if (payload.type === "employees"){
     const codes = Array.isArray(payload.emp_codes) ? payload.emp_codes.filter(Boolean) : [];
@@ -1407,7 +1421,8 @@ async function deleteShift(id){
     await loadCalendar();
     showToast("Đã tắt ca", "success");
   }else{
-    showToast("Không tắt được ca", "error");
+    const err = await res.json().catch(() => ({}));
+    showToast(formatErrorDetail(err.detail) || "Không tắt được ca", "error");
   }
 }
 
@@ -1449,13 +1464,21 @@ function renderAssignedList(){
   const rows = assignmentsByDate[modalDate] || [];
   list.innerHTML = rows.length ? rows.map(r => {
     const isLeave = r.status === "leave_approved";
+    const isUnscheduled = r.status === "unscheduled_approved";
+    const isAttendanceLocked = !!r.attendance_locked;
+    const locked = isLeave || isUnscheduled || isAttendanceLocked;
+    const lockedBadge = isLeave
+      ? `<span class="assignment-leave-badge">Nghỉ phép</span>`
+      : (isUnscheduled
+        ? `<span class="assignment-unscheduled-badge">Ngoài ca đã duyệt</span>`
+        : `<span class="assignment-attendance-badge">Đã có chấm công</span>`);
     return `
     <div class="assigned-row">
       <div>
         <div class="assigned-title">${esc(r.shift?.name || "Ca")}</div>
-        <div class="assigned-meta">${esc(r.shift?.work_start || "")}-${esc(r.shift?.work_end || "")}${isLeave ? " · Nghỉ phép" : ""}${r.note ? ` · ${esc(r.note)}` : ""}</div>
+        <div class="assigned-meta">${esc(r.shift?.work_start || "")}-${esc(r.shift?.work_end || "")}${isLeave ? " · Nghỉ phép" : ""}${isUnscheduled ? " · Ngoài ca đã duyệt" : ""}${isAttendanceLocked ? ` · ${esc(r.attendance_lock_reason || "Đã có chấm công")}` : ""}${r.note ? ` · ${esc(r.note)}` : ""}</div>
       </div>
-      ${isLeave ? `<span class="assignment-leave-badge">Nghỉ phép</span>` : `<button class="icon-btn icon-only danger" aria-label="Xoá phân ca" onclick="deleteAssignment(${r.id})">
+      ${locked ? lockedBadge : `<button class="icon-btn icon-only danger" aria-label="Xoá phân ca" onclick="deleteAssignment(${r.id})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
       </button>`}
     </div>`;
@@ -1492,6 +1515,8 @@ async function deleteAssignment(id){
   const row = weekAssignments.find(r => Number(r.id) === Number(id));
   const workDate = row?.work_date || modalDate;
   if (workDate && !requireEditableAssignmentDate(workDate)) return;
+  if (row?.status === "unscheduled_approved") return showToast("Ca ngoài ca đã duyệt không thể xoá khỏi lịch phân ca", "error");
+  if (row?.attendance_locked) return showToast(row.attendance_lock_reason || "Phân ca đã có chấm công, không thể xoá", "error");
   const res = await authFetch(`/api/shifts/assignments/${id}`, {method:"DELETE"});
   if (res.ok || res.status === 204){
     await loadCalendar();

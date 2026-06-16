@@ -12,7 +12,20 @@ from app.models.shift import Shift, ShiftAssignment
 from app.services.attendance_period import ensure_period_unlocked
 
 LEAVE_ASSIGNMENT_STATUS = "leave_approved"
+UNSCHEDULED_APPROVED_ASSIGNMENT_STATUS = "unscheduled_approved"
+PROTECTED_ASSIGNMENT_STATUSES = (
+    LEAVE_ASSIGNMENT_STATUS,
+    UNSCHEDULED_APPROVED_ASSIGNMENT_STATUS,
+)
 ACTIVE_LEAVE_STATUSES = ("pending", "approved")
+
+
+def protected_assignment_message(status: str | None, action: str) -> str:
+    if status == LEAVE_ASSIGNMENT_STATUS:
+        return f"Ca này đã được duyệt nghỉ phép, không thể {action}"
+    if status == UNSCHEDULED_APPROVED_ASSIGNMENT_STATUS:
+        return f"Phân ca này đã được duyệt từ chấm công ngoài ca, không thể {action}"
+    return f"Ca này không thể {action}"
 
 
 def leave_entry_scope(entry: dict) -> str:
@@ -90,8 +103,8 @@ def has_approved_day_leave(db: Session, emp_code: str, work_date: date | str) ->
 def ensure_can_assign_employee(db: Session, emp_code: str, work_date: date | str, existing_assignment: ShiftAssignment | None = None) -> None:
     if has_approved_day_leave(db, emp_code, work_date):
         raise ValueError("Nhân viên đã được duyệt nghỉ cả ngày, không thể xếp ca")
-    if existing_assignment and existing_assignment.status == LEAVE_ASSIGNMENT_STATUS:
-        raise ValueError("Ca này đã được duyệt nghỉ phép, không thể mở lại bằng phân ca")
+    if existing_assignment and existing_assignment.status in PROTECTED_ASSIGNMENT_STATUSES:
+        raise ValueError(protected_assignment_message(existing_assignment.status, "mở lại bằng phân ca"))
 
 
 def validate_leave_conflicts(

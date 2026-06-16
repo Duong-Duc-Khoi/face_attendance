@@ -1,0 +1,753 @@
+BÁO CÁO LUỒNG CHẤM CÔNG, PHÂN CÔNG VÀ NGHỈ PHÉP HIỆN TẠI
+Ngày lập: 2026-06-12
+Phạm vi: mô tả hiện trạng code trong repo G:\face_attendance, tập trung vào luồng vận hành, trạng thái dữ liệu và các tình huống "nhân viên làm X thì hệ thống ra Y".
+
+======================================================================
+1. NGUỒN ĐÃ ĐỌC
+======================================================================
+
+1.1. Nhóm model dữ liệu
+- app/models/attendance.py
+  - AttendanceLog: log chấm công thô, lưu emp_code, loại check, thời điểm, confidence, ảnh bằng chứng.
+  - AttendanceEvent: sự kiện check-in/check-out/manual/auto gắn với session.
+  - AttendanceSession: phiên công theo ca, là lớp chính để tính công.
+  - AttendanceEvidence: ảnh bằng chứng, hash ảnh và thông tin đối soát.
+  - AttendanceCorrectionAudit: audit khi thêm/sửa/xóa/duyệt công.
+  - AttendancePeriodLock: khóa kỳ công.
+- app/models/shift.py
+  - Shift: định nghĩa ca làm.
+  - ShiftAssignment: phân ca nhân viên theo ngày.
+  - ShiftPlanDraft, ShiftPlanDraftAssignment: bản nháp/kế hoạch phân ca.
+- app/models/leave.py
+  - LeaveRequest: đơn nghỉ phép.
+  - LeaveRequestDay: các ngày/ca trong đơn nghỉ phép.
+- app/models/calendar.py
+  - WorkCalendar: ngày vận hành đặc biệt.
+  - WorkCalendarConfig: cấu hình ngày mở cửa mặc định theo chi nhánh.
+- app/models/employee.py, app/models/branch.py, app/models/employee_branch_history.py
+  - Hồ sơ nhân viên, cửa hàng/chi nhánh, lịch sử chuyển chi nhánh.
+
+1.2. Nhóm service nghiệp vụ
+- app/services/attendance.py: xử lý chấm công, tạo log/session/event, auto checkout, đánh dấu vắng.
+- app/services/shift_service.py: tạo/sửa/xóa ca, phân ca, tìm ca phù hợp, rebuild session từ log.
+- app/services/leave_policy.py: quy tắc nghỉ phép và ảnh hưởng tới phân ca.
+- app/services/work_calendar.py: lịch vận hành và trạng thái ngày công.
+- app/services/attendance_policy.py: quy tắc tính công/bảng công từ session.
+- app/services/attendance_period.py: khóa kỳ công và audit chỉnh công.
+- app/services/attendance_audit.py: đối soát bằng chứng ảnh, low confidence, thiếu/trùng ảnh, AI/presentation risk.
+- app/services/employee_branch_history.py: xác định chi nhánh theo thời gian, chuyển cửa hàng và hủy phân ca tương lai.
+- app/services/branch_scope.py: phạm vi quyền theo chi nhánh.
+- app/services/camera.py: lưu snapshot bằng chứng và luồng camera legacy.
+
+1.3. Nhóm API
+- app/api/v1/ws.py: WebSocket /ws/kiosk và /ws/attendance.
+- app/api/v1/reports.py: lịch sử chấm công, review session, bảng công, audit, sửa/thêm/xóa công, khóa kỳ.
+- app/api/v1/shifts.py: ca làm, phân ca, import/export Excel.
+- app/api/v1/leave.py: gửi/duyệt/từ chối/hủy đơn nghỉ.
+- app/api/v1/calendar.py: lịch vận hành.
+- app/api/v1/me.py: lịch ca, trạng thái ca và dữ liệu cá nhân của nhân viên.
+- app/api/v1/branches.py, app/api/v1/employees.py: chi nhánh, nhân viên, chuyển chi nhánh, đăng ký khuôn mặt.
+
+1.4. Nhóm UI và vận hành
+- kiosk/server.js, templates/kiosk.html: kiosk local, camera browser, gửi frame lên backend.
+- templates/dashboard.html, templates/dashboard_tabs/attendance.html, templates/dashboard_tabs/leave.html: dashboard quản trị, chấm công cần duyệt, đối soát, nghỉ phép.
+- templates/shifts.html: quản lý ca và lịch phân ca.
+- templates/me.html: trang cá nhân, xin nghỉ, xem lịch làm việc.
+- templates/reports.html: báo cáo và xuất bảng công.
+- templates/work_calendar.html: lịch vận hành.
+- app/core/lifespan.py: scheduler tự động.
+- Readme.md, migrations/versions/*, tests/test_attendance_session_flow.py.
+
+1.5. Kiểm chứng đã chạy
+- Lệnh đã chạy: conda run -n face_attendance python -m unittest tests.test_attendance_session_flow
+- Kết quả: 14 test pass.
+- Nhóm test bao phủ: ưu tiên checkout session đang mở khi ca chồng giờ, bổ sung ca sau khi đã có log, thêm/sửa/xóa log thủ công rebuild session, duyệt quên checkout mới tính công, tính công/nghỉ phép/vắng, chỉ cho tạo đơn nghỉ theo ca, bắt buộc lý do chỉnh công, khóa kỳ chặn chỉnh công và phân ca.
+
+======================================================================
+2. TỔNG QUAN TRẠNG THÁI DỮ LIỆU
+======================================================================
+
+2.1. AttendanceLog, AttendanceEvent, AttendanceSession
+- AttendanceLog là log chấm công thô. Đây là bằng chứng sự kiện, không phải nguồn tính công trực tiếp.
+- AttendanceEvent là sự kiện đã được chuẩn hóa hơn, có thể gắn với AttendanceSession.
+- AttendanceSession là phiên công theo ca và là lớp chính để tính công.
+- Các trạng thái session chính:
+  - open: đã check-in, chưa check-out.
+  - completed: đã có check-in/check-out đủ để tính như phiên hoàn tất.
+  - missing_checkout: quên checkout hoặc bị auto checkout, cần quản lý duyệt mới tính công.
+  - absent: hệ thống ghi nhận vắng, chờ duyệt.
+  - cancelled: phiên bị hủy, không tính công.
+- Trạng thái check-in:
+  - on_time: vào đúng giờ theo ngưỡng.
+  - late: vào muộn.
+  - unscheduled: chấm công ngoài phân ca.
+  - manual: log do quản lý/admin thêm/sửa.
+  - auto: hệ thống tự sinh.
+- Trạng thái check-out:
+  - normal: ra bình thường.
+  - early_leave: về sớm.
+  - overtime: ra sau giờ kết thúc ca.
+  - unscheduled, manual, auto: tương tự ý nghĩa ở check-in.
+- Trạng thái duyệt:
+  - none: không cần duyệt hoặc chưa vào luồng duyệt.
+  - pending_review: đang chờ quản lý duyệt.
+  - approved: đã duyệt.
+  - rejected: bị từ chối.
+- Loại cần review:
+  - absent: vắng.
+  - missing_checkout: quên checkout.
+  - overtime: tăng ca vượt ngưỡng.
+  - unscheduled: ngoài phân ca.
+
+2.2. Shift và ShiftAssignment
+- Shift định nghĩa ca làm: giờ bắt đầu/kết thúc, cho vào sớm, ngưỡng muộn, cửa sổ checkout, nghỉ giữa ca, chi nhánh, vai trò yêu cầu và cờ ca qua ngày.
+- ShiftAssignment là phân công cụ thể cho một nhân viên vào một ngày.
+- Trạng thái assignment:
+  - scheduled: đã phân ca.
+  - leave_approved: ca đã được duyệt nghỉ phép.
+  - cancelled: đã hủy mềm.
+- Một nhân viên có thể có nhiều ca trong ngày nếu khác shift_id. Code chặn trùng cùng emp_code + work_date + shift_id bằng cách cập nhật assignment hiện có thay vì tạo bản ghi trùng.
+
+2.3. LeaveRequest
+- LeaveRequest lưu đơn nghỉ. LeaveRequestDay lưu ngày hoặc ca trong đơn.
+- Trạng thái đơn:
+  - pending: chờ duyệt.
+  - approved: đã duyệt.
+  - rejected: bị từ chối.
+  - cancelled: đã hủy.
+- request_type hiện chỉ cho tạo mới loại leave. Loại remote cũ vẫn còn trong dữ liệu/hiển thị tương thích nhưng không cho tạo mới.
+
+2.4. Khóa kỳ công
+- Khi ngày/chi nhánh nằm trong kỳ công đã khóa:
+  - Chặn thêm/sửa/xóa log thủ công.
+  - Chặn phân ca.
+  - Chặn duyệt attendance session.
+  - Chặn apply nghỉ phép vào assignment nếu việc đổi assignment đụng kỳ đã khóa.
+
+======================================================================
+3. LUỒNG CHẤM CÔNG BẰNG KIOSK/CAMERA
+======================================================================
+
+3.1. Điều kiện kiosk
+- Kiosk cần branch_id. Nguồn lấy branch_id gồm:
+  - Biến môi trường KIOSK_BRANCH_ID.
+  - Query string ?branch_id=ID.
+  - localStorage kiosk_branch_id.
+- Nếu không có branch_id:
+  - Trang kiosk hiển thị trạng thái chưa cấu hình cửa hàng.
+  - connectKioskWS bị reject.
+  - Nút/camera không bật được.
+- Nếu branch_id có nhưng chi nhánh không tồn tại hoặc đã tắt:
+  - UI cảnh báo cửa hàng không tồn tại hoặc đã tắt.
+  - Backend process_attendance cũng chặn nếu chi nhánh inactive.
+- Nếu kiosk gửi branch_id khác chi nhánh hiện tại của nhân viên:
+  - process_attendance trả lỗi branch_mismatch.
+  - Không tạo log, không tạo session, không tính công.
+
+3.2. Đường đi frame chấm công
+- Browser kiosk bật camera bằng getUserMedia.
+- Khoảng mỗi 700ms, kiosk chụp frame, nén JPEG và gửi qua WebSocket /ws/kiosk?branch_id=...&kiosk_id=...
+- Backend /ws/kiosk:
+  - Decode frame.
+  - Gọi face_engine.recognize.
+  - Gửi thông tin số mặt nhận diện về kiosk.
+  - Với từng kết quả recognized, gọi _handle_face_result.
+- _handle_face_result:
+  - Chạy presentation_guard_service để phát hiện ảnh/màn hình gần khuôn mặt.
+  - Nếu bị block presentation attack thì gửi attendance_error, không gọi process_attendance.
+  - Nếu không bị block, gọi process_attendance(emp_code, confidence, branch_id).
+  - Nếu chấm công thành công, lưu snapshot bằng chứng và gọi record_attendance_evidence.
+  - Trả payload attendance hoặc attendance_error về kiosk.
+
+3.3. Đường đi legacy /ws/attendance
+- Backend tự đọc webcam local bằng app/services/camera.py.
+- Nhận diện trên backend, gọi cùng process_attendance.
+- Luồng này dùng cho chế độ cũ, khi backend machine sở hữu camera.
+
+3.4. Bằng chứng ảnh và audit realtime
+- Khi log thành công, camera/kiosk lưu ảnh trong data/captures/YYYY-MM-DD.
+- Ảnh có overlay giờ, ngày, tên, emp_code, loại vào/ra, confidence, log id.
+- record_attendance_evidence:
+  - Gắn capture_path vào AttendanceLog và AttendanceEvent.
+  - Tạo/cập nhật AttendanceEvidence.
+  - Tính image_hash.
+  - Tạo finding nếu confidence thấp, thiếu bằng chứng, trùng hash, presentation risk.
+- UI quản lý có thể mở ảnh bằng endpoint /api/attendance/{log_id}/capture.
+
+3.5. Cooldown chống spam
+- process_attendance lấy log gần nhất theo emp_code.
+- Nếu lần hiện tại cách log gần nhất ít hơn COOLDOWN_MINUTES, mặc định 5 phút:
+  - Không ghi log mới.
+  - Trả ok=false, reason="cooldown".
+  - Kiosk báo nhân viên vừa check-in/check-out trong vài phút trước.
+
+======================================================================
+4. CÁC CASE CHẤM CÔNG CỤ THỂ
+======================================================================
+
+4.1. Nhân viên không tồn tại hoặc không active
+- Điều kiện: process_attendance query Employee theo emp_code và is_active=True không thấy.
+- Kết quả:
+  - Không tạo AttendanceLog.
+  - Trả ok=false, reason="employee_not_found".
+  - Kiosk hiển thị không tìm thấy nhân viên.
+  - Không có công, không có session.
+
+4.2. Nhân viên đứng kiosk sai chi nhánh
+- Điều kiện: kiosk có branch_id, nhân viên active nhưng emp.branch_id khác branch_id.
+- Kết quả:
+  - Không tạo log.
+  - Trả ok=false, reason="branch_mismatch".
+  - Kiosk báo nhân viên không thuộc cửa hàng của kiosk.
+  - Không ảnh hưởng bảng công.
+
+4.3. Chi nhánh/cửa hàng tắt
+- Điều kiện: branch.is_active=False.
+- Kết quả:
+  - process_attendance từ chối.
+  - Không tạo log/session.
+  - Khi tắt chi nhánh trong luồng quản trị, các phân ca tương lai liên quan cũng bị hủy mềm theo logic service.
+
+4.4. Nghi vấn dùng ảnh/màn hình
+- Điều kiện: presentation_guard_service đánh giá frame là rủi ro và block.
+- Kết quả:
+  - Không gọi process_attendance.
+  - Không tạo log chấm công.
+  - Kiosk nhận attendance_error.
+- Nếu không block nhưng có tín hiệu rủi ro:
+  - Log vẫn có thể được tạo.
+  - record_attendance_evidence ghi finding presentation/AI risk để quản lý đối soát.
+
+4.5. Check-in đúng ca, đúng giờ
+- Điều kiện:
+  - Nhân viên có ShiftAssignment scheduled cùng ngày/ca.
+  - Thời điểm check nằm trong cửa sổ check-in của ca, có tính early_checkin_minutes.
+  - Không có session mở cần checkout trước.
+- Kết quả:
+  - Tạo AttendanceLog check_in.
+  - Tạo AttendanceEvent check_in.
+  - Tạo hoặc cập nhật AttendanceSession status=open.
+  - check_in_status=on_time nếu không vượt late_threshold_minutes.
+  - Bảng công chưa tính đủ giờ cho đến khi có checkout hoặc xử lý auto/missing.
+
+4.6. Check-in đúng ca nhưng muộn
+- Điều kiện: thời điểm check-in sau start_time + late_threshold_minutes.
+- Kết quả:
+  - Vẫn tạo log/event/session nếu nằm trong cửa sổ hợp lệ.
+  - check_in_status=late.
+  - Bảng công tính theo phút thực tế từ lúc check-in, không tự cộng phần đến muộn.
+
+4.7. Check-out bình thường
+- Điều kiện: có session open phù hợp và thời điểm checkout nằm trong cửa sổ checkout.
+- Kết quả:
+  - Tạo AttendanceLog check_out.
+  - Tạo AttendanceEvent check_out.
+  - AttendanceSession chuyển completed.
+  - check_out_status=normal nếu không về sớm và không tăng ca.
+  - paid_minutes/work_minutes được tính từ session theo policy, có trừ break_minutes khi áp dụng.
+
+4.8. Check-out về sớm
+- Điều kiện: checkout trước giờ kết thúc ca theo logic ca.
+- Kết quả:
+  - Session vẫn completed.
+  - check_out_status=early_leave.
+  - Bảng công tính theo phút thực tế, không tự bù đủ ca.
+
+4.9. Check-out tăng ca
+- Điều kiện: checkout sau giờ kết thúc ca.
+- Kết quả:
+  - Session completed.
+  - check_out_status=overtime.
+  - overtime_minutes được ghi nhận.
+- Nếu tăng ca vượt ngưỡng review:
+  - review_status=pending_review.
+  - review_type=overtime.
+  - pending_review không được tính công như công đã chốt cho tới khi quản lý duyệt.
+
+4.10. Check khi ca đã hoàn tất
+- Điều kiện: nhân viên đã có session completed gần đó và không có ca mở phù hợp khác.
+- Kết quả:
+  - Code có xu hướng tạo log mới nếu xác định đó là lượt chấm tiếp theo hợp lệ hoặc rơi vào ngoài phân ca, tùy thời điểm và ca match được.
+  - Nếu log mới rơi ngoài assignment, session có thể được tạo dạng unscheduled và cần review.
+  - Đây là case cần quản lý đối soát nếu nhân viên quét nhiều lần sau khi đã hoàn tất ca.
+
+4.11. Ca đã được duyệt nghỉ phép
+- Điều kiện: ShiftAssignment.status=leave_approved.
+- Kết quả:
+  - Kiosk/process_attendance không cho chấm công vào assignment đó.
+  - Hệ thống trả lý do ca đã duyệt nghỉ.
+  - Không tạo phiên công cho ca nghỉ đã duyệt.
+  - Bảng công tạo công phép/phút phép theo ca, không lấy log chấm công.
+
+4.12. Chấm công ngoài phân ca
+- Điều kiện: không tìm được ShiftAssignment scheduled phù hợp.
+- Kết quả:
+  - Vẫn ghi nhận AttendanceLog và AttendanceEvent.
+  - Tạo AttendanceSession dạng unscheduled.
+  - review_status=pending_review, review_type=unscheduled.
+  - Không tính công ngay.
+- Nếu quản lý duyệt:
+  - Hệ thống tự tạo hoặc gắn assignment ngoài giờ phù hợp.
+  - Session được approved/completed theo logic review.
+  - Bảng công mới bắt đầu tính theo session được duyệt.
+- Nếu quản lý từ chối:
+  - Session rejected/cancelled tùy nhánh xử lý.
+  - Không tính công.
+
+4.13. Quên checkout
+- Scheduler trong app/core/lifespan.py chạy định kỳ khoảng 15 phút.
+- auto_checkout_missing_sessions tìm session open đã quá ngưỡng auto_checkout.
+- Kết quả:
+  - Tạo checkout tự động tại giờ kết thúc ca hoặc mốc auto theo policy.
+  - Session chuyển missing_checkout.
+  - review_status=pending_review, review_type=missing_checkout.
+  - Bảng công chỉ tính khi quản lý duyệt.
+- Nếu quản lý duyệt:
+  - Session được accepted/approved theo luồng review.
+  - Công được tính theo checkout tự động.
+- Nếu quản lý từ chối:
+  - Session không tính công.
+
+4.14. Không check-in sau khi ca kết thúc
+- Scheduler mark_absent_sessions xử lý ca đã kết thúc mà không có session hợp lệ.
+- Kết quả:
+  - Tạo session absent cho assignment.
+  - review_status=pending_review, review_type=absent.
+  - Khi quản lý duyệt, bảng công ghi nhận vắng.
+
+4.15. Chỉnh công thủ công
+- Manager/admin có thể thêm/sửa log chấm công qua API reports.
+- Điều kiện:
+  - Phải có lý do khi thêm/sửa.
+  - Ngày/chi nhánh không nằm trong kỳ công đã khóa.
+  - Xóa log chỉ admin.
+- Kết quả:
+  - Tạo/sửa/xóa AttendanceLog.
+  - Rebuild AttendanceSession từ log liên quan.
+  - Ghi AttendanceCorrectionAudit.
+  - Nếu thao tác chạm session cần duyệt, luồng tính công vẫn theo review_status.
+
+4.16. Bổ sung ca sau khi nhân viên đã chấm
+- Khi assign_shift tạo/cập nhật phân ca, service gọi rebuild session từ log cũ trong cửa sổ ca.
+- Kết quả:
+  - Log đã có trước đó có thể được đồng bộ vào session của ca mới.
+  - Case này đã được test nghiệp vụ bao phủ.
+
+4.17. Ca qua ngày
+- Shift có is_overnight hoặc work_end <= work_start.
+- Cửa sổ ca được tính sang ngày hôm sau cho phần checkout.
+- Ví dụ ca 22:00-06:00:
+  - Check-in tối ngày D gắn assignment ngày D.
+  - Checkout sáng ngày D+1 vẫn có thể match cùng session.
+
+======================================================================
+5. LUỒNG PHÂN CÔNG CA
+======================================================================
+
+5.1. Tạo/sửa/xóa ca làm
+- Tạo ca:
+  - Endpoint POST /api/shifts.
+  - Chỉ manager/admin có quyền chi nhánh.
+  - branch_id lấy từ chi nhánh đang chọn hoặc phạm vi của manager.
+  - Kiểm tra chi nhánh active.
+  - Sinh code duy nhất trong branch.
+  - Giờ phải có dạng HH:MM.
+  - Ngưỡng hợp lệ gồm late_threshold_minutes, early_checkin_minutes, auto_checkout_minutes, break_minutes.
+- Sửa ca:
+  - Endpoint PUT /api/shifts/{shift_id}.
+  - Nếu đổi work_start/work_end mà không truyền is_overnight, code tự suy ra ca qua ngày.
+- Xóa ca:
+  - Endpoint DELETE /api/shifts/{shift_id}.
+  - Soft delete bằng is_active=False, giữ lịch sử assignment.
+
+5.2. Phân ca một nhân viên
+- Endpoint POST /api/shifts/assignments.
+- Yêu cầu manager/admin.
+- Kiểm tra trước khi ghi:
+  - Ca tồn tại và active.
+  - Nhân viên tồn tại trong chi nhánh/phạm vi thao tác.
+  - Ngày phân ca không trước thứ Hai của tuần hiện tại.
+  - Kỳ công chi nhánh/ngày chưa khóa.
+  - Ngày vận hành không phải off.
+  - Cửa hàng active.
+  - Nhân viên không có đơn nghỉ cả ngày approved cũ cho ngày đó.
+  - Nếu assignment hiện tại status leave_approved thì không mở lại bằng phân ca.
+  - Vai trò nhân viên phải phù hợp required_position của ca.
+- Nếu đã có assignment cùng emp_code + work_date + shift_id:
+  - Cập nhật assignment hiện có về scheduled, note, assigned_by.
+- Nếu chưa có:
+  - Tạo ShiftAssignment status=scheduled.
+- Sau khi ghi:
+  - Rebuild session từ log cũ trong cửa sổ ca.
+
+5.3. Phân ca nhiều người/nhiều ngày
+- Bulk:
+  - Endpoint POST /api/shifts/assignments/bulk.
+  - Tạo tổ hợp emp_codes x dates cho một shift.
+  - Xử lý từng cặp nhân viên/ngày riêng.
+  - Dòng hợp lệ được lưu, dòng lỗi được đưa vào errors.
+  - Response trả assigned/success_count, error_count, errors và assignments.
+  - Nếu batch có cả dòng thành công và dòng lỗi, endpoint vẫn trả 2xx để UI reload lịch đã lưu.
+- Multi:
+  - Endpoint POST /api/shifts/assignments/multi.
+  - Một ca/ngày cho nhiều nhân viên.
+  - Mỗi nhân viên được xử lý riêng.
+  - Trả assigned count và danh sách errors theo emp_code nếu có lỗi từng người.
+
+5.4. Import Excel phân ca
+- Endpoint POST /api/shifts/assignments/import.
+- Yêu cầu branch_id cụ thể và file .xlsx.
+- File hỗ trợ format mới, mỗi sheet là một ngày, hoặc format legacy "Lich phan ca".
+- Quy trình import:
+  - Đọc danh mục nhân viên/ca từ sheet DanhMuc nếu có.
+  - Resolve nhân viên theo label, tên hoặc emp_code.
+  - Resolve ca theo label, tên hoặc code.
+  - Kiểm tra ngày không trước tuần hiện tại.
+  - Kiểm tra thiếu nhân viên/ca/ngày.
+  - Kiểm tra duplicate trong file theo emp_code + date + shift_id.
+  - Kiểm tra ngày off, nghỉ phép, vai trò.
+- Nếu có dòng lỗi và dòng hợp lệ:
+  - Dòng hợp lệ vẫn được lưu.
+  - Dòng lỗi được trả về trong errors kèm nguồn dòng/sheet nếu xác định được.
+  - Response trả partial_success=true, success_count và error_count.
+- Nếu tất cả dòng đều lỗi:
+  - Không tạo assignment.
+  - Response vẫn trả 2xx với success=false, success_count=0 và danh sách errors để quản lý sửa file.
+- File không hợp lệ, sai định dạng hoặc thiếu file .xlsx vẫn là lỗi hard-fail 4xx/5xx.
+- Khi ghi dữ liệu:
+  - Gọi assign_shift với commit=False cho từng dòng.
+  - Commit riêng từng dòng hợp lệ; lỗi một dòng rollback riêng dòng đó, không rollback các dòng đã lưu.
+
+5.5. Sửa phân ca
+- Endpoint PUT /api/shifts/assignments/{assignment_id}.
+- Chặn nếu assignment.status=leave_approved.
+- Kiểm tra ngày cũ và ngày mới không trước tuần hiện tại.
+- Kiểm tra kỳ công chưa khóa.
+- Kiểm tra ngày vận hành của ngày mới không off.
+- Nếu đổi shift hoặc ngày, kiểm tra lại vai trò/ngày nghỉ.
+- Sau khi sửa, rebuild session liên quan.
+
+5.6. Xóa phân ca
+- Endpoint DELETE /api/shifts/assignments/{assignment_id}.
+- Là soft delete:
+  - assignment.status=cancelled.
+  - Không xóa cứng dữ liệu.
+- Nếu assignment đã có session/log:
+  - Dữ liệu log vẫn còn.
+  - Session/bảng công phụ thuộc vào rebuild/review sau đó.
+
+5.7. Tắt cửa hàng hoặc chuyển cửa hàng
+- Khi tắt cửa hàng:
+  - Các phân ca tương lai liên quan bị hủy mềm.
+- Khi chuyển nhân viên sang cửa hàng khác:
+  - Cập nhật branch_id/lịch sử chi nhánh.
+  - Các phân ca tương lai ở chi nhánh cũ có thể bị hủy theo service chuyển chi nhánh.
+
+5.8. Các case phân công cụ thể
+- Manager phân ca vào ngày trước tuần hiện tại:
+  - Bị từ chối.
+- Manager phân ca vào kỳ công đã khóa:
+  - Bị từ chối.
+- Manager phân ca vào ngày lịch vận hành là off:
+  - Bị từ chối.
+- Manager phân ca khi cửa hàng tắt:
+  - Bị từ chối.
+- Manager phân ca vào ca đã tắt:
+  - Bị từ chối.
+- Manager phân ca sai vai trò required_position:
+  - Bị từ chối.
+- Nhân viên có đơn nghỉ cả ngày approved cũ:
+  - Bị từ chối phân ca mới cho ngày đó.
+- Assignment đã leave_approved:
+  - Không được cập nhật lại thành scheduled bằng luồng sửa/phân ca thông thường.
+- Nhân viên có nhiều ca trong một ngày:
+  - Được phép nếu là các shift khác nhau và không đụng rule chặn nêu trên.
+
+======================================================================
+6. LUỒNG NGHỈ PHÉP
+======================================================================
+
+6.1. Gửi đơn nghỉ
+- Endpoint POST /api/leave.
+- request_type khác "leave" bị từ chối khi tạo mới.
+- Tạo mới hiện chỉ nhận leave_scope=shift:
+  - leave_scope=day bị từ chối với lỗi "Hiện chỉ hỗ trợ nghỉ theo ca".
+  - half=am/pm bị từ chối vì không còn tạo nghỉ nửa ngày.
+  - dates phải chứa date và assignment_ids của ca muốn nghỉ.
+- Nhân viên thường/manager:
+  - Đơn phải từ ngày mai trở đi.
+  - Tối đa 3 ngày/đơn.
+  - User phải liên kết với employee.
+- Admin override:
+  - Có thể tạo hộ emp_code.
+  - Cho phép ngày đã qua.
+  - Đơn tạo ra status=approved ngay.
+  - Sau khi tạo sẽ apply_approved_leave_to_assignments.
+- UI nhân viên đã bỏ lựa chọn nghỉ cả ngày/nửa ngày; màn xin nghỉ chỉ hiển thị danh sách ca sắp tới để chọn.
+- Các đơn day/half cũ nếu đã tồn tại trong DB vẫn được đọc/hiển thị/xử lý để tương thích lịch sử.
+
+6.2. Nghỉ theo ca
+- Payload dates gồm date, scope=shift, assignment_ids.
+- _validate_leave_assignment_ids bắt buộc chọn ít nhất một ca.
+- Chỉ chấp nhận assignment:
+  - Thuộc emp_code của nhân viên.
+  - Đúng work_date.
+  - status khác cancelled.
+- Khi duyệt:
+  - Chỉ các assignment_ids trong đơn chuyển sang leave_approved.
+- Nếu một ngày có nhiều ca:
+  - Nhân viên có thể nghỉ một ca và vẫn làm ca khác.
+
+6.3. Dữ liệu nghỉ cả ngày/nửa ngày cũ
+- Code vẫn còn nhánh đọc/xử lý đơn scope=day trong LeaveRequest cũ để không làm hỏng dữ liệu lịch sử.
+- Nếu còn đơn day pending từ trước và quản lý duyệt:
+  - apply_approved_leave_to_assignments tìm assignment của emp_code trong các ngày.
+  - Đổi các assignment đó sang status=leave_approved.
+  - Ghi note nghỉ phép đã duyệt.
+- Luồng tạo mới POST /api/leave không còn tạo scope=day.
+
+6.4. Chặn đơn trùng
+- validate_leave_conflicts đọc active_leave_summary gồm đơn pending và approved.
+- Với đơn tạo mới theo ca:
+  - Nếu ngày đã có đơn day pending/approved cũ thì chặn.
+  - Nếu assignment_id đã có đơn shift pending/approved thì chặn.
+- Lỗi trả về nêu các ngày/ca đã có đơn nghỉ đang chờ duyệt hoặc đã duyệt.
+
+6.5. Duyệt đơn nghỉ
+- Endpoint PUT /api/leave/{id}/approve.
+- Đơn phải status=pending.
+- Staff chỉ thao tác đơn của mình; manager/admin theo scope chi nhánh.
+- Manager bị hạn chế duyệt đơn của một số vai trò quản lý khác theo _ensure_manager_can_review.
+- Khi duyệt:
+  - req.status=approved.
+  - reviewed_at, reviewed_by, note được set.
+  - apply_approved_leave_to_assignments đổi assignment sang leave_approved.
+  - Nếu kỳ công của assignment đã khóa, apply bị ValueError và request lỗi.
+  - Có thể gửi notify_leave_approved nếu cấu hình thông báo hoạt động.
+
+6.6. Từ chối đơn nghỉ
+- Endpoint PUT /api/leave/{id}/reject.
+- Đơn phải pending.
+- Bắt buộc note lý do từ chối.
+- req.status=rejected.
+- Không đổi assignment.
+
+6.7. Hủy đơn nghỉ
+- Endpoint POST /api/leave/{id}/cancel.
+- Chỉ hủy đơn pending.
+- Nhân viên hủy đơn của mình; admin/manager theo quyền.
+- Đơn đã approved không hủy được bằng luồng này.
+- Hủy đơn pending không cần rollback assignment vì assignment chưa bị đổi sang leave_approved.
+
+6.8. Case nhân viên xin nghỉ khi đã có ca
+- Nhân viên chọn đúng ca muốn nghỉ.
+- Khi đơn được duyệt:
+  - Chỉ ca được chọn chuyển leave_approved.
+  - Kiosk gặp ca đó sẽ từ chối chấm công với lý do ca đã duyệt nghỉ.
+  - Bảng công ghi công phép/phút phép theo ca.
+  - Ca khác trong ngày vẫn chấm công bình thường nếu scheduled.
+
+6.9. Case nhân viên xin nghỉ nhưng chưa được duyệt
+- Đơn pending chặn đơn nghỉ trùng tiếp theo.
+- Assignment chưa chuyển leave_approved.
+- Nếu nhân viên đi làm và chấm công vào ca scheduled:
+  - Chấm công vẫn theo luồng bình thường.
+  - Khi quản lý duyệt nghỉ sau đó, cần đối soát vì assignment có thể chuyển sang leave_approved tùy kỳ và logic apply.
+
+6.10. Case legacy nghỉ cả ngày đã duyệt nhưng ngày đó chưa có assignment
+- apply_approved_leave_to_assignments chỉ đổi các assignment đang tồn tại.
+- Nếu ngày đó không có assignment:
+  - Đơn nghỉ vẫn approved.
+  - Không có assignment nào chuyển leave_approved.
+- Lưu ý/rủi ro hiện trạng:
+  - Case này chỉ còn áp dụng với dữ liệu day cũ, vì tạo mới hiện chỉ cho nghỉ theo ca.
+  - Luồng kiosk hiện không kiểm trực tiếp LeaveRequest theo ngày nếu không có assignment.
+  - Nếu nhân viên vẫn đến chấm công ngày đó, hệ thống có thể rơi vào "ngoài phân ca" và tạo session unscheduled chờ quản lý duyệt, thay vì tự từ chối ngay vì đã nghỉ cả ngày.
+
+======================================================================
+7. LỊCH VẬN HÀNH
+======================================================================
+
+- WorkCalendar và WorkCalendarConfig xác định ngày mở/đóng theo chi nhánh.
+- Khi phân ca:
+  - Nếu ngày vận hành là off, hệ thống chặn phân ca.
+- Khi xem báo cáo:
+  - Ngày off có thể ảnh hưởng diễn giải ngày công/vắng tùy assignment.
+- Khi import Excel:
+  - Ngày off bị đưa vào danh sách lỗi và không import.
+
+======================================================================
+8. BÁO CÁO, BẢNG CÔNG VÀ ĐỐI SOÁT
+======================================================================
+
+8.1. Nguồn tính công
+- Bảng công lấy từ ShiftAssignment + AttendanceSession.
+- AttendanceLog thô không được dùng làm công trực tiếp.
+- Ý nghĩa:
+  - Có log nhưng chưa có session hợp lệ hoặc session pending/rejected thì chưa tính công.
+  - Có assignment leave_approved thì tạo công phép theo ca dù không có log chấm công.
+
+8.2. Quy tắc tính công chính
+- pending_review không tính công như công đã chốt.
+- rejected không tính công.
+- missing_checkout chỉ tính công nếu được quản lý duyệt.
+- absent được ghi nhận là vắng khi quản lý duyệt.
+- leave_approved tạo công phép và phút phép theo thời lượng ca trừ break_minutes.
+- Về sớm vẫn là completed, tính theo phút thực tế.
+- Tăng ca ghi nhận overtime_minutes; nếu vượt ngưỡng thì cần duyệt.
+
+8.3. Báo cáo ngoại lệ
+- Báo cáo ngoại lệ gom các nhóm:
+  - Nghỉ phép.
+  - Vắng.
+  - Quên checkout.
+  - Ngoài phân ca.
+  - Tăng ca cần duyệt.
+- Đối soát ảnh gom:
+  - Low confidence.
+  - Thiếu bằng chứng.
+  - Trùng bằng chứng/hash.
+  - AI/presentation risk.
+
+8.4. Khóa kỳ công
+- Khi kỳ đã khóa:
+  - Không chỉnh công thủ công.
+  - Không phân ca mới/sửa phân ca trong kỳ.
+  - Không duyệt session trong kỳ.
+  - Không apply nghỉ phép làm đổi assignment trong kỳ.
+- Đây là lớp bảo vệ số liệu sau chốt công.
+
+======================================================================
+9. QUYỀN THAO TÁC
+======================================================================
+
+- Staff:
+  - Xem dữ liệu cá nhân.
+  - Gửi/hủy đơn nghỉ pending của mình.
+  - Chấm công qua kiosk nếu khuôn mặt nhận diện được và đúng điều kiện.
+- Manager:
+  - Thao tác trong phạm vi chi nhánh được quyền.
+  - Quản lý phân ca, duyệt một số session/đơn nghỉ theo scope.
+  - Bị giới hạn khi duyệt đơn của một số vai trò quản lý khác.
+- Admin:
+  - Có quyền rộng hơn.
+  - Có thể tạo hộ đơn nghỉ và duyệt ngay.
+  - Có thể xóa log chấm công thủ công.
+
+======================================================================
+10. CÁC TÌNH HUỐNG VẬN HÀNH NHANH
+======================================================================
+
+10.1. Nhân viên đi làm đúng ca, đúng chi nhánh
+- Kiosk nhận diện mặt.
+- Hệ thống tạo check-in, session open.
+- Khi checkout, session completed.
+- Bảng công tính theo thời gian thực tế và rule ca.
+
+10.2. Nhân viên đi muộn
+- Vẫn được ghi nhận nếu còn trong cửa sổ ca.
+- check_in_status=late.
+- Bảng công tính từ thời điểm thực tế.
+
+10.3. Nhân viên về sớm
+- Checkout tạo session completed.
+- check_out_status=early_leave.
+- Công tính theo phút thực tế.
+
+10.4. Nhân viên làm quá giờ
+- Checkout sau giờ kết thúc ca.
+- Hệ thống ghi overtime_minutes.
+- Nếu vượt ngưỡng, session pending_review và cần quản lý duyệt.
+
+10.5. Nhân viên quên checkout
+- Scheduler tự checkout sau ngưỡng.
+- Session missing_checkout.
+- Chỉ tính công sau khi quản lý duyệt.
+
+10.6. Nhân viên không đến làm
+- Sau khi ca kết thúc, scheduler tạo absent nếu không có session hợp lệ.
+- Quản lý duyệt vắng thì bảng công ghi nhận vắng.
+
+10.7. Nhân viên không có phân ca nhưng vẫn chấm
+- Hệ thống vẫn ghi nhận log.
+- Tạo session unscheduled pending_review.
+- Quản lý duyệt thì có thể tạo/gắn ca ngoài giờ để tính công; từ chối thì không tính.
+
+10.8. Nhân viên đã được duyệt nghỉ theo ca nhưng vẫn đến quét mặt
+- Kiosk gặp assignment leave_approved và từ chối.
+- Không tạo công thường cho ca đó.
+- Bảng công tính nghỉ phép.
+
+10.9. Nhân viên có đơn nghỉ cả ngày cũ đã duyệt nhưng chưa có assignment
+- Vì không có assignment để chuyển leave_approved, kiosk không có lớp chặn trực tiếp theo LeaveRequest ngày.
+- Nếu nhân viên quét mặt, hệ thống có thể tạo unscheduled pending_review.
+- Quản lý cần từ chối hoặc đối soát thủ công.
+
+10.10. Quản lý thêm ca sau khi nhân viên đã chấm công
+- Assignment được tạo.
+- Hệ thống rebuild session từ log cũ trong cửa sổ ca.
+- Log trước đó có thể được gắn vào ca mới.
+
+10.11. Quản lý import lịch Excel có một dòng lỗi
+- Dòng hợp lệ vẫn được lưu.
+- Dòng lỗi được trả trong errors kèm dòng/sheet nếu xác định được.
+- UI hiển thị partial success để quản lý sửa tiếp các dòng lỗi.
+
+10.12. Quản lý phân ca cho ngày off
+- Bị chặn.
+- Không tạo assignment.
+
+10.13. Quản lý phân ca sai vai trò
+- Bị chặn theo required_position của shift.
+- Không tạo assignment.
+
+10.14. Quản lý chỉnh công sau khi kỳ đã khóa
+- Bị chặn.
+- Không thêm/sửa/xóa log, không duyệt session.
+
+10.15. Admin xóa log
+- Chỉ admin được xóa log.
+- Hệ thống rebuild session và ghi audit.
+- Nếu ngày thuộc kỳ khóa thì vẫn bị chặn.
+
+======================================================================
+11. LƯU Ý VÀ RỦI RO HIỆN TRẠNG
+======================================================================
+
+11.1. Log thô và session có thể gây hiểu nhầm
+- UI lịch sử có thể hiển thị log thô, nhưng bảng công không lấy log thô làm công trực tiếp.
+- API lịch sử chấm công đã bổ sung trạng thái session/tính công cho từng log.
+- UI hiển thị rõ "Chờ duyệt", "Đã tính công", "Chưa có ca phân công", "Chưa đủ check-out" hoặc "Không tính công" để tránh hiểu nhầm log = công đã chốt.
+- Khi có log ngoài phân ca/pending, vẫn cần nhìn review_status/session_status trước khi kết luận công.
+
+11.2. Đơn nghỉ cả ngày cũ approved nhưng không có assignment
+- Đây là điểm đáng chú ý với dữ liệu nghỉ cả ngày cũ; luồng tạo mới hiện chỉ cho nghỉ theo ca.
+- Nếu không có assignment để đổi sang leave_approved, kiosk không tự chặn bằng LeaveRequest ngày.
+- Hệ quả thực tế: nhân viên vẫn có thể tạo session ngoài phân ca nếu quét mặt, rồi chờ quản lý xử lý.
+
+11.3. Pending leave và chấm công
+- Đơn pending chỉ chặn đơn nghỉ trùng, chưa đổi assignment.
+- Nhân viên vẫn có thể chấm công vào ca scheduled trong lúc đơn đang chờ duyệt.
+- Nếu sau đó quản lý duyệt nghỉ, cần đối soát để tránh mâu thuẫn giữa log làm việc và ca nghỉ.
+
+11.4. Tăng ca và quên checkout phụ thuộc review
+- missing_checkout và overtime vượt ngưỡng không nên xem là công đã chốt trước khi duyệt.
+- Báo cáo cần lọc pending_review để quản lý xử lý.
+
+11.5. Kiosk phụ thuộc branch_id
+- Nếu branch_id thiếu hoặc sai, hệ thống không thể vận hành đúng.
+- Đây là cấu hình bắt buộc cho từng kiosk/cửa hàng.
+
+11.6. Bằng chứng ảnh là lớp đối soát quan trọng
+- Low confidence, thiếu ảnh, trùng hash hoặc presentation risk không nhất thiết luôn chặn log.
+- Các finding này cần được dùng trong màn đối soát để phát hiện chấm công bất thường.
+
+======================================================================
+12. KẾT LUẬN NGẮN
+======================================================================
+
+- Luồng hiện tại tách rõ ba lớp: phân ca để xác định kỳ vọng làm việc, chấm công để tạo bằng chứng/sự kiện, session để tính công.
+- Nghỉ phép được áp vào ShiftAssignment bằng trạng thái leave_approved; bảng công tính công phép từ assignment này.
+- Các case bất thường như ngoài phân ca, quên checkout, vắng, tăng ca vượt ngưỡng đều đi qua pending_review để quản lý quyết định.
+- Kỳ công đã khóa là lớp chặn cuối để bảo vệ dữ liệu đã chốt.
+- Test nghiệp vụ tests.test_attendance_session_flow hiện pass 14/14 trong env conda face_attendance.

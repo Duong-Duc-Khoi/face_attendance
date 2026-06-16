@@ -876,8 +876,11 @@ def api_delete_shift(
 ):
     require_branch_manager_or_admin(db, current_user)
     ensure_active_branch_access(db, current_user, _shift_branch_id(db, shift_id))
-    if not delete_shift(shift_id, db):
-        raise HTTPException(404, "Không tìm thấy ca làm việc")
+    try:
+        if not delete_shift(shift_id, db):
+            raise HTTPException(404, "Không tìm thấy ca làm việc")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 # ── POST /api/shifts/assignments ─────────────────────────────────

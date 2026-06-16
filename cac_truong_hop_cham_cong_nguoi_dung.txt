@@ -1,0 +1,548 @@
+CÁC TRƯỜNG HỢP CÓ THỂ XẢY RA KHI MỘT NGƯỜI DÙNG CHẤM CÔNG
+Ngày lập: 2026-06-12
+Phạm vi: mô tả theo hiện trạng code trong repo, chủ yếu từ app/services/attendance.py, app/api/v1/ws.py, app/services/shift_service.py, app/services/attendance_policy.py và UI kiosk/dashboard/personal.
+
+======================================================================
+1. TỔNG QUAN LUỒNG
+======================================================================
+
+Khi người dùng đứng trước kiosk/camera:
+1. Kiosk gửi frame camera lên WebSocket.
+2. Backend nhận diện khuôn mặt.
+3. Nếu nhận diện được nhân viên, backend kiểm tra chống giả mạo ảnh/màn hình.
+4. Nếu không bị chặn, backend gọi process_attendance(emp_code, confidence, branch_id).
+5. process_attendance quyết định đây là check-in, check-out, ngoài phân ca, bị từ chối, hoặc lỗi.
+6. Nếu ghi nhận thành công, hệ thống tạo:
+   - AttendanceLog: log chấm công thô.
+   - AttendanceEvent: sự kiện check-in/check-out.
+   - AttendanceSession: phiên công dùng để tính công.
+   - Ảnh bằng chứng/audit nếu kiosk lưu được ảnh.
+7. Bảng công không lấy log thô làm công trực tiếp. Bảng công dựa vào AttendanceSession + ShiftAssignment.
+
+======================================================================
+2. CÁC TRƯỜNG HỢP KHÔNG TẠO LOG CHẤM CÔNG
+======================================================================
+
+2.1. Kiosk chưa có branch_id
+- Tình huống:
+  - Máy kiosk chưa cấu hình cửa hàng.
+  - Không có KIOSK_BRANCH_ID, không có query ?branch_id=..., không có localStorage kiosk_branch_id.
+- Kết quả:
+  - Kiosk không bật/chạy luồng chấm công đúng.
+  - Không gọi process_attendance.
+  - Không tạo AttendanceLog, AttendanceEvent, AttendanceSession.
+- Người dùng thấy:
+  - Màn hình báo kiosk chưa cấu hình cửa hàng.
+- Ảnh hưởng công:
+  - Không có dữ liệu chấm công, không tính công.
+
+2.2. Camera không hoạt động hoặc backend không lấy được frame
+- Tình huống:
+  - Camera tắt, bị trình duyệt chặn quyền, hoặc legacy /ws/attendance không mở được camera.
+- Kết quả:
+  - Không nhận diện được.
+  - Không gọi process_attendance.
+  - Không tạo log/session.
+- Người dùng thấy:
+  - Kiosk báo camera lỗi/tắt hoặc không có kết quả.
+- Ảnh hưởng công:
+  - Không có công cho tới khi chấm lại thành công hoặc quản lý thêm log thủ công.
+
+2.3. Không nhận diện được khuôn mặt
+- Tình huống:
+  - Không thấy mặt.
+  - Mặt quá xa/mờ/che.
+  - Nhân viên chưa đăng ký khuôn mặt hoặc vector nhận diện không đủ confidence.
+- Kết quả:
+  - _handle_face_result bỏ qua result không recognized.
+  - Không gọi process_attendance.
+  - Không tạo log/session.
+- Người dùng thấy:
+  - Không có lượt chấm công thành công.
+- Ảnh hưởng công:
+  - Không tính công.
+
+2.4. Đang thu thập thêm frame chống giả mạo
+- Tình huống:
+  - Presentation guard đang cần thêm nhiều khung hình để kết luận.
+- Kết quả:
+  - WebSocket trả về im lặng/tiếp tục quan sát.
+  - Chưa gọi process_attendance.
+  - Chưa tạo log/session.
+- Người dùng thấy:
+  - Có thể phải đứng yên thêm một chút trước camera.
+
+2.5. Bị chặn do nghi vấn ảnh/màn hình
+- Tình huống:
+  - Presentation guard đánh giá là ảnh/màn hình/thiết bị gần khuôn mặt và action là block.
+- Kết quả:
+  - Trả attendance_error, reason="presentation_attack".
+  - Không gọi process_attendance.
+  - Không tạo log/session.
+- Người dùng thấy:
+  - "Không thể chấm công. Vui lòng đứng trực tiếp trước camera."
+- Ảnh hưởng công:
+  - Không tính công.
+
+2.6. Nhân viên không tồn tại hoặc không active
+- Tình huống:
+  - Nhận diện ra emp_code nhưng Employee không tồn tại hoặc is_active=False.
+- Kết quả:
+  - process_attendance trả ok=false, reason="employee_not_found".
+  - Không tạo log/session.
+- Người dùng thấy:
+  - "Không tìm thấy nhân viên."
+- Ảnh hưởng công:
+  - Không tính công.
+
+2.7. Nhân viên đứng sai kiosk/chi nhánh
+- Tình huống:
+  - Kiosk có branch_id.
+  - Nhân viên active nhưng emp.branch_id khác branch_id của kiosk.
+- Kết quả:
+  - process_attendance trả ok=false, reason="branch_mismatch".
+  - Không tạo log/session.
+- Người dùng thấy:
+  - "Nhân viên không thuộc cửa hàng của kiosk này."
+- Ảnh hưởng công:
+  - Không tính công ở kiosk đó.
+
+2.8. Cửa hàng/chi nhánh đã tắt
+- Tình huống:
+  - branch_id hợp lệ nhưng Branch.is_active=False.
+- Kết quả:
+  - process_attendance trả ok=false, reason="branch_inactive".
+  - Không tạo log/session.
+- Người dùng thấy:
+  - "Cửa hàng đã ngừng hoạt động, không thể chấm công."
+- Ảnh hưởng công:
+  - Không tính công.
+
+2.9. Chấm lại quá nhanh trong thời gian cooldown
+- Tình huống:
+  - Nhân viên vừa có AttendanceLog gần nhất.
+  - Lần hiện tại cách lần trước ít hơn COOLDOWN_MINUTES, mặc định 5 phút.
+- Kết quả:
+  - process_attendance trả ok=false, reason="cooldown".
+  - Không tạo log mới.
+  - Không tạo event/session mới.
+- Người dùng thấy:
+  - Hệ thống báo đã check-in/check-out trong vài phút trước và yêu cầu thử lại sau.
+- Ảnh hưởng công:
+  - Chỉ giữ lượt chấm công trước đó.
+
+2.10. Ca đã được duyệt nghỉ phép
+- Tình huống:
+  - Nhân viên có ShiftAssignment trong khung giờ đó nhưng assignment.status=leave_approved.
+- Kết quả:
+  - process_attendance trả ok=false, reason="leave_approved_shift".
+  - Không tạo log/session.
+- Người dùng thấy:
+  - "Ca ... đã được duyệt nghỉ phép."
+- Ảnh hưởng công:
+  - Không tính công làm.
+  - Bảng công tính công phép theo ca nghỉ đã duyệt.
+
+2.11. Ca đã hoàn tất check-in và check-out
+- Tình huống:
+  - Đã có AttendanceSession cho ca.
+  - Session đã có cả check_in_at và check_out_at.
+- Kết quả:
+  - process_attendance trả ok=false, reason="shift_completed".
+  - Không tạo log mới.
+- Người dùng thấy:
+  - "Ca làm đã hoàn tất check in và check out."
+- Ảnh hưởng công:
+  - Giữ nguyên session đã hoàn tất.
+
+======================================================================
+3. CÁC TRƯỜNG HỢP TẠO LOG NGOÀI PHÂN CA
+======================================================================
+
+3.1. Không có phân ca phù hợp, lần đầu trong ngày là check-in ngoài phân ca
+- Tình huống:
+  - Nhân viên active, đúng chi nhánh.
+  - Không tìm thấy ShiftAssignment scheduled phù hợp với thời điểm chấm.
+  - Không có ca nghỉ phép leave_approved trong khung giờ.
+- Kết quả:
+  - Tạo AttendanceLog check_in.
+  - Tạo AttendanceEvent check_in.
+  - Tạo AttendanceSession:
+    - shift_assignment_id=None.
+    - shift_id=None.
+    - status=open.
+    - check_in_status=unscheduled.
+    - review_type=unscheduled.
+    - review_status=pending_review.
+- Người dùng thấy:
+  - "Đã ghi nhận chấm công, nhưng bạn chưa có ca được phân công. Vui lòng báo quản lý kiểm tra."
+- Ảnh hưởng công:
+  - Chưa tính công.
+  - UI lịch sử hiển thị "Chờ duyệt" hoặc "Chưa có ca phân công" tùy trạng thái session.
+
+3.2. Không có phân ca phù hợp, lần tiếp theo là check-out ngoài phân ca
+- Tình huống:
+  - Đã có session ngoài phân ca đang mở.
+  - Nhân viên chấm tiếp.
+- Kết quả:
+  - Tạo AttendanceLog check_out.
+  - Tạo AttendanceEvent check_out.
+  - Cập nhật AttendanceSession:
+    - status=completed.
+    - check_out_status=unscheduled.
+    - worked_minutes = số phút từ check_in đến check_out.
+    - review_type=unscheduled.
+    - review_status=pending_review.
+- Người dùng thấy:
+  - Hệ thống ghi nhận checkout ngoài phân ca.
+- Ảnh hưởng công:
+  - Vẫn chưa tính công.
+  - Quản lý phải duyệt hoặc từ chối.
+
+3.3. Ngoài phân ca nhưng có check-in cũ chưa gắn session
+- Tình huống:
+  - Có AttendanceLog check_in ngoài phân ca trước đó.
+  - Log đó chưa có event/session gắn.
+  - Nhân viên chấm check-out.
+- Kết quả:
+  - Hệ thống tạo lại AttendanceSession ngoài phân ca từ check-in cũ.
+  - Gắn event cũ nếu tìm được.
+  - Ghi check-out mới.
+  - Session chờ duyệt.
+- Ảnh hưởng công:
+  - Chưa tính công cho tới khi quản lý duyệt.
+
+3.4. Quản lý duyệt session ngoài phân ca
+- Tình huống:
+  - Session review_type=unscheduled, review_status=pending_review.
+  - Có đủ check_in_at và check_out_at.
+  - Quản lý duyệt approved.
+- Kết quả:
+  - Hệ thống tạo hoặc tìm Shift "unscheduled" tương ứng khoảng giờ.
+  - Tạo/gắn ShiftAssignment.
+  - Session được gắn shift_assignment_id, shift_id.
+  - review_status=approved.
+- Ảnh hưởng công:
+  - Công bắt đầu được tính theo session đã duyệt.
+
+3.5. Quản lý từ chối session ngoài phân ca
+- Tình huống:
+  - Quản lý review unscheduled và chọn rejected.
+- Kết quả:
+  - review_status=rejected.
+  - Session không được tính công.
+- Ảnh hưởng công:
+  - Log vẫn là bằng chứng thô, nhưng không là công đã chốt.
+
+======================================================================
+4. CÁC TRƯỜNG HỢP CHECK-IN ĐÚNG PHÂN CA
+======================================================================
+
+4.1. Check-in đúng giờ
+- Tình huống:
+  - Có ShiftAssignment scheduled phù hợp.
+  - Nhân viên chấm trong cửa sổ cho phép check-in.
+  - Thời điểm không vượt quá late_threshold_minutes sau giờ bắt đầu ca.
+- Kết quả:
+  - Tạo AttendanceLog check_in.
+  - Tạo AttendanceEvent check_in.
+  - Tạo/cập nhật AttendanceSession:
+    - status=open.
+    - check_in_status=on_time.
+    - review_status=none.
+    - late_minutes=0.
+- Người dùng thấy:
+  - Check-in thành công, status thường là "Đúng giờ (...)".
+- Ảnh hưởng công:
+  - Chưa tính đủ công cho tới khi có check-out.
+  - UI lịch sử có thể hiển thị "Chưa đủ check-out".
+
+4.2. Check-in sớm trong khoảng cho phép
+- Tình huống:
+  - Chấm trước giờ bắt đầu ca nhưng không sớm hơn early_checkin_minutes.
+- Kết quả:
+  - Vẫn được match vào ca.
+  - Tạo log/event/session open.
+  - check_in_status thường vẫn là on_time nếu chưa vượt ngưỡng muộn.
+- Ảnh hưởng công:
+  - Session mở.
+  - Công cuối cùng tính theo check-in/check-out thực tế và policy worked_minutes.
+
+4.3. Check-in muộn
+- Tình huống:
+  - Chấm sau giờ bắt đầu ca + late_threshold_minutes.
+- Kết quả:
+  - Tạo AttendanceLog check_in.
+  - Tạo AttendanceEvent check_in.
+  - AttendanceSession:
+    - status=open.
+    - check_in_status=late.
+    - late_minutes > 0.
+    - note/status dạng "Đi muộn X phút (...)".
+- Người dùng thấy:
+  - Thông báo đi muộn.
+- Ảnh hưởng công:
+  - Bảng công tính theo thời gian thực tế, không tự bù phần đi muộn.
+  - Có thể gửi thông báo đi muộn nếu notify bật.
+
+4.4. Check-in vào ca qua ngày
+- Tình huống:
+  - Ca có is_overnight=True hoặc work_end <= work_start, ví dụ 22:00-06:00.
+- Kết quả:
+  - Check-in buổi tối ngày D gắn với assignment ngày D.
+  - Session work_date vẫn là ngày phân ca.
+- Ảnh hưởng công:
+  - Checkout sáng ngày D+1 vẫn có thể gắn vào cùng session nếu nằm trong cửa sổ ca.
+
+4.5. Check-in khi trước đó có session vắng/auto cần sửa
+- Tình huống:
+  - Session cũ có review_type absent hoặc missing_checkout.
+  - Nhân viên thực tế check-in hợp lệ vào ca.
+- Kết quả:
+  - process_attendance set lại review_type="" và review_status="none" khi check-in.
+  - Session được mở lại theo log thực tế.
+- Ảnh hưởng công:
+  - Trạng thái vắng/quên checkout có thể được thay bằng dữ liệu chấm công thật.
+
+======================================================================
+5. CÁC TRƯỜNG HỢP CHECK-OUT ĐÚNG PHÂN CA
+======================================================================
+
+5.1. Check-out bình thường
+- Tình huống:
+  - Đã có session open.
+  - Nhân viên chấm ra không trước giờ kết thúc ca và không vượt ngưỡng tăng ca cần duyệt.
+- Kết quả:
+  - Tạo AttendanceLog check_out.
+  - Tạo AttendanceEvent check_out.
+  - AttendanceSession:
+    - status=completed.
+    - check_out_status=normal.
+    - review_status giữ none nếu không có bất thường.
+    - worked_minutes = thời gian từ check-in đến check-out trừ break_minutes.
+- Người dùng thấy:
+  - Check-out thành công.
+- Ảnh hưởng công:
+  - UI lịch sử hiển thị "Đã tính công" nếu đủ điều kiện.
+
+5.2. Check-out về sớm
+- Tình huống:
+  - Nhân viên chấm ra trước giờ kết thúc ca.
+- Kết quả:
+  - Tạo log/event check_out.
+  - Session:
+    - status=completed.
+    - check_out_status=early_leave.
+    - early_leave_minutes > 0.
+    - note/status dạng "Về sớm X phút (...)".
+- Người dùng thấy:
+  - Thông báo về sớm.
+- Ảnh hưởng công:
+  - Vẫn là session completed.
+  - Công tính theo số phút thực tế.
+  - Hiện tại về sớm không tự chuyển pending_review trong process_attendance.
+
+5.3. Check-out tăng ca trong ngưỡng không cần duyệt
+- Tình huống:
+  - Nhân viên chấm ra sau giờ kết thúc ca.
+  - Số phút sau ca không vượt OVERTIME_APPROVAL_THRESHOLD_MINUTES.
+- Kết quả:
+  - Tạo log/event.
+  - Session completed.
+  - check_out_status thường là normal nếu chưa vượt ngưỡng review.
+  - overtime_minutes không được ghi nhận nếu chưa vượt ngưỡng.
+- Ảnh hưởng công:
+  - Công tính theo worked_minutes thực tế.
+
+5.4. Check-out tăng ca vượt ngưỡng cần duyệt
+- Tình huống:
+  - Nhân viên chấm ra sau giờ kết thúc ca.
+  - Số phút tăng ca vượt OVERTIME_APPROVAL_THRESHOLD_MINUTES.
+- Kết quả:
+  - Tạo log/event check_out.
+  - Session:
+    - status=completed.
+    - check_out_status=overtime.
+    - overtime_minutes = số phút tăng ca.
+    - review_type=overtime.
+    - review_status=pending_review.
+    - note/status dạng "Tăng ca X phút (...)".
+- Người dùng thấy:
+  - Thông báo tăng ca.
+- Ảnh hưởng công:
+  - UI lịch sử hiển thị "Chờ duyệt".
+  - Bảng công không xem là công đã chốt cho tới khi quản lý duyệt.
+
+5.5. Check-out ca qua ngày
+- Tình huống:
+  - Ca qua ngày, ví dụ 22:00-06:00.
+  - Nhân viên checkout sáng ngày hôm sau trong cửa sổ checkout.
+- Kết quả:
+  - Hệ thống vẫn tìm session open của assignment ngày trước.
+  - Ghi check_out vào cùng session.
+- Ảnh hưởng công:
+  - Công tính cho work_date của assignment gốc.
+
+======================================================================
+6. CÁC TRƯỜNG HỢP TỰ ĐỘNG SAU KHI NGƯỜI DÙNG CHẤM CÔNG
+======================================================================
+
+6.1. Người dùng check-in nhưng quên check-out
+- Tình huống:
+  - Session status=open, có check_in_at, chưa có check_out_at.
+  - Đã qua shift_end + auto_checkout_minutes.
+- Kết quả:
+  - Scheduler auto_checkout_missing đóng session.
+  - Tạo AttendanceLog check_out tự động tại giờ kết thúc ca.
+  - Tạo AttendanceEvent auto_checkout.
+  - Session:
+    - status=missing_checkout.
+    - check_out_status=auto.
+    - review_type=missing_checkout.
+    - review_status=pending_review.
+- Người dùng/quản lý thấy:
+  - Lịch sử/báo cáo có mục quên checkout chờ duyệt.
+- Ảnh hưởng công:
+  - Chưa tính công cho tới khi quản lý duyệt.
+
+6.2. Quản lý duyệt quên checkout
+- Tình huống:
+  - Session missing_checkout, review_status=pending_review.
+- Kết quả:
+  - review_status=approved.
+  - Session được chuyển completed trong luồng review.
+- Ảnh hưởng công:
+  - Công được tính theo checkout tự động.
+
+6.3. Quản lý từ chối quên checkout
+- Tình huống:
+  - Session missing_checkout bị review rejected.
+- Kết quả:
+  - Session giữ/tái lập missing_checkout theo luồng review.
+  - review_status=rejected.
+- Ảnh hưởng công:
+  - Không tính công.
+
+6.4. Người dùng không check-in cả ca
+- Tình huống:
+  - Có ShiftAssignment scheduled.
+  - Ca đã kết thúc.
+  - Không có AttendanceLog check_in trong cửa sổ ca.
+- Kết quả:
+  - Scheduler mark_absent_sessions tạo AttendanceSession:
+    - status=absent.
+    - review_type=absent.
+    - review_status=pending_review.
+  - Không tạo log check-in vì người dùng không chấm.
+- Ảnh hưởng công:
+  - Chờ quản lý duyệt vắng.
+  - Sau khi duyệt absent, báo cáo ghi nhận vắng, không tính công làm.
+
+======================================================================
+7. CÁC TRƯỜNG HỢP LIÊN QUAN ĐẾN BẰNG CHỨNG ẢNH VÀ ĐỐI SOÁT
+======================================================================
+
+7.1. Chấm công thành công và lưu được ảnh bằng chứng
+- Tình huống:
+  - Kiosk nhận log ok.
+  - capture_func lưu ảnh thành công.
+- Kết quả:
+  - record_attendance_evidence cập nhật AttendanceLog/AttendanceEvent.
+  - Tạo/cập nhật AttendanceEvidence.
+  - Tính image_hash.
+- Ảnh hưởng:
+  - Quản lý có thể mở ảnh bằng chứng trong dashboard.
+
+7.2. Chấm công thành công nhưng ảnh bằng chứng thiếu
+- Tình huống:
+  - Log đã tạo nhưng capture bị lỗi hoặc file không tồn tại.
+- Kết quả:
+  - Log/session vẫn có thể tồn tại.
+  - evidence_status có thể là missing.
+- Ảnh hưởng:
+  - Có thể xuất hiện finding/audit cần đối soát.
+  - Không tự đồng nghĩa là công bị hủy, nhưng quản lý cần kiểm tra.
+
+7.3. Confidence thấp
+- Tình huống:
+  - Nhận diện thành công nhưng confidence thấp hơn ngưỡng đối soát, ví dụ dưới 0.70.
+- Kết quả:
+  - Log vẫn có thể được tạo nếu face_engine đã recognized.
+  - is_low_confidence=True trong API log.
+  - Audit có thể đưa vào danh sách cần soát.
+- Ảnh hưởng:
+  - Công phụ thuộc session/review, không phụ thuộc riêng confidence.
+  - Quản lý nên xem ảnh.
+
+7.4. Ảnh trùng/hash trùng
+- Tình huống:
+  - Ảnh bằng chứng có image_hash trùng với log khác.
+- Kết quả:
+  - evidence_status=duplicate hoặc finding duplicate_image_hash.
+- Ảnh hưởng:
+  - Cần quản lý đối soát khả năng dùng ảnh cũ/màn hình.
+
+======================================================================
+8. HIỂN THỊ TRÊN UI LỊCH SỬ
+======================================================================
+
+8.1. Log thô không đồng nghĩa với công đã chốt
+- Một AttendanceLog chỉ nói rằng hệ thống đã ghi nhận một lượt chấm.
+- Công đã chốt phải nhìn AttendanceSession và review_status.
+
+8.2. Các nhãn UI hiện có cho từng log
+- "Đã tính công":
+  - Log gắn với session đủ điều kiện tính công.
+- "Chờ duyệt":
+  - Session pending_review, ví dụ ngoài phân ca, quên checkout, tăng ca vượt ngưỡng.
+- "Chưa có ca phân công":
+  - Log chưa gắn với phiên công/ca phân công.
+- "Chưa đủ check-out":
+  - Đã check-in, session đang open, chưa có check-out.
+- "Không tính công":
+  - Session bị từ chối, hủy hoặc không đủ điều kiện tính công.
+
+8.3. Người dùng thấy log check-in nhưng chưa thấy công
+- Có thể do:
+  - Chưa checkout.
+  - Ngoài phân ca, chờ quản lý duyệt.
+  - Quên checkout, chờ quản lý duyệt.
+  - Tăng ca vượt ngưỡng, chờ duyệt.
+  - Log chưa gắn ca.
+- Cách hiểu đúng:
+  - Log là bằng chứng.
+  - Session mới là lớp tính công.
+
+======================================================================
+9. TÓM TẮT NHANH THEO KẾT QUẢ
+======================================================================
+
+Không tạo log:
+- Không nhận diện được.
+- Đang thu thập frame chống giả mạo.
+- Bị block ảnh/màn hình.
+- Nhân viên không tồn tại/không active.
+- Sai chi nhánh.
+- Cửa hàng tắt.
+- Cooldown.
+- Ca đã duyệt nghỉ phép.
+- Ca đã hoàn tất đủ vào/ra.
+
+Có log nhưng chưa tính công:
+- Check-in xong chưa checkout.
+- Ngoài phân ca.
+- Quên checkout tự động.
+- Tăng ca vượt ngưỡng.
+- Log chưa gắn được session/ca.
+
+Có log và có thể tính công:
+- Check-in đúng/đi muộn + check-out bình thường.
+- Check-out về sớm, tính theo phút thực tế.
+- Tăng ca không vượt ngưỡng cần duyệt.
+- Missing checkout hoặc unscheduled sau khi quản lý duyệt.
+
+Không tính công:
+- Session bị rejected.
+- Session cancelled.
+- Session absent đã duyệt là vắng, không tính công làm.
+- Assignment leave_approved tính công phép, không phải công làm từ log.

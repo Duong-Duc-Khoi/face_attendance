@@ -19,7 +19,12 @@ from app.models.employee import Employee
 from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import normalize_job_role, normalize_job_roles, normalize_text
 from app.services.attendance_period import ensure_period_unlocked
-from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS, ensure_can_assign_employee
+from app.services.leave_policy import (
+    LEAVE_ASSIGNMENT_STATUS,
+    PROTECTED_ASSIGNMENT_STATUSES,
+    ensure_can_assign_employee,
+    protected_assignment_message,
+)
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -27,6 +32,8 @@ from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS, ensure_can_assign
 VIETNAM_TZ = timezone(timedelta(hours=7))
 PAST_ASSIGNMENT_LOCK_ERROR = "Không thể chỉnh lịch phân ca trước tuần hiện tại"
 INACTIVE_BRANCH_ERROR = "Cửa hàng đã ngừng hoạt động"
+ATTENDANCE_LOCK_ERROR = "Phân ca đã có chấm công, không thể xoá hoặc đổi lịch. Hãy xử lý ở màn Chấm công trước."
+SHIFT_IN_USE_ERROR = "Ca đang được dùng trong lịch phân ca hoặc chấm công, không thể tắt"
 
 
 def current_assignment_edit_start(today: date | None = None) -> date:
@@ -62,7 +69,78 @@ def _shift_to_dict(s: Shift) -> dict:
     }
 
 
-def _assignment_to_dict(a: ShiftAssignment, shift: Optional[Shift] = None) -> dict:
+def _assignment_attendance_lock_info(
+    a: ShiftAssignment,
+    db: Session,
+    shift: Optional[Shift] = None,
+) -> tuple[bool, str]:
+    shift = shift or db.query(Shift).filter_by(id=a.shift_id).first()
+    session_with_attendance = (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.shift_assignment_id == a.id,
+              (AttendanceSession.check_in_at.isnot(None)) | (AttendanceSession.check_out_at.isnot(None)),
+          )
+          .first()
+    )
+    if session_with_attendance:
+        return True, "Đã có chấm công"
+    if not shift:
+        return False, ""
+
+    _start, _end, checkin_from, checkout_until = shift_window(a.work_date, shift)
+    log = (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.emp_code == a.emp_code,
+              AttendanceLog.timestamp >= checkin_from,
+              AttendanceLog.timestamp <= checkout_until,
+          )
+          .first()
+    )
+    if log:
+        return True, "Đã có chấm công"
+
+    employee_id = a.employee_id
+    if not employee_id:
+        emp = db.query(Employee).filter_by(emp_code=a.emp_code).first()
+        employee_id = emp.id if emp else None
+    if employee_id:
+        event = (
+            db.query(AttendanceEvent)
+              .filter(
+                  AttendanceEvent.employee_id == employee_id,
+                  AttendanceEvent.event_type.in_(["check_in", "check_out", "auto_checkout"]),
+                  AttendanceEvent.event_time >= checkin_from,
+                  AttendanceEvent.event_time <= checkout_until,
+              )
+              .first()
+        )
+        if event:
+            return True, "Đã có chấm công"
+
+    return False, ""
+
+
+def _assignment_has_attendance(a: ShiftAssignment, db: Session, shift: Optional[Shift] = None) -> bool:
+    locked, _reason = _assignment_attendance_lock_info(a, db, shift)
+    return locked
+
+
+def _ensure_assignment_not_attendance_locked(
+    a: ShiftAssignment,
+    db: Session,
+    shift: Optional[Shift] = None,
+) -> None:
+    if _assignment_has_attendance(a, db, shift):
+        raise ValueError(ATTENDANCE_LOCK_ERROR)
+
+
+def _assignment_to_dict(a: ShiftAssignment, shift: Optional[Shift] = None, db: Session | None = None) -> dict:
+    attendance_locked = False
+    attendance_lock_reason = ""
+    if db is not None:
+        attendance_locked, attendance_lock_reason = _assignment_attendance_lock_info(a, db, shift)
     d = {
         "id":          a.id,
         "employee_id": a.employee_id,
@@ -74,6 +152,8 @@ def _assignment_to_dict(a: ShiftAssignment, shift: Optional[Shift] = None) -> di
         "note":        a.note or "",
         "assigned_by": a.assigned_by or "",
         "assigned_by_id": a.assigned_by_id,
+        "attendance_locked": attendance_locked,
+        "attendance_lock_reason": attendance_lock_reason,
     }
     if shift:
         d["shift"] = _shift_to_dict(shift)
@@ -110,6 +190,10 @@ def _ensure_assignable_workday(work_date: date, db: Session, branch_id: int | No
     if cal.get("day_type") == "off":
         label = cal.get("label") or "ngày nghỉ/đóng cửa"
         raise ValueError(f"Không thể xếp ca vào {label}")
+
+
+def _protected_assignment_action_error(status: str | None, action: str) -> ValueError:
+    return ValueError(protected_assignment_message(status, action))
 
 
 # ── CRUD Ca làm việc ─────────────────────────────────────────────
@@ -173,6 +257,8 @@ def update_shift(shift_id: int, data: dict, db: Session) -> Optional[dict]:
     s = db.query(Shift).filter_by(id=shift_id).first()
     if not s:
         return None
+    if data.get("is_active") is False and s.is_active:
+        _ensure_shift_can_deactivate(shift_id, db)
     for field in (
         "branch_id", "name", "work_start", "work_end",
         "required_position",
@@ -189,10 +275,44 @@ def update_shift(shift_id: int, data: dict, db: Session) -> Optional[dict]:
     return _shift_to_dict(s)
 
 
+def _ensure_shift_can_deactivate(shift_id: int, db: Session) -> None:
+    today = datetime.now(VIETNAM_TZ).date()
+    active_assignment = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.shift_id == shift_id,
+              ShiftAssignment.status != "cancelled",
+              ShiftAssignment.work_date >= today,
+          )
+          .first()
+    )
+    if active_assignment:
+        raise ValueError(SHIFT_IN_USE_ERROR)
+    active_session = (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.shift_id == shift_id,
+              AttendanceSession.status.in_(["open", "missing_checkout", "missing_checkin"]),
+          )
+          .first()
+    )
+    pending_session = (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.shift_id == shift_id,
+              AttendanceSession.review_status == "pending_review",
+          )
+          .first()
+    )
+    if active_session or pending_session:
+        raise ValueError(SHIFT_IN_USE_ERROR)
+
+
 def delete_shift(shift_id: int, db: Session) -> bool:
     s = db.query(Shift).filter_by(id=shift_id).first()
     if not s:
         return False
+    _ensure_shift_can_deactivate(shift_id, db)
     # Soft delete: chỉ deactivate, giữ lịch sử assignment
     s.is_active = False
     db.commit()
@@ -265,7 +385,7 @@ def assign_shift(emp_code: str, shift_id: int, work_date: date,
         db.refresh(a)
     else:
         db.flush()
-    return _assignment_to_dict(a, shift)
+    return _assignment_to_dict(a, shift, db)
 
 
 def bulk_assign_shift(emp_codes: list[str], shift_id: int,
@@ -300,7 +420,7 @@ def get_assignments_by_emp(emp_code: str, from_date: date, to_date: date,
     result = []
     for a in rows:
         shift = db.query(Shift).filter_by(id=a.shift_id).first()
-        result.append(_assignment_to_dict(a, shift))
+        result.append(_assignment_to_dict(a, shift, db))
     return result
 
 
@@ -316,7 +436,7 @@ def get_assignments_by_date(work_date: date, db: Session) -> list[dict]:
     result = []
     for a in rows:
         shift = db.query(Shift).filter_by(id=a.shift_id).first()
-        result.append(_assignment_to_dict(a, shift))
+        result.append(_assignment_to_dict(a, shift, db))
     return result
 
 
@@ -335,7 +455,7 @@ def get_assignments_by_range(from_date: date, to_date: date, db: Session) -> lis
     result = []
     for a in rows:
         shift = db.query(Shift).filter_by(id=a.shift_id).first()
-        result.append(_assignment_to_dict(a, shift))
+        result.append(_assignment_to_dict(a, shift, db))
     return result
 
 
@@ -343,13 +463,29 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
     a = db.query(ShiftAssignment).filter_by(id=assignment_id).first()
     if not a:
         return None
-    if a.status == LEAVE_ASSIGNMENT_STATUS:
-        raise ValueError("Ca này đã được duyệt nghỉ phép, không thể sửa bằng phân ca")
+    if a.status in PROTECTED_ASSIGNMENT_STATUSES:
+        raise _protected_assignment_action_error(a.status, "sửa bằng phân ca")
 
     new_shift_id = data.get("shift_id", a.shift_id)
     new_work_date = data.get("work_date", a.work_date)
     if isinstance(new_work_date, str):
         new_work_date = date.fromisoformat(new_work_date)
+    new_status = data.get("status", a.status)
+    schedule_changed = (
+        int(new_shift_id) != int(a.shift_id)
+        or new_work_date != a.work_date
+        or new_status != a.status
+    )
+    if not schedule_changed and set(data).issubset({"note"}):
+        if "note" in data:
+            a.note = data.get("note") or ""
+            a.assigned_by = assigned_by or a.assigned_by
+            db.commit()
+            db.refresh(a)
+        shift = db.query(Shift).filter_by(id=a.shift_id).first()
+        return _assignment_to_dict(a, shift, db)
+    if schedule_changed:
+        _ensure_assignment_not_attendance_locked(a, db)
     ensure_assignment_editable_date(a.work_date)
     new_work_date = ensure_assignment_editable_date(new_work_date)
     shift = db.query(Shift).filter_by(id=new_shift_id).first()
@@ -394,18 +530,21 @@ def update_assignment(assignment_id: int, data: dict, assigned_by: str = "", db:
 
     db.commit()
     db.refresh(a)
-    _reconcile_assignment_attendance(a, shift, emp, db)
-    db.commit()
-    db.refresh(a)
-    return _assignment_to_dict(a, shift)
+    if schedule_changed:
+        _reconcile_assignment_attendance(a, shift, emp, db)
+        db.commit()
+        db.refresh(a)
+    return _assignment_to_dict(a, shift, db)
 
 
 def delete_assignment(assignment_id: int, db: Session) -> bool:
     a = db.query(ShiftAssignment).filter_by(id=assignment_id).first()
     if not a:
         return False
-    if a.status == LEAVE_ASSIGNMENT_STATUS:
-        raise ValueError("Ca này đã được duyệt nghỉ phép, không thể xoá khỏi lịch phân ca")
+    if a.status in PROTECTED_ASSIGNMENT_STATUSES:
+        raise _protected_assignment_action_error(a.status, "xoá khỏi lịch phân ca")
+    shift = db.query(Shift).filter_by(id=a.shift_id).first()
+    _ensure_assignment_not_attendance_locked(a, db, shift)
     ensure_assignment_editable_date(a.work_date)
     if a.branch_id is not None:
         branch = db.query(Branch).filter_by(id=a.branch_id).first()
@@ -500,11 +639,26 @@ def shift_window(work_date: date, shift: Shift) -> tuple[datetime, datetime, dat
     return start, end, checkin_from, checkout_until
 
 
+def missing_checkin_checkout_window(work_date: date, shift: Shift) -> tuple[datetime, datetime]:
+    """Cửa sổ nhận lượt chấm đầu tiên là checkout vì thiếu check-in."""
+    shift_start, shift_end, _checkin_from, checkout_until = shift_window(work_date, shift)
+    minutes = max(0, int(settings.MISSING_CHECKIN_CHECKOUT_WINDOW_MINUTES or 0))
+    checkout_from = max(shift_start, shift_end - timedelta(minutes=minutes))
+    return checkout_from, checkout_until
+
+
+def is_missing_checkin_checkout_time(work_date: date, shift: Shift, moment: datetime) -> bool:
+    checkout_from, checkout_until = missing_checkin_checkout_window(work_date, shift)
+    return checkout_from <= moment <= checkout_until
+
+
 def _session_note_for_reconcile(session: AttendanceSession) -> str:
     if session.check_in_at and session.check_out_at:
         return "Đồng bộ từ log chấm công sau khi bổ sung ca"
     if session.check_in_at:
         return "Đồng bộ check-in từ log chấm công sau khi bổ sung ca"
+    if session.check_out_at:
+        return "Đồng bộ checkout cuối ca, thiếu check-in - chờ quản lý xác nhận"
     return session.note or ""
 
 
@@ -605,7 +759,8 @@ def rebuild_session_for_assignment(
     Quy tắc tính session:
     - check-in là log check_in đầu tiên trong cửa sổ.
     - check-out là log check_out cuối cùng sau check-in.
-    - Không có check-in thì không link log vào session để log vẫn là chấm công lẻ.
+    - Không có check-in nhưng có check-out ở cuối ca thì tạo phiên missing_checkin
+      chờ quản lý xác nhận giờ vào.
     """
     if assignment.status in ("cancelled", LEAVE_ASSIGNMENT_STATUS):
         return None
@@ -640,6 +795,13 @@ def rebuild_session_for_assignment(
         and log.timestamp >= check_in_log.timestamp
     ]
     check_out_log = check_out_candidates[-1] if check_out_candidates else None
+    checkout_only_candidates = [
+        log for log in logs
+        if not check_in_log
+        and log.check_type == "check_out"
+        and is_missing_checkin_checkout_time(assignment.work_date, shift, log.timestamp)
+    ]
+    checkout_only_log = checkout_only_candidates[-1] if checkout_only_candidates else None
 
     session = (
         db.query(AttendanceSession)
@@ -647,14 +809,46 @@ def rebuild_session_for_assignment(
           .first()
     )
     if not check_in_log:
-        if session:
-            _unlink_reconciled_events(session, db)
-            _clear_session_attendance(session)
-            session.employee_id = emp.id
-            session.branch_id = assignment.branch_id or shift.branch_id or emp.branch_id
-            session.shift_id = shift.id
-            session.work_date = assignment.work_date
-            session.break_minutes = shift.break_minutes or 0
+        if not session and checkout_only_log:
+            session = AttendanceSession(
+                employee_id=emp.id,
+                branch_id=assignment.branch_id or shift.branch_id or emp.branch_id,
+                shift_assignment_id=assignment.id,
+                shift_id=shift.id,
+                work_date=assignment.work_date,
+                status="missing_checkin",
+                source="reconciled",
+                break_minutes=shift.break_minutes or 0,
+            )
+            db.add(session)
+            db.flush()
+        if not session:
+            return None
+        previous_review_type = session.review_type or ""
+        previous_review_status = session.review_status or "none"
+        _unlink_reconciled_events(session, db)
+        _clear_session_attendance(session)
+        session.employee_id = emp.id
+        session.branch_id = assignment.branch_id or shift.branch_id or emp.branch_id
+        session.shift_id = shift.id
+        session.work_date = assignment.work_date
+        session.break_minutes = shift.break_minutes or 0
+        if checkout_only_log:
+            session.check_out_at = checkout_only_log.timestamp
+            session.status = "missing_checkin"
+            session.check_in_status = ""
+            session.check_out_status = "normal"
+            session.early_leave_minutes = max(0, int((shift_end - checkout_only_log.timestamp).total_seconds() / 60))
+            raw_overtime = max(0, int((checkout_only_log.timestamp - shift_end).total_seconds() / 60))
+            session.overtime_minutes = raw_overtime if raw_overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES else 0
+            session.worked_minutes = 0
+            session.review_type = "missing_checkin"
+            if previous_review_type == "missing_checkin" and previous_review_status == "rejected":
+                session.review_status = previous_review_status
+            else:
+                session.review_status = "pending_review"
+            session.note = _session_note_for_reconcile(session)
+            _link_or_create_reconciled_event(checkout_only_log, session, emp, db)
         return session
 
     if not session:

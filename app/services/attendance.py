@@ -24,6 +24,7 @@ from app.services.shift_service import (
     find_shift_assignment_for_checkin,
     find_shift_assignment_for_time,
     find_leave_assignment_for_time,
+    is_missing_checkin_checkout_time,
     rebuild_session_for_assignment,
     rebuild_sessions_for_log_change,
     shift_window,
@@ -43,6 +44,7 @@ from app.services.attendance_policy import (
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 
 LOW_CONFIDENCE_THRESHOLD = 0.70
+UNSCHEDULED_MANUAL_CHECKOUT_WINDOW = timedelta(hours=24)
 
 
 def _employee_job_role(emp: Employee | None) -> str:
@@ -77,6 +79,19 @@ def _late_minutes_after_grace(check_time: datetime, shift_start: datetime, shift
 def _overtime_requires_review(check_time: datetime, shift_end: datetime) -> tuple[bool, int]:
     overtime = max(0, int((check_time - shift_end).total_seconds() / 60))
     return overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES, overtime
+
+
+def _is_missing_checkin_checkout_candidate(
+    session: AttendanceSession | None,
+    assignment: ShiftAssignment | None,
+    shift: Shift | None,
+    now: datetime,
+) -> bool:
+    if not assignment or not shift:
+        return False
+    if session and (session.check_in_at or session.check_out_at):
+        return False
+    return is_missing_checkin_checkout_time(assignment.work_date, shift, now)
 
 
 def _next_unscheduled_check_type(emp_code: str, now: datetime, db) -> str:
@@ -407,7 +422,28 @@ def process_attendance(
                 "voice_message": "Ca làm đã hoàn tất check in và check out.",
                 "avatar_url": emp.avatar_url or "",
             }
-        check_type = "check_out" if open_session or (session and session.check_in_at) else "check_in"
+        if session and session.check_out_at and not session.check_in_at:
+            return {
+                "ok": False,
+                "reason": "missing_checkin_pending_review",
+                "emp_code": emp_code,
+                "name": emp.name,
+                "department": emp.department,
+                "position": emp.position,
+                "job_role": _employee_job_role(emp),
+                "role_label": _employee_role_label(emp, emp.department),
+                "branch_id": emp.branch_id,
+                "email": emp.email or "",
+                "time": now.strftime("%H:%M:%S"),
+                "date": now.strftime("%d/%m/%Y"),
+                "timestamp": now.isoformat(),
+                "confidence": round(confidence, 4),
+                "message": "Ca làm đã ghi nhận checkout nhưng thiếu check-in, đang chờ quản lý xác nhận",
+                "voice_message": "Ca làm đã ghi nhận chấm ra. Vui lòng báo quản lý xác nhận giờ vào.",
+                "avatar_url": emp.avatar_url or "",
+            }
+        missing_checkin_checkout = _is_missing_checkin_checkout_candidate(session, assignment, shift, now)
+        check_type = "check_out" if open_session or (session and session.check_in_at) or missing_checkin_checkout else "check_in"
 
         status = ""
         check_out_status = ""
@@ -425,6 +461,8 @@ def process_attendance(
                 status = f"Tăng ca {overtime} phút ({shift.name})"
             else:
                 check_out_status = "normal"
+            if missing_checkin_checkout:
+                status = f"Chấm ra cuối ca {shift.name} - thiếu check-in, chờ quản lý xác nhận"
 
         if assignment and not session:
             session = AttendanceSession(
@@ -453,7 +491,6 @@ def process_attendance(
                     session.late_minutes = _late_minutes_after_grace(now, shift_start, shift)
             else:
                 session.check_out_at = now
-                session.status = "completed"
                 session.check_out_status = check_out_status or "normal"
                 if shift and assignment:
                     shift_start, shift_end, _from, _until = shift_window(assignment.work_date, shift)
@@ -464,8 +501,15 @@ def process_attendance(
                         session.review_type = "overtime"
                         session.review_status = "pending_review"
                 if session.check_in_at:
+                    session.status = "completed"
                     gross_minutes = int((now - session.check_in_at).total_seconds() / 60)
                     session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+                else:
+                    session.status = "missing_checkin"
+                    session.worked_minutes = 0
+                    session.check_in_status = ""
+                    session.review_type = "missing_checkin"
+                    session.review_status = "pending_review"
             session.note = status or session.note
 
         log = AttendanceLog(
@@ -625,6 +669,7 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             review_q = review_q.filter(AttendanceSession.branch_id.in_(branch_ids))
         pending_reviews = review_q.count()
         pending_absent = review_q.filter(AttendanceSession.review_type == "absent").count()
+        pending_missing_checkin = review_q.filter(AttendanceSession.review_type == "missing_checkin").count()
         pending_missing_checkout = review_q.filter(AttendanceSession.review_type == "missing_checkout").count()
         pending_overtime = review_q.filter(AttendanceSession.review_type == "overtime").count()
         pending_unscheduled = review_q.filter(AttendanceSession.review_type == "unscheduled").count()
@@ -638,11 +683,12 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             "scheduled_employees": unique_emp,
             "checked_in":  len(checked_in),
             "checked_out": len(checked_out),
-            "absent":      max(0, len(checkin_due - checked_in)),
+            "absent":      max(0, len(checkin_due - (checked_in | checked_out))),
             "not_started": max(0, total_assigned - len(checkin_due)),
             "total_logs":  len(logs),
             "pending_attendance_reviews": pending_reviews,
             "pending_absent_reviews": pending_absent,
+            "pending_missing_checkin_reviews": pending_missing_checkin,
             "pending_missing_checkout_reviews": pending_missing_checkout,
             "pending_overtime_reviews": pending_overtime,
             "pending_unscheduled_reviews": pending_unscheduled,
@@ -699,12 +745,117 @@ def _session_for_log(db, log: AttendanceLog, event: AttendanceEvent | None = Non
     )
 
 
+def _open_unscheduled_sessions_for_log(db, log: AttendanceLog) -> list[AttendanceSession]:
+    if not log or not log.employee_id:
+        return []
+    return (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.employee_id == log.employee_id,
+              AttendanceSession.review_type == "unscheduled",
+              AttendanceSession.review_status == "pending_review",
+              AttendanceSession.status != "cancelled",
+              AttendanceSession.check_in_at.isnot(None),
+              AttendanceSession.check_in_at < log.timestamp,
+              AttendanceSession.check_in_at >= log.timestamp - UNSCHEDULED_MANUAL_CHECKOUT_WINDOW,
+              (AttendanceSession.check_out_at.is_(None)) | (AttendanceSession.check_out_at == log.timestamp),
+          )
+          .order_by(AttendanceSession.check_in_at.desc(), AttendanceSession.id.desc())
+          .all()
+    )
+
+
+def _clear_unscheduled_checkout_link(db, session: AttendanceSession, log: AttendanceLog | None = None) -> None:
+    if not session or session.review_type != "unscheduled" or session.review_status != "pending_review":
+        return
+    if log is not None and session.check_out_at and session.check_out_at != log.timestamp:
+        return
+    session.check_out_at = None
+    session.check_out_status = ""
+    session.status = "open"
+    session.worked_minutes = 0
+    if log and log.employee_id:
+        event = _matching_event(db, log)
+        if event and event.session_id == session.id:
+            event.session_id = None
+
+
+def _sync_unscheduled_manual_checkout(
+    db,
+    log: AttendanceLog,
+    *,
+    previous_event: AttendanceEvent | None = None,
+    previous_session: AttendanceSession | None = None,
+) -> list[int]:
+    affected: list[int] = []
+    previous_is_unscheduled = (
+        previous_session
+        and previous_session.review_type == "unscheduled"
+        and previous_session.review_status == "pending_review"
+    )
+    if previous_is_unscheduled and (
+        log.check_type != "check_out"
+        or not log.timestamp
+        or not previous_session.check_in_at
+        or not (previous_session.check_in_at < log.timestamp <= previous_session.check_in_at + UNSCHEDULED_MANUAL_CHECKOUT_WINDOW)
+    ):
+        _clear_unscheduled_checkout_link(db, previous_session)
+        if previous_event and previous_event.session_id == previous_session.id:
+            previous_event.session_id = None
+        affected.append(previous_session.id)
+
+    if log.check_type != "check_out" or not log.timestamp:
+        return list(dict.fromkeys(x for x in affected if x))
+
+    target = None
+    if previous_is_unscheduled:
+        if previous_session.check_in_at and previous_session.check_in_at < log.timestamp <= previous_session.check_in_at + UNSCHEDULED_MANUAL_CHECKOUT_WINDOW:
+            target = previous_session
+    if not target:
+        target = next(iter(_open_unscheduled_sessions_for_log(db, log)), None)
+    if not target or not target.check_in_at:
+        return list(dict.fromkeys(x for x in affected if x))
+
+    target.check_out_at = log.timestamp
+    target.status = "completed"
+    target.check_out_status = "unscheduled"
+    target.review_status = "pending_review"
+    target.review_type = "unscheduled"
+    target.worked_minutes = max(0, int((log.timestamp - target.check_in_at).total_seconds() / 60))
+    target.note = target.note or "Ngoài phân ca - chưa có ca phân công, chờ quản lý kiểm tra/gắn ca"
+    affected.append(target.id)
+
+    event = previous_event or _matching_event(db, log)
+    if event:
+        event.session_id = target.id
+        event.branch_id = target.branch_id
+        event.event_type = log.check_type
+        event.event_time = log.timestamp
+        event.note = event.note or log.note or target.note
+    else:
+        db.add(AttendanceEvent(
+            session_id=target.id,
+            employee_id=log.employee_id,
+            branch_id=target.branch_id,
+            event_type=log.check_type,
+            event_time=log.timestamp,
+            confidence=log.confidence or 0.0,
+            capture_path=log.capture_path or "",
+            source="manual",
+            note=log.note or target.note,
+        ))
+
+    return list(dict.fromkeys(x for x in affected if x))
+
+
 def _session_payroll_status(session: AttendanceSession | None) -> tuple[str, str, str]:
     if not session:
         return "no_assignment", "Chưa có ca phân công", "Log đã ghi nhận nhưng chưa gắn với phiên công/ca phân công"
     if session.review_status == "pending_review":
         if session.review_type == "unscheduled":
             return "pending_review", "Chờ duyệt", "Chấm công ngoài phân ca, chưa được tính công"
+        if session.review_type == "missing_checkin":
+            return "pending_review", "Chờ duyệt", "Đã có checkout cuối ca nhưng thiếu check-in, cần quản lý xác nhận giờ vào"
         return "pending_review", "Chờ duyệt", f"{session_status_label(session)} cần quản lý duyệt"
     if session.review_status == "rejected":
         return "not_counted", "Không tính công", "Phiên công đã bị từ chối"
@@ -712,6 +863,8 @@ def _session_payroll_status(session: AttendanceSession | None) -> tuple[str, str
         return "not_counted", "Không tính công", "Phiên công đã hủy"
     if session.status == "open":
         return "open", "Chưa đủ check-out", "Đã check-in, cần checkout để hoàn tất công"
+    if session.check_out_at and not session.check_in_at:
+        return "pending_review", "Chờ duyệt", "Đã có checkout nhưng thiếu check-in, cần quản lý xác nhận giờ vào"
     if session.check_in_at and not session.check_out_at:
         return "open", "Chưa đủ check-out", "Đã check-in, cần checkout để hoàn tất công"
     if session_counts_as_work(session):
@@ -924,6 +1077,7 @@ def update_attendance_log(
         old_timestamp = log.timestamp
         old_check_type = log.check_type
         matched_event = _matching_event(db, log)
+        previous_session = _session_for_log(db, log, matched_event)
         branch_id = _branch_for_attendance_log(db, log, matched_event)
         new_ts = _parse_log_timestamp(timestamp_str) if timestamp_str else old_timestamp
         ensure_period_unlocked(db, branch_id, old_timestamp)
@@ -960,6 +1114,12 @@ def update_attendance_log(
         affected_session_ids = []
         if changes or old_check_type != log.check_type or old_timestamp != log.timestamp:
             affected_session_ids = rebuild_sessions_for_log_change(log.emp_code, old_timestamp, log.timestamp, db)
+            affected_session_ids.extend(_sync_unscheduled_manual_checkout(
+                db,
+                log,
+                previous_event=matched_event,
+                previous_session=previous_session,
+            ))
 
         audit = create_correction_audit(
             db,
@@ -1005,14 +1165,19 @@ def delete_attendance_log(
         old_emp_code = log.emp_code
         old_timestamp = log.timestamp
         matched_event = _matching_event(db, log)
+        linked_session = _session_for_log(db, log, matched_event)
         branch_id = _branch_for_attendance_log(db, log, matched_event)
         ensure_period_unlocked(db, branch_id, old_timestamp)
         before_data = log_snapshot(log)
         if matched_event:
             matched_event.session_id = None
+        if linked_session and linked_session.review_type == "unscheduled":
+            _clear_unscheduled_checkout_link(db, linked_session, log)
         db.delete(log)
         db.flush()
         affected_session_ids = rebuild_sessions_for_log_change(old_emp_code, old_timestamp, None, db)
+        if linked_session and linked_session.id:
+            affected_session_ids.append(linked_session.id)
         audit = create_correction_audit(
             db,
             action="delete",
@@ -1082,6 +1247,7 @@ def create_manual_attendance_log(
         db.add(log)
         db.flush()
         affected_session_ids = rebuild_sessions_for_log_change(emp_code, None, ts, db)
+        affected_session_ids.extend(_sync_unscheduled_manual_checkout(db, log))
         audit = create_correction_audit(
             db,
             action="create",

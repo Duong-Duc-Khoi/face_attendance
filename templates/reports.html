@@ -134,6 +134,7 @@
         <button class="quick-btn active" id="exFilterAll" onclick="setExceptionFilter('all')">Tất cả</button>
         <button class="quick-btn" id="exFilterLeave" onclick="setExceptionFilter('leave')">Nghỉ</button>
         <button class="quick-btn" id="exFilterAbsent" onclick="setExceptionFilter('absent')">Vắng</button>
+        <button class="quick-btn" id="exFilterMissingIn" onclick="setExceptionFilter('missing_checkin')">Thiếu check-in</button>
         <button class="quick-btn" id="exFilterMissing" onclick="setExceptionFilter('missing_checkout')">Quên checkout</button>
       </div>
     </div>
@@ -141,6 +142,7 @@
       <div class="stats-row" style="margin-bottom:14px">
         <div class="stat-card"><div class="stat-label">Nghỉ</div><div class="stat-value yellow" id="exLeave">0</div></div>
         <div class="stat-card"><div class="stat-label">Vắng</div><div class="stat-value" style="color:var(--red)" id="exAbsent">0</div></div>
+        <div class="stat-card"><div class="stat-label">Thiếu check-in</div><div class="stat-value" style="color:#fb923c" id="exMissingIn">0</div></div>
         <div class="stat-card"><div class="stat-label">Quên checkout</div><div class="stat-value blue" id="exMissing">0</div></div>
       </div>
       <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
@@ -367,7 +369,7 @@ function safeText(value){
 }
 
 function exceptionTypeLabel(type){
-  return {leave:'Nghỉ',absent:'Vắng',missing_checkout:'Quên checkout'}[type]||type||'—';
+  return {leave:'Nghỉ',absent:'Vắng',missing_checkin:'Thiếu check-in',missing_checkout:'Quên checkout'}[type]||type||'—';
 }
 
 function exceptionBadge(type){
@@ -378,12 +380,13 @@ function exceptionBadge(type){
 function renderExceptionSummary(summary){
   document.getElementById('exLeave').textContent=summary.leave||0;
   document.getElementById('exAbsent').textContent=summary.absent||0;
+  document.getElementById('exMissingIn').textContent=summary.missing_checkin||0;
   document.getElementById('exMissing').textContent=summary.missing_checkout||0;
 }
 
 function setExceptionFilter(type){
   exceptionFilter=type;
-  const ids={all:'exFilterAll',leave:'exFilterLeave',absent:'exFilterAbsent',missing_checkout:'exFilterMissing'};
+  const ids={all:'exFilterAll',leave:'exFilterLeave',absent:'exFilterAbsent',missing_checkin:'exFilterMissingIn',missing_checkout:'exFilterMissing'};
   Object.values(ids).forEach(id=>document.getElementById(id)?.classList.remove('active'));
   document.getElementById(ids[type]||ids.all)?.classList.add('active');
   renderExceptions();

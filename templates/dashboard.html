@@ -146,6 +146,7 @@ html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:n
 .roster-people-list{display:flex;flex-direction:column}
 .roster-person{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(26,47,80,.35)}
 .roster-person.is-leave{background:rgba(246,201,14,.055)}
+.roster-person.is-unscheduled{background:rgba(56,189,248,.055)}
 .roster-person:last-child{border-bottom:none}
 .roster-person-main{min-width:0;flex:1}
 .roster-person-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -154,6 +155,7 @@ html[data-admin-theme="light"] body.admin-shell .roster-summary .roster-metric:n
 .roster-person-flags{display:flex;align-items:center;gap:6px;flex-shrink:0;max-width:150px}
 .roster-status-pill{display:inline-flex;align-items:center;justify-content:center;min-height:22px;border-radius:999px;padding:0 8px;border:1px solid rgba(90,122,154,.26);font-size:10px;font-weight:800;white-space:nowrap}
 .roster-status-pill.leave{color:var(--yellow);background:rgba(246,201,14,.1);border-color:rgba(246,201,14,.34)}
+.roster-status-pill.unscheduled{color:#38bdf8;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.32)}
 .roster-no-people{padding:18px 14px;color:var(--muted);font-size:12px;text-align:center}
 .roster-period-wrap{display:none;overflow:auto;padding:16px;max-height:680px}
 .roster-period-table{width:100%;min-width:980px;border-collapse:separate;border-spacing:0;font-size:12px}
@@ -340,7 +342,18 @@ html[data-admin-theme="light"] body.admin-shell .roster-shift-card .roster-shift
 .absent-log-summary{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-bottom:14px}
 .absent-log-timegrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
 .absent-log-hint{background:rgba(58,143,255,.08);border:1px solid rgba(58,143,255,.28);border-radius:8px;color:#9ecbff;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.55}
-@media(max-width:680px){.absent-log-summary,.absent-log-timegrid{grid-template-columns:1fr}}
+.unscheduled-review-box{max-width:660px}
+.unscheduled-review-shift{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin:12px 0}
+.unscheduled-review-time{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.24);border-radius:8px;padding:11px 12px}
+.unscheduled-review-time b{display:block;font-size:10px;color:#8fd9ff;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.unscheduled-review-time span{font-family:var(--font-mono);font-size:14px;color:var(--text)}
+.unscheduled-review-arrow{color:#8fd9ff;font-weight:900;font-size:17px;text-align:center}
+.unscheduled-review-note{background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.23);border-radius:8px;color:#9ff0df;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.55}
+.unscheduled-review-choice{margin:0 0 12px}
+.unscheduled-review-choice select{width:100%}
+.missing-checkout-box{max-width:620px}
+.missing-checkout-note{background:rgba(246,201,14,.08);border:1px solid rgba(246,201,14,.28);border-radius:8px;color:#ffe083;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.55}
+@media(max-width:680px){.absent-log-summary,.absent-log-timegrid,.unscheduled-review-shift{grid-template-columns:1fr}.unscheduled-review-arrow{display:none}}
 .confidence-pill{display:inline-flex;align-items:center;justify-content:center;min-width:45px;height:22px;border-radius:999px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:var(--teal);font-family:var(--font-mono);font-size:11px;font-weight:800}
 .confidence-pill.low{background:rgba(246,201,14,.12);border-color:rgba(246,201,14,.4);color:var(--yellow)}
 .evidence-empty{font-size:11px;color:var(--muted)}
@@ -415,6 +428,7 @@ html[data-admin-theme="light"] body.admin-shell .attendance-view-btn.active .tab
 .audit-table td{padding:8px 10px;border-bottom:1px solid rgba(26,47,80,.45);font-size:12px}
 .review-type-pill{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(26,47,80,.9);border-radius:6px;padding:5px 8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
 .review-type-pill.absent{color:var(--red);background:rgba(255,77,106,.08);border-color:rgba(255,77,106,.28)}
+.review-type-pill.missing_checkin{color:#fb923c;background:rgba(251,146,60,.09);border-color:rgba(251,146,60,.3)}
 .review-type-pill.missing_checkout{color:var(--yellow);background:rgba(246,201,14,.08);border-color:rgba(246,201,14,.25)}
 .review-type-pill.overtime{color:#a78bfa;background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.28)}
 .review-type-pill.unscheduled{color:#38bdf8;background:rgba(56,189,248,.09);border-color:rgba(56,189,248,.3)}
@@ -828,6 +842,90 @@ html[data-admin-theme="light"] body.admin-shell .roster-scope-required{
   </div>
 </div>
 
+<!-- ══ Modal: Duyệt thiếu giờ vào / ra ══ -->
+<div class="atd-ovl" id="missingCheckoutOvl">
+  <div class="atd-box missing-checkout-box">
+    <button class="atd-x" onclick="closeAtd('missingCheckoutOvl')">✕</button>
+    <div class="atd-ttl">
+      <span id="missingCheckoutDot" style="width:7px;height:7px;border-radius:50%;background:var(--yellow);display:inline-block;flex-shrink:0"></span>
+      <span id="missingCheckoutTitle">Duyệt quên checkout</span>
+    </div>
+    <div class="absent-log-summary">
+      <div class="atd-meta-item"><b>Nhân viên</b><span id="missingCheckoutEmp">—</span></div>
+      <div class="atd-meta-item"><b>Ca làm</b><span id="missingCheckoutShift">—</span></div>
+      <div class="atd-meta-item"><b>Ngày công</b><span id="missingCheckoutDate">—</span></div>
+    </div>
+    <div class="missing-checkout-note" id="missingCheckoutHint">
+      Hệ thống đã tự checkout vì nhân viên quên chấm ra. Quản lý chỉ được chỉnh giờ ra trước khi duyệt; giờ vào giữ nguyên theo log đã ghi nhận.
+    </div>
+    <div class="absent-log-timegrid">
+      <div>
+        <div class="atd-lbl">Giờ vào</div>
+        <input type="datetime-local" class="atd-inp" id="missingCheckoutIn">
+      </div>
+      <div>
+        <div class="atd-lbl">Giờ ra</div>
+        <input type="datetime-local" class="atd-inp" id="missingCheckoutOut">
+      </div>
+    </div>
+    <div class="atd-row full">
+      <div>
+        <div class="atd-lbl">Ghi chú duyệt</div>
+        <input type="text" class="atd-inp" id="missingCheckoutNote" placeholder="Tuỳ chọn: VD xác nhận với quản lý ca">
+      </div>
+    </div>
+    <div class="atd-foot">
+      <button class="btn btn-outline" onclick="closeAtd('missingCheckoutOvl')">Huỷ</button>
+      <button class="btn btn-teal" id="missingCheckoutBtn" onclick="submitMissingCheckoutReview()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Duyệt checkout
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: Duyệt ngoài ca và gắn phân ca ══ -->
+<div class="atd-ovl" id="unscheduledReviewOvl">
+  <div class="atd-box unscheduled-review-box">
+    <button class="atd-x" onclick="closeAtd('unscheduledReviewOvl')">✕</button>
+    <div class="atd-ttl">
+      <span style="width:7px;height:7px;border-radius:50%;background:#38bdf8;display:inline-block;flex-shrink:0"></span>
+      Duyệt ngoài ca & gắn phân ca
+    </div>
+    <div class="absent-log-summary">
+      <div class="atd-meta-item"><b>Nhân viên</b><span id="unscheduledReviewEmp">—</span></div>
+      <div class="atd-meta-item"><b>Ngày công</b><span id="unscheduledReviewDate">—</span></div>
+      <div class="atd-meta-item"><b>Tổng giờ</b><span id="unscheduledReviewWorked">—</span></div>
+    </div>
+    <div class="unscheduled-review-shift">
+      <div class="unscheduled-review-time"><b>Giờ vào</b><span id="unscheduledReviewIn">—</span></div>
+      <div class="unscheduled-review-arrow">→</div>
+      <div class="unscheduled-review-time"><b>Giờ ra</b><span id="unscheduledReviewOut">—</span></div>
+    </div>
+    <div class="unscheduled-review-note" id="unscheduledReviewHint">
+      Chọn một ca làm việc có sẵn phù hợp với khoảng giờ vào-ra để gắn nhân viên vào lịch phân ca.
+    </div>
+    <div class="unscheduled-review-choice">
+      <div class="atd-lbl">Ca có sẵn để gắn</div>
+      <select class="atd-inp atd-sel" id="unscheduledReviewShift"></select>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px" id="unscheduledReviewShiftHint">—</div>
+    </div>
+    <div class="atd-row full">
+      <div>
+        <div class="atd-lbl">Ghi chú duyệt</div>
+        <input type="text" class="atd-inp" id="unscheduledReviewNote" placeholder="Tuỳ chọn: VD đã xác nhận với quản lý ca">
+      </div>
+    </div>
+    <div class="atd-foot">
+      <button class="btn btn-outline" onclick="closeAtd('unscheduledReviewOvl')">Huỷ</button>
+      <button class="btn btn-teal" id="unscheduledReviewBtn" onclick="submitUnscheduledReview()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Duyệt & gắn ca
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -835,6 +933,8 @@ let employees=[],employeeRoles=[],allLogs=[],editingId=null;
 let _isMgr=false,_isAdmin=false,_currentEmployeeId=null;
 let _atdEditId=null,_atdDelId=null;
 let _absentLogSessionId=null;
+let _unscheduledReviewSessionId=null;
+let _missingCheckoutSessionId=null;
 let _captureObjectUrl='',_activeFindingId=null,_activeManualLogId=null;
 let auditFindings=[],manualReviewLogs=[],auditVisionConfigured=false,auditProvider='',auditMode='manual',manualLowOnly=false,auditLastRunNote='',auditAiCount=0;
 let attendanceReviewItems=[],attendanceReviewCount=0;
@@ -857,7 +957,7 @@ const KIOSK_URL='{{ kiosk_url }}';
   _isAdmin=!!(user&&user.role==='admin');
 
   // Close atd overlays on backdrop click
-  ['atdCaptureOvl','atdEditOvl','atdDelOvl','atdAddOvl','absentLogOvl'].forEach(id=>{
+  ['atdCaptureOvl','atdEditOvl','atdDelOvl','atdAddOvl','absentLogOvl','missingCheckoutOvl','unscheduledReviewOvl'].forEach(id=>{
     const ovl=document.getElementById(id);
     if(!ovl)return;
     ovl.addEventListener('click',function(e){
@@ -1573,23 +1673,28 @@ function _fmtDateTime(iso){
   return `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
 }
 function _reviewTypePill(type){
-  const labels={absent:'Vắng',missing_checkout:'Quên checkout',overtime:'OT',unscheduled:'Ngoài ca'};
+  const labels={absent:'Vắng',missing_checkin:'Thiếu check-in',missing_checkout:'Quên checkout',overtime:'OT',unscheduled:'Ngoài ca'};
   return `<span class="review-type-pill ${type||''}">${labels[type]||'Cần duyệt'}</span>`;
 }
 function _reviewDetail(item){
   if(item.review_type==='absent')return item.note||'Không check-in cả ca';
+  if(item.review_type==='missing_checkin')return 'Đã chấm ra cuối ca nhưng thiếu check-in. Cần xác nhận giờ vào trước khi tính công';
   if(item.review_type==='missing_checkout')return 'Hệ thống tự checkout tại giờ kết thúc ca';
   if(item.review_type==='overtime')return `OT ${item.overtime_minutes||0} phút, cần quản lý duyệt`;
   if(item.review_type==='unscheduled'){
-    if(item.check_in_at&&item.check_out_at)return 'Chấm công khi chưa có phân ca. Duyệt sẽ tạo/gắn ca theo đúng khoảng giờ vào-ra này';
-    return 'Chấm công khi chưa có phân ca. Cần đủ giờ vào và giờ ra trước khi duyệt/gắn ca';
+    if(item.check_in_at&&item.check_out_at)return 'Chấm công khi chưa có phân ca. Duyệt sẽ gắn nhân viên vào một ca có sẵn phù hợp';
+    return 'Chấm công khi chưa có phân ca. Cần đủ giờ vào và giờ ra trước khi gắn ca có sẵn';
   }
   return item.note||'Cần quản lý xác nhận';
 }
 function _reviewActionButtons(item){
   const approve=item.review_type==='absent'
     ? `<button class="log-btn approve" onclick="openAbsentLogModal(${item.id})">Xác nhận</button>`
-    : `<button class="log-btn approve" onclick="reviewAttendanceSession(${item.id},'approved')">Duyệt</button>`;
+    : (item.review_type==='unscheduled'
+      ? `<button class="log-btn approve" onclick="openUnscheduledReviewModal(${item.id})">Gắn ca</button>`
+      : (item.review_type==='missing_checkout'||item.review_type==='missing_checkin'
+        ? `<button class="log-btn approve" onclick="openMissingCheckoutModal(${item.id})">Duyệt</button>`
+        : `<button class="log-btn approve" onclick="reviewAttendanceSession(${item.id},'approved')">Duyệt</button>`));
   return `<div class="review-actions">
         ${approve}
         <button class="log-btn reject" onclick="reviewAttendanceSession(${item.id},'rejected')">Từ chối</button>
@@ -1633,6 +1738,18 @@ function _dateLabel(isoDate){
   if(!isoDate)return '—';
   const [y,m,d]=isoDate.split('-');
   return y&&m&&d?`${d}/${m}/${y}`:isoDate;
+}
+function _minutesLabel(minutes){
+  const total=Math.max(0,Number(minutes||0));
+  const h=Math.floor(total/60),m=total%60;
+  if(h&&m)return `${h}h ${m}p`;
+  if(h)return `${h}h`;
+  return `${m}p`;
+}
+function _unscheduledShiftOptionLabel(shift){
+  const fit=shift.in_attendance_window?'phù hợp cửa sổ chấm công':(shift.contains_session?'nằm trong giờ ca':'gần nhất');
+  const overlap=shift.overlap_minutes?` · giao ${_minutesLabel(shift.overlap_minutes)}`:'';
+  return `${shift.name||'Ca'} · ${shift.work_start||''}-${shift.work_end||''} · ${fit}${overlap}`;
 }
 function _dtLocalFromDateTimeParts(dateText,timeText){
   if(!dateText||!timeText)return '';
@@ -1685,6 +1802,129 @@ async function saveAbsentManualLogs(){
     await Promise.all([loadAttendanceReviewItems(),loadSummary(),loadLogs({refreshAudit:false})]);
   }catch(e){showToast('Lỗi: '+e.message,'error');}
   finally{btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Tạo log & xác nhận';btn.disabled=false;}
+}
+function openMissingCheckoutModal(sessionId){
+  const item=attendanceReviewItems.find(x=>Number(x.id)===Number(sessionId));
+  if(!item)return;
+  _missingCheckoutSessionId=sessionId;
+  const isMissingCheckin=item.review_type==='missing_checkin';
+  const inInput=document.getElementById('missingCheckoutIn');
+  const outInput=document.getElementById('missingCheckoutOut');
+  document.getElementById('missingCheckoutEmp').textContent=`${item.emp_name||'—'} (${item.emp_code||'—'})`;
+  document.getElementById('missingCheckoutShift').textContent=item.shift_name||'—';
+  document.getElementById('missingCheckoutDate').textContent=_dateLabel(item.work_date);
+  document.getElementById('missingCheckoutTitle').textContent=isMissingCheckin?'Duyệt thiếu check-in':'Duyệt quên checkout';
+  document.getElementById('missingCheckoutDot').style.background=isMissingCheckin?'#fb923c':'var(--yellow)';
+  inInput.value=_dtLocal(item.check_in_at||item.shift_start);
+  outInput.value=_dtLocal(item.check_out_at);
+  inInput.disabled=!isMissingCheckin;
+  outInput.disabled=isMissingCheckin;
+  document.getElementById('missingCheckoutNote').value='';
+  document.getElementById('missingCheckoutHint').textContent=isMissingCheckin
+    ? `Giờ ra đã ghi nhận ở ${_fmtDateTime(item.check_out_at)}. Hãy xác nhận hoặc chỉnh giờ vào thực tế trước khi duyệt.`
+    : `Giờ vào đang khóa ở ${_fmtDateTime(item.check_in_at)}. Chỉ chỉnh giờ ra nếu checkout tự động chưa đúng thực tế.`;
+  document.getElementById('missingCheckoutBtn').lastChild.textContent=isMissingCheckin?' Duyệt check-in':' Duyệt checkout';
+  document.getElementById('missingCheckoutOvl').classList.add('open');
+  setTimeout(()=>(isMissingCheckin?inInput:outInput)?.focus(),80);
+}
+async function submitMissingCheckoutReview(){
+  if(!_missingCheckoutSessionId)return;
+  const item=attendanceReviewItems.find(x=>Number(x.id)===Number(_missingCheckoutSessionId));
+  const isMissingCheckin=item?.review_type==='missing_checkin';
+  const checkIn=document.getElementById('missingCheckoutIn').value;
+  const checkOut=document.getElementById('missingCheckoutOut').value;
+  const note=document.getElementById('missingCheckoutNote').value.trim();
+  if(isMissingCheckin){
+    if(!item?.check_out_at){showToast('Phiên thiếu check-in chưa có giờ ra','error');return;}
+    if(!checkIn){showToast('Vui lòng nhập giờ vào','error');return;}
+    if(new Date(item.check_out_at)<=new Date(checkIn)){showToast('Giờ vào phải trước giờ ra','error');return;}
+  }else{
+    if(!item?.check_in_at){showToast('Phiên quên checkout chưa có giờ vào','error');return;}
+    if(!checkOut){showToast('Vui lòng nhập giờ ra','error');return;}
+    if(new Date(checkOut)<=new Date(item.check_in_at)){showToast('Giờ ra phải sau giờ vào','error');return;}
+  }
+  const btn=document.getElementById('missingCheckoutBtn');
+  btn.innerHTML='<span class="atd-sp"></span> Đang duyệt...';btn.disabled=true;
+  try{
+    const res=await authFetch(`/api/attendance/sessions/${_missingCheckoutSessionId}/review`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(isMissingCheckin
+        ? {review_status:'approved',note,check_in_at:_tsApi(checkIn)}
+        : {review_status:'approved',note,check_out_at:_tsApi(checkOut)})
+    });
+    if(!res.ok)throw new Error((await res.json()).detail||'Không duyệt được mục thiếu giờ');
+    closeAtd('missingCheckoutOvl');
+    showToast(isMissingCheckin?'Đã duyệt thiếu check-in và cập nhật giờ vào':'Đã duyệt quên checkout và cập nhật giờ ra','success');
+    await Promise.all([loadAttendanceReviewItems(),loadSummary(),loadLogs({refreshAudit:false})]);
+  }catch(e){
+    showToast('Lỗi: '+e.message,'error');
+  }finally{
+    btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Duyệt checkout';
+    btn.disabled=false;
+  }
+}
+function openUnscheduledReviewModal(sessionId){
+  const item=attendanceReviewItems.find(x=>Number(x.id)===Number(sessionId));
+  if(!item)return;
+  _unscheduledReviewSessionId=sessionId;
+  const complete=!!(item.check_in_at&&item.check_out_at);
+  const btn=document.getElementById('unscheduledReviewBtn');
+  const select=document.getElementById('unscheduledReviewShift');
+  const candidates=item.shift_candidates||[];
+  document.getElementById('unscheduledReviewEmp').textContent=`${item.emp_name||'—'} (${item.emp_code||'—'})`;
+  document.getElementById('unscheduledReviewDate').textContent=_dateLabel(item.work_date);
+  document.getElementById('unscheduledReviewWorked').textContent=_minutesLabel(item.worked_minutes);
+  document.getElementById('unscheduledReviewIn').textContent=_fmtDateTime(item.check_in_at);
+  document.getElementById('unscheduledReviewOut').textContent=_fmtDateTime(item.check_out_at);
+  document.getElementById('unscheduledReviewNote').value='';
+  if(select){
+    select.innerHTML=candidates.length
+      ? candidates.map(s=>`<option value="${s.id}">${rosterSafe(_unscheduledShiftOptionLabel(s))}</option>`).join('')
+      : '<option value="">Không có ca phù hợp trong chi nhánh</option>';
+    select.disabled=!complete||!candidates.length;
+  }
+  document.getElementById('unscheduledReviewHint').textContent=complete
+    ? 'Chọn một ca có sẵn để gắn nhân viên vào lịch phân ca; hệ thống không tạo ca ngoài mới.'
+    : 'Phiên ngoài ca chưa đủ giờ vào/ra nên chưa thể duyệt. Hãy chờ nhân viên chấm ra hoặc bổ sung dữ liệu trước khi gắn ca.';
+  document.getElementById('unscheduledReviewShiftHint').textContent=candidates.length
+    ? 'Danh sách được sắp theo ca khớp cửa sổ chấm công và giao nhiều thời gian nhất.'
+    : 'Chưa có ca active nào thuộc chi nhánh/global để gắn phiên này.';
+  if(btn)btn.disabled=!complete||!candidates.length;
+  document.getElementById('unscheduledReviewOvl').classList.add('open');
+  setTimeout(()=>document.getElementById('unscheduledReviewShift')?.focus(),80);
+}
+async function submitUnscheduledReview(){
+  if(!_unscheduledReviewSessionId)return;
+  const item=attendanceReviewItems.find(x=>Number(x.id)===Number(_unscheduledReviewSessionId));
+  if(!item?.check_in_at||!item?.check_out_at){
+    showToast('Phiên ngoài ca cần đủ giờ vào và giờ ra trước khi duyệt','error');
+    return;
+  }
+  const shiftId=Number(document.getElementById('unscheduledReviewShift')?.value||0);
+  if(!shiftId){
+    showToast('Vui lòng chọn ca có sẵn để gắn phiên ngoài ca','error');
+    return;
+  }
+  const note=document.getElementById('unscheduledReviewNote').value.trim();
+  const btn=document.getElementById('unscheduledReviewBtn');
+  btn.innerHTML='<span class="atd-sp"></span> Đang gắn ca...';btn.disabled=true;
+  try{
+    const res=await authFetch(`/api/attendance/sessions/${_unscheduledReviewSessionId}/review`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({review_status:'approved',note,attach_unscheduled_shift:true,shift_id:shiftId})
+    });
+    if(!res.ok)throw new Error((await res.json()).detail||'Không duyệt được ngoài ca');
+    closeAtd('unscheduledReviewOvl');
+    showToast('Đã duyệt ngoài ca và gắn phân ca','success');
+    await Promise.all([loadAttendanceReviewItems(),loadSummary(),loadLogs({refreshAudit:false})]);
+  }catch(e){
+    showToast('Lỗi: '+e.message,'error');
+  }finally{
+    btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Duyệt & gắn ca';
+    btn.disabled=false;
+  }
 }
 async function reviewAttendanceSession(sessionId,status){
   const note=prompt(status==='approved'?'Ghi chú duyệt (tuỳ chọn)':'Lý do từ chối (tuỳ chọn)')||'';
@@ -2233,6 +2473,9 @@ function rosterAvatar(emp){
 function rosterIsLeaveAssignment(a){
   return a?.status==='leave_approved';
 }
+function rosterIsUnscheduledAssignment(a){
+  return a?.status==='unscheduled_approved';
+}
 function rosterWorkingAssignments(rows){
   return (rows||[]).filter(a=>!rosterIsLeaveAssignment(a));
 }
@@ -2244,10 +2487,12 @@ function rosterSortAssignmentRows(rows,empMap){
   });
 }
 function rosterPersonStatusHtml(a){
-  return rosterIsLeaveAssignment(a)?'<span class="roster-status-pill leave">Nghỉ phép</span>':'';
+  if(rosterIsLeaveAssignment(a))return '<span class="roster-status-pill leave">Nghỉ phép</span>';
+  if(rosterIsUnscheduledAssignment(a))return '<span class="roster-status-pill unscheduled">Ngoài ca</span>';
+  return '';
 }
 function rosterPeriodNameHtml(text,a){
-  return `<span class="${rosterIsLeaveAssignment(a)?'is-leave':''}">${rosterSafe(text)}${rosterIsLeaveAssignment(a)?' · nghỉ phép':''}</span>`;
+  return `<span class="${rosterIsLeaveAssignment(a)?'is-leave':''}">${rosterSafe(text)}${rosterIsLeaveAssignment(a)?' · nghỉ phép':(rosterIsUnscheduledAssignment(a)?' · ngoài ca':'')}</span>`;
 }
 function renderRosterStats(){
   const activeEmployees=employees.filter(e=>e.is_active!==false);
@@ -2283,7 +2528,7 @@ function renderRosterByShift(){
     const leaveCount=rows.length-workingCount;
     const people=rows.length?rows.map(a=>{
       const emp=empMap.get(a.emp_code);
-      return `<div class="roster-person ${rosterIsLeaveAssignment(a)?'is-leave':''}">
+      return `<div class="roster-person ${rosterIsLeaveAssignment(a)?'is-leave':(rosterIsUnscheduledAssignment(a)?'is-unscheduled':'')}">
         <div class="roster-avatar">${rosterAvatar(emp)}</div>
         <div class="roster-person-main">
           <div class="roster-person-name">${rosterSafe(emp?.name||a.emp_code)}</div>
@@ -2425,7 +2670,7 @@ function renderRosterMatrix(){
       if(rosterIsLeaveAssignment(a)){
         return `<td class="${rosterTone(shift)}"><div class="roster-cell leave"><div class="roster-chip"><b>Nghỉ phép</b><span>${rosterSafe(rosterTime(shift.work_start))}-${rosterSafe(rosterTime(shift.work_end))}</span></div></div></td>`;
       }
-      return `<td class="${rosterTone(shift)}"><div class="roster-cell assigned"><div class="roster-chip"><b>Có ca</b><span>${rosterSafe(rosterTime(shift.work_start))}-${rosterSafe(rosterTime(shift.work_end))}</span></div></div></td>`;
+      return `<td class="${rosterTone(shift)}"><div class="roster-cell assigned"><div class="roster-chip"><b>${rosterIsUnscheduledAssignment(a)?'Ngoài ca':'Có ca'}</b><span>${rosterSafe(rosterTime(shift.work_start))}-${rosterSafe(rosterTime(shift.work_end))}</span></div></div></td>`;
     }).join('');
     const notes=empAssignments.map(a=>a.note).filter(Boolean).map(rosterSafe).join('<br>')||'—';
     return `<tr>
@@ -2520,6 +2765,12 @@ function closeAtd(id){
   if(id==='atdCaptureOvl'){
     _activeManualLogId=null;
     _activeFindingId=null;
+  }
+  if(id==='unscheduledReviewOvl'){
+    _unscheduledReviewSessionId=null;
+  }
+  if(id==='missingCheckoutOvl'){
+    _missingCheckoutSessionId=null;
   }
 }
 

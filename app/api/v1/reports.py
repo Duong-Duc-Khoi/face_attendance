@@ -32,7 +32,7 @@ from app.models.employee import Employee
 from app.models.leave import LeaveRequest
 from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
-from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS
+from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS, UNSCHEDULED_APPROVED_ASSIGNMENT_STATUS, ensure_can_assign_employee
 from app.services.attendance_period import (
     create_period_lock,
     ensure_period_unlocked,
@@ -43,6 +43,7 @@ from app.services.attendance_period import (
 from app.services.attendance_policy import (
     confirmed_absent,
     leave_credit_for_assignment,
+    missing_checkin_recorded,
     missing_checkout_recorded,
     payable_work_minutes,
     recorded_overtime_minutes,
@@ -57,7 +58,7 @@ from app.services.attendance import (
     delete_attendance_log, create_manual_attendance_log,
     create_absent_session_manual_logs,
 )
-from app.services.shift_service import shift_window
+from app.services.shift_service import _employee_role_matches_shift, _ensure_assignable_workday, shift_window
 from app.services.employee_branch_history import branch_for_log, filter_logs_by_branch_ids
 from app.services.attendance_audit import (
     get_audit_run,
@@ -634,6 +635,7 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
         ot_recorded = recorded_overtime_minutes(session)
         needs_review = _session_needs_review(session)
         missing_checkout = missing_checkout_recorded(session)
+        missing_checkin = missing_checkin_recorded(session)
         absent = confirmed_absent(session)
         rejected = bool(session and session.review_status == "rejected")
 
@@ -653,6 +655,7 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
             "late_minutes": 0,
             "early_leave_minutes": 0,
             "absent": 0,
+            "missing_checkin": 0,
             "missing_checkout": 0,
             "pending_review": 0,
         })
@@ -670,6 +673,8 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
             row["early_leave_minutes"] += int(session.early_leave_minutes or 0)
         if absent:
             row["absent"] += 1
+        if missing_checkin:
+            row["missing_checkin"] += 1
         if missing_checkout:
             row["missing_checkout"] += 1
         if needs_review:
@@ -721,6 +726,7 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
             row["late_minutes"],
             row["early_leave_minutes"],
             row["absent"],
+            row["missing_checkin"],
             row["missing_checkout"],
             row["pending_review"],
         ])
@@ -758,9 +764,9 @@ def export_excel(from_date: str, to_date: str, branch_id: int | None = None, db:
     _write_table_sheet(
         ws_summary,
         "Tong hop",
-        ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại nhân sự", "Số ca phân", "Công làm", "Giờ làm thực tế", "Công phép", "Giờ phép", "OT ghi nhận (giờ)", "Số lần đi muộn", "Phút đi muộn", "Phút về sớm", "Vắng xác nhận", "Ca quên checkout", "Ca cần duyệt"],
+        ["STT", "Mã NV", "Họ tên", "Chi nhánh", "Vai trò", "Loại nhân sự", "Số ca phân", "Công làm", "Giờ làm thực tế", "Công phép", "Giờ phép", "OT ghi nhận (giờ)", "Số lần đi muộn", "Phút đi muộn", "Phút về sớm", "Vắng xác nhận", "Ca thiếu check-in", "Ca quên checkout", "Ca cần duyệt"],
         summary_rows,
-        [6, 12, 24, 22, 18, 14, 12, 12, 16, 12, 14, 16, 14, 14, 14, 14, 16, 14],
+        [6, 12, 24, 22, 18, 14, 12, 12, 16, 12, 14, 16, 14, 14, 14, 14, 16, 16, 14],
         styles,
     )
     _write_table_sheet(
@@ -841,7 +847,7 @@ def attendance_exceptions(
         AttendanceSession.work_date >= fd,
         AttendanceSession.work_date <= td,
         AttendanceSession.review_status == "pending_review",
-        AttendanceSession.review_type.in_(["absent", "missing_checkout"]),
+        AttendanceSession.review_type.in_(["absent", "missing_checkout", "missing_checkin"]),
     )
     if branch_ids is not None:
         session_q = session_q.filter(AttendanceSession.branch_id.in_(branch_ids))
@@ -904,13 +910,17 @@ def attendance_exceptions(
             "branch": row.get("branch_name") or "",
             "shift_name": row.get("shift_name") or "",
             "status": _review_label(row.get("review_status")),
-            "detail": "Không check-in cả ca" if review_type == "absent" else "Quên checkout",
+            "detail": (
+                "Không check-in cả ca"
+                if review_type == "absent"
+                else ("Thiếu check-in, cần quản lý xác nhận giờ vào" if review_type == "missing_checkin" else "Quên checkout")
+            ),
             "note": row.get("review_note") or row.get("note") or "",
         })
 
-    order = {"leave": 0, "absent": 1, "missing_checkout": 2}
+    order = {"leave": 0, "absent": 1, "missing_checkin": 2, "missing_checkout": 3}
     items.sort(key=lambda item: (item.get("date") or "", order.get(item.get("type"), 9), item.get("emp_name") or ""))
-    summary = {"leave": 0, "absent": 0, "missing_checkout": 0, "total": len(items)}
+    summary = {"leave": 0, "absent": 0, "missing_checkin": 0, "missing_checkout": 0, "total": len(items)}
     for item in items:
         if item["type"] in summary:
             summary[item["type"]] += 1
@@ -981,6 +991,10 @@ class AuditReviewRequest(BaseModel):
 class AttendanceSessionReviewRequest(BaseModel):
     review_status: str
     note: Optional[str] = ""
+    attach_unscheduled_shift: bool = False
+    shift_id: Optional[int] = None
+    check_in_at: Optional[str] = None
+    check_out_at: Optional[str] = None
 
 
 class AbsentSessionManualLogsRequest(BaseModel):
@@ -990,50 +1004,71 @@ class AbsentSessionManualLogsRequest(BaseModel):
     reason: str
 
 
-def _unscheduled_shift_code(start: datetime, end: datetime) -> str:
-    suffix = "-next" if end.date() != start.date() else ""
-    return f"outside-{start.strftime('%H%M')}-{end.strftime('%H%M')}{suffix}"
+def _shift_overlap_minutes(work_date, shift: Shift, start: datetime, end: datetime) -> int:
+    shift_start, shift_end, _from, _until = shift_window(work_date, shift)
+    overlap_start = max(start, shift_start)
+    overlap_end = min(end, shift_end)
+    return max(0, int((overlap_end - overlap_start).total_seconds() / 60))
 
 
-def _find_or_create_unscheduled_shift(
-    db: Session,
-    branch_id: int | None,
-    check_in_at: datetime,
-    check_out_at: datetime,
-) -> Shift:
-    start_text = check_in_at.strftime("%H:%M")
-    end_text = check_out_at.strftime("%H:%M")
-    code = _unscheduled_shift_code(check_in_at, check_out_at)
-    shift = db.query(Shift).filter_by(branch_id=branch_id, code=code).first()
-    if shift:
-        if not shift.is_active:
-            shift.is_active = True
-        return shift
-    shift = Shift(
-        branch_id=branch_id,
-        name=f"Ngoài ca {start_text}-{end_text}",
-        code=code,
-        work_start=start_text,
-        work_end=end_text,
-        required_position="",
-        late_threshold_minutes=0,
-        early_checkin_minutes=0,
-        auto_checkout_minutes=0,
-        break_minutes=0,
-        is_overnight=check_out_at.date() != check_in_at.date() or check_out_at.time() <= check_in_at.time(),
-        is_active=True,
-        note="Tạo tự động khi duyệt chấm công ngoài ca",
+def _shift_review_candidate_dict(session: AttendanceSession, shift: Shift) -> dict:
+    shift_start, shift_end, checkin_from, checkout_until = shift_window(session.work_date, shift)
+    overlap = _shift_overlap_minutes(session.work_date, shift, session.check_in_at, session.check_out_at)
+    return {
+        "id": shift.id,
+        "branch_id": shift.branch_id,
+        "name": shift.name,
+        "code": shift.code,
+        "work_start": shift.work_start,
+        "work_end": shift.work_end,
+        "required_position": shift.required_position or "",
+        "shift_start": shift_start.isoformat(),
+        "shift_end": shift_end.isoformat(),
+        "checkin_from": checkin_from.isoformat(),
+        "checkout_until": checkout_until.isoformat(),
+        "overlap_minutes": overlap,
+        "contains_session": bool(shift_start <= session.check_in_at and session.check_out_at <= shift_end),
+        "in_attendance_window": bool(checkin_from <= session.check_in_at and session.check_out_at <= checkout_until),
+    }
+
+
+def _unscheduled_shift_candidates(db: Session, session: AttendanceSession, branch_id: int | None) -> list[dict]:
+    if not session.check_in_at or not session.check_out_at:
+        return []
+    q = db.query(Shift).filter(Shift.is_active.is_(True))
+    if branch_id is None:
+        q = q.filter(Shift.branch_id.is_(None))
+    else:
+        q = q.filter((Shift.branch_id == branch_id) | (Shift.branch_id.is_(None)))
+    candidates = [
+        _shift_review_candidate_dict(session, shift)
+        for shift in q.order_by(Shift.branch_id.desc(), Shift.work_start, Shift.name).all()
+    ]
+    candidates.sort(
+        key=lambda item: (
+            not item["in_attendance_window"],
+            not item["contains_session"],
+            -item["overlap_minutes"],
+            item["work_start"],
+            item["name"],
+        )
     )
-    db.add(shift)
-    db.flush()
-    return shift
+    return candidates
 
 
 def _approve_unscheduled_session(
     db: Session,
     current_user,
     session: AttendanceSession,
+    *,
+    attach_shift: bool = False,
+    selected_shift_id: int | None = None,
 ) -> ShiftAssignment:
+    if not attach_shift or not selected_shift_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Duyệt ngoài ca cần chọn một ca làm việc có sẵn",
+        )
     if not session.check_in_at or not session.check_out_at:
         raise HTTPException(
             status_code=400,
@@ -1047,20 +1082,35 @@ def _approve_unscheduled_session(
     branch_id = session.branch_id or emp.branch_id
     ensure_branch_access(db, current_user, branch_id)
     ensure_period_unlocked(db, branch_id, session.work_date)
+    _ensure_assignable_workday(session.work_date, db, branch_id)
 
-    shift = _find_or_create_unscheduled_shift(db, branch_id, session.check_in_at, session.check_out_at)
+    shift = db.query(Shift).filter_by(id=selected_shift_id, is_active=True).first()
+    if not shift:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ca làm việc đã chọn")
+    if shift.branch_id is not None and shift.branch_id != branch_id:
+        raise HTTPException(status_code=403, detail="Ca đã chọn không thuộc chi nhánh của phiên ngoài ca")
+    if not _employee_role_matches_shift(emp, shift):
+        role = emp.job_role or emp.position or "chưa xác định"
+        raise HTTPException(
+            status_code=400,
+            detail=f"Nhân viên {emp.emp_code} có vai trò '{role}' không phù hợp với ca yêu cầu '{shift.required_position}'",
+        )
     assignment = (
         db.query(ShiftAssignment)
           .filter_by(emp_code=emp.emp_code, work_date=session.work_date, shift_id=shift.id)
           .first()
     )
+    try:
+        ensure_can_assign_employee(db, emp.emp_code, session.work_date, assignment)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if assignment:
         assignment.employee_id = emp.id
         assignment.branch_id = branch_id
-        assignment.status = "scheduled"
+        assignment.status = UNSCHEDULED_APPROVED_ASSIGNMENT_STATUS
         assignment.assigned_by = current_user.email
         assignment.assigned_by_id = current_user.id
-        assignment.note = f"Duyệt chấm công ngoài ca từ phiên #{session.id}"
+        assignment.note = f"Gắn phiên ngoài ca #{session.id} vào ca có sẵn"
     else:
         assignment = ShiftAssignment(
             employee_id=emp.id,
@@ -1068,10 +1118,10 @@ def _approve_unscheduled_session(
             emp_code=emp.emp_code,
             shift_id=shift.id,
             work_date=session.work_date,
-            status="scheduled",
+            status=UNSCHEDULED_APPROVED_ASSIGNMENT_STATUS,
             assigned_by=current_user.email,
             assigned_by_id=current_user.id,
-            note=f"Duyệt chấm công ngoài ca từ phiên #{session.id}",
+            note=f"Gắn phiên ngoài ca #{session.id} vào ca có sẵn",
         )
         db.add(assignment)
         db.flush()
@@ -1093,8 +1143,9 @@ def _approve_unscheduled_session(
     session.status = "completed"
     session.check_in_status = session.check_in_status or "unscheduled"
     session.check_out_status = session.check_out_status or "unscheduled"
-    session.worked_minutes = max(0, int((session.check_out_at - session.check_in_at).total_seconds() / 60))
-    session.note = "Đã duyệt và gắn phân công ngoài ca"
+    session.break_minutes = shift.break_minutes or 0
+    session.worked_minutes = max(0, int((session.check_out_at - session.check_in_at).total_seconds() / 60) - int(shift.break_minutes or 0))
+    session.note = f"Đã duyệt ngoài ca và gắn vào ca {shift.name}"
 
     events = (
         db.query(AttendanceEvent)
@@ -1115,6 +1166,222 @@ def _approve_unscheduled_session(
     return assignment
 
 
+def _parse_review_datetime(value: str | None, field: str) -> datetime:
+    if not (value or "").strip():
+        raise HTTPException(status_code=422, detail=f"{field} không được để trống")
+    raw = value.strip()
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    raise HTTPException(status_code=422, detail=f"{field} phải định dạng YYYY-MM-DD HH:MM:SS")
+
+
+def _checkout_log_for_missing_session(
+    db: Session,
+    session: AttendanceSession,
+    checkout_at: datetime | None,
+) -> AttendanceLog | None:
+    if not checkout_at:
+        return None
+    return (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.employee_id == session.employee_id,
+              AttendanceLog.check_type == "check_out",
+              AttendanceLog.timestamp == checkout_at,
+          )
+          .order_by(AttendanceLog.id.desc())
+          .first()
+    )
+
+
+def _checkin_log_for_missing_session(
+    db: Session,
+    session: AttendanceSession,
+    checkin_at: datetime | None,
+) -> AttendanceLog | None:
+    if not checkin_at:
+        return None
+    return (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.employee_id == session.employee_id,
+              AttendanceLog.check_type == "check_in",
+              AttendanceLog.timestamp == checkin_at,
+          )
+          .order_by(AttendanceLog.id.desc())
+          .first()
+    )
+
+
+def _apply_missing_checkout_review(
+    db: Session,
+    session: AttendanceSession,
+    body: AttendanceSessionReviewRequest,
+    reviewer: str,
+) -> None:
+    if body.review_status in ("pending_review", "rejected"):
+        session.status = "missing_checkout"
+        return
+    if body.review_status != "approved":
+        return
+    if not session.check_in_at:
+        raise HTTPException(status_code=422, detail="Phiên quên checkout chưa có giờ vào")
+
+    previous_checkout_at = session.check_out_at
+    checkout_at = _parse_review_datetime(body.check_out_at, "Giờ ra") if body.check_out_at else previous_checkout_at
+    if not checkout_at:
+        raise HTTPException(status_code=422, detail="Phiên quên checkout chưa có giờ ra")
+    if checkout_at <= session.check_in_at:
+        raise HTTPException(status_code=422, detail="Giờ ra phải sau giờ vào")
+
+    locked_dates = [session.work_date, checkout_at.date()]
+    if previous_checkout_at:
+        locked_dates.append(previous_checkout_at.date())
+    try:
+        ensure_period_unlocked(db, session.branch_id, min(locked_dates), max(locked_dates))
+    except ValueError as e:
+        raise HTTPException(status_code=423, detail=str(e))
+
+    shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
+    if shift:
+        _shift_start, shift_end, checkin_from, checkout_until = shift_window(session.work_date, shift)
+        if not (checkin_from <= checkout_at <= checkout_until):
+            raise HTTPException(status_code=422, detail="Giờ ra phải nằm trong cửa sổ chấm công của ca")
+        session.early_leave_minutes = max(0, int((shift_end - checkout_at).total_seconds() / 60))
+        session.overtime_minutes = 0
+    else:
+        session.early_leave_minutes = 0
+        session.overtime_minutes = 0
+
+    checkout_log = _checkout_log_for_missing_session(db, session, previous_checkout_at)
+    session.check_out_at = checkout_at
+    session.status = "completed"
+    if body.check_out_at and previous_checkout_at != checkout_at:
+        session.check_out_status = "manual"
+    else:
+        session.check_out_status = session.check_out_status or "auto"
+    session.worked_minutes = max(0, int((checkout_at - session.check_in_at).total_seconds() / 60) - int(session.break_minutes or 0))
+
+    if checkout_log:
+        checkout_log.timestamp = checkout_at
+        trail = f"[Duyệt quên checkout bởi {reviewer} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
+        checkout_log.note = f"{checkout_log.note or 'Tự động chấm ra - nhân viên quên check out'} {trail}".strip()
+
+
+def _apply_missing_checkin_review(
+    db: Session,
+    session: AttendanceSession,
+    body: AttendanceSessionReviewRequest,
+    reviewer: str,
+) -> None:
+    if body.review_status in ("pending_review", "rejected"):
+        session.status = "missing_checkin"
+        return
+    if body.review_status != "approved":
+        return
+    if not session.check_out_at:
+        raise HTTPException(status_code=422, detail="Phiên thiếu check-in chưa có giờ ra")
+
+    previous_checkin_at = session.check_in_at
+    checkin_at = _parse_review_datetime(body.check_in_at, "Giờ vào") if body.check_in_at else previous_checkin_at
+    if not checkin_at:
+        shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
+        if shift:
+            shift_start, _shift_end, _from, _until = shift_window(session.work_date, shift)
+            checkin_at = shift_start
+    if not checkin_at:
+        raise HTTPException(status_code=422, detail="Phiên thiếu check-in cần nhập giờ vào")
+    if session.check_out_at <= checkin_at:
+        raise HTTPException(status_code=422, detail="Giờ vào phải trước giờ ra")
+
+    locked_dates = [session.work_date, checkin_at.date(), session.check_out_at.date()]
+    if previous_checkin_at:
+        locked_dates.append(previous_checkin_at.date())
+    try:
+        ensure_period_unlocked(db, session.branch_id, min(locked_dates), max(locked_dates))
+    except ValueError as e:
+        raise HTTPException(status_code=423, detail=str(e))
+
+    shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
+    if shift:
+        shift_start, shift_end, checkin_from, checkout_until = shift_window(session.work_date, shift)
+        if not (checkin_from <= checkin_at <= checkout_until):
+            raise HTTPException(status_code=422, detail="Giờ vào phải nằm trong cửa sổ chấm công của ca")
+        if not (checkin_from <= session.check_out_at <= checkout_until):
+            raise HTTPException(status_code=422, detail="Giờ ra phải nằm trong cửa sổ chấm công của ca")
+        threshold = shift.late_threshold_minutes if shift.late_threshold_minutes is not None else settings.CHECKIN_GRACE_MINUTES
+        raw_late = max(0, int((checkin_at - shift_start).total_seconds() / 60))
+        session.late_minutes = max(0, raw_late - threshold)
+        session.early_leave_minutes = max(0, int((shift_end - session.check_out_at).total_seconds() / 60))
+        raw_overtime = max(0, int((session.check_out_at - shift_end).total_seconds() / 60))
+        session.overtime_minutes = raw_overtime if raw_overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES else 0
+    else:
+        session.late_minutes = 0
+        session.early_leave_minutes = 0
+        session.overtime_minutes = 0
+
+    emp = db.query(Employee).filter_by(id=session.employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên của phiên chấm công")
+
+    checkin_log = _checkin_log_for_missing_session(db, session, previous_checkin_at)
+    trail = f"[Duyệt thiếu check-in bởi {reviewer} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
+    note = f"Bổ sung giờ vào khi duyệt thiếu check-in {trail}".strip()
+    session.check_in_at = checkin_at
+    session.status = "completed"
+    session.check_in_status = "manual" if body.check_in_at or not checkin_log else (session.check_in_status or "manual")
+    session.check_out_status = session.check_out_status or "normal"
+    gross_minutes = int((session.check_out_at - session.check_in_at).total_seconds() / 60)
+    session.worked_minutes = max(0, gross_minutes - int(session.break_minutes or 0))
+
+    if checkin_log:
+        checkin_log.timestamp = checkin_at
+        checkin_log.note = f"{checkin_log.note or 'Bổ sung giờ vào'} {trail}".strip()
+    else:
+        checkin_log = AttendanceLog(
+            employee_id=emp.id,
+            emp_code=emp.emp_code,
+            emp_name=emp.name,
+            department=emp.department,
+            check_type="check_in",
+            timestamp=checkin_at,
+            confidence=0.0,
+            capture_path="",
+            note=note,
+        )
+        db.add(checkin_log)
+        db.flush()
+
+    event = (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == emp.id,
+              AttendanceEvent.event_type == "check_in",
+              AttendanceEvent.event_time == checkin_at,
+          )
+          .order_by(AttendanceEvent.id.desc())
+          .first()
+    )
+    if event:
+        event.session_id = session.id
+        event.branch_id = session.branch_id
+        event.note = event.note or note
+    else:
+        db.add(AttendanceEvent(
+            session_id=session.id,
+            employee_id=emp.id,
+            branch_id=session.branch_id,
+            event_type="check_in",
+            event_time=checkin_at,
+            confidence=0.0,
+            source="manual",
+            note=note,
+        ))
+
+
 class AttendancePeriodLockRequest(BaseModel):
     branch_id: Optional[int] = None
     from_date: str
@@ -1132,7 +1399,7 @@ def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
     checkout_until = None
     if shift and session.work_date:
         shift_start, shift_end, checkin_from, checkout_until = shift_window(session.work_date, shift)
-    return {
+    data = {
         "id": session.id,
         "employee_id": session.employee_id,
         "emp_code": emp.emp_code if emp else "",
@@ -1168,6 +1435,9 @@ def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
         "reviewed_at": session.reviewed_at.isoformat() if session.reviewed_at else None,
         "note": session.note or "",
     }
+    if session.review_type == "unscheduled" and session.check_in_at and session.check_out_at:
+        data["shift_candidates"] = _unscheduled_shift_candidates(db, session, session.branch_id or (emp.branch_id if emp else None))
+    return data
 
 
 # ── GET /api/attendance/sessions/{session_id}/events ─────────────
@@ -1246,7 +1516,7 @@ def get_attendance_review_count(
     if branch_ids is not None:
         q = q.filter(AttendanceSession.branch_id.in_(branch_ids))
     rows = q.all()
-    counts = {"total": len(rows), "absent": 0, "missing_checkout": 0, "overtime": 0, "unscheduled": 0}
+    counts = {"total": len(rows), "absent": 0, "missing_checkin": 0, "missing_checkout": 0, "overtime": 0, "unscheduled": 0}
     for review_type, _id in rows:
         if review_type in counts:
             counts[review_type] += 1
@@ -1309,21 +1579,32 @@ def review_attendance_session(
         raise HTTPException(status_code=423, detail=str(e))
     assignment = None
     if session.review_type == "unscheduled" and body.review_status == "approved":
-        assignment = _approve_unscheduled_session(db, current_user, session)
+        assignment = _approve_unscheduled_session(
+            db,
+            current_user,
+            session,
+            attach_shift=body.attach_unscheduled_shift,
+            selected_shift_id=body.shift_id,
+        )
     session.review_status = body.review_status
     session.review_note = body.note or ""
     session.reviewed_by = current_user.full_name or current_user.email
     session.reviewed_at = datetime.now() if body.review_status != "pending_review" else None
     session.updated_by_id = current_user.id
-    if (
-        session.review_type == "missing_checkout"
-        and body.review_status == "approved"
-        and session.check_in_at
-        and session.check_out_at
-    ):
-        session.status = "completed"
-    elif session.review_type == "missing_checkout" and body.review_status in ("pending_review", "rejected"):
-        session.status = "missing_checkout"
+    if session.review_type == "missing_checkout":
+        _apply_missing_checkout_review(
+            db,
+            session,
+            body,
+            current_user.full_name or current_user.email,
+        )
+    elif session.review_type == "missing_checkin":
+        _apply_missing_checkin_review(
+            db,
+            session,
+            body,
+            current_user.full_name or current_user.email,
+        )
     elif session.review_type == "unscheduled" and body.review_status == "rejected":
         session.status = "cancelled"
     db.commit()
