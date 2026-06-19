@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api", tags=["system"])
 
 
 CONFIG_GROUPS = {
+    "auth": ("LOGIN_OTP_ENABLED",),
     "recognition": ("FACE_THRESHOLD", "MIN_FACE_SIZE"),
     "presentation_guard": (
         "PRESENTATION_GUARD_ENABLED",
@@ -29,9 +30,10 @@ CONFIG_GROUPS = {
         "COOLDOWN_MINUTES",
         "CHECKIN_GRACE_MINUTES",
         "OVERTIME_APPROVAL_THRESHOLD_MINUTES",
+        "CONSECUTIVE_SHIFT_GAP_MINUTES",
     ),
     "calendar": ("WORK_DAYS",),
-    "notifications": ("NOTIFY_LEAVE_CANCEL",),
+    "notifications": ("NOTIFY_LEAVE_CANCEL", "DAILY_REPORT_HOUR", "DAILY_REPORT_MINUTE"),
 }
 
 ALLOWED_CONFIG_KEYS = {key for keys in CONFIG_GROUPS.values() for key in keys}
@@ -48,8 +50,12 @@ CONFIG_LABELS = {
     "COOLDOWN_MINUTES": "Thời gian chờ giữa hai lần chấm công",
     "CHECKIN_GRACE_MINUTES": "Số phút cho phép vào muộn",
     "OVERTIME_APPROVAL_THRESHOLD_MINUTES": "Ngưỡng cần duyệt tăng ca",
+    "CONSECUTIVE_SHIFT_GAP_MINUTES": "Khoảng nghỉ tối đa tính liên ca",
     "WORK_DAYS": "Ngày vận hành mặc định",
     "NOTIFY_LEAVE_CANCEL": "Thông báo khi hủy đơn nghỉ",
+    "DAILY_REPORT_HOUR": "Giờ gửi báo cáo cuối ngày",
+    "DAILY_REPORT_MINUTE": "Phút gửi báo cáo cuối ngày",
+    "LOGIN_OTP_ENABLED": "OTP đăng nhập",
 }
 
 
@@ -124,6 +130,8 @@ def _work_days_value(value: Any) -> str:
 
 
 def _validate_config_value(key: str, value: Any) -> Any:
+    if key == "LOGIN_OTP_ENABLED":
+        return _bool_value(value, key)
     if key == "FACE_THRESHOLD":
         return round(_float_value(value, key, 0.0, 1.0), 4)
     if key == "MIN_FACE_SIZE":
@@ -151,10 +159,16 @@ def _validate_config_value(key: str, value: Any) -> Any:
         return _int_value(value, key, 0, 240)
     if key == "OVERTIME_APPROVAL_THRESHOLD_MINUTES":
         return _int_value(value, key, 0, 720)
+    if key == "CONSECUTIVE_SHIFT_GAP_MINUTES":
+        return _int_value(value, key, 0, 240)
     if key == "WORK_DAYS":
         return _work_days_value(value)
     if key == "NOTIFY_LEAVE_CANCEL":
         return _bool_value(value, key)
+    if key == "DAILY_REPORT_HOUR":
+        return _int_value(value, key, 0, 23)
+    if key == "DAILY_REPORT_MINUTE":
+        return _int_value(value, key, 0, 59)
     raise HTTPException(400, f"Không hỗ trợ cấu hình {_label(key)}")
 
 
@@ -243,6 +257,23 @@ def _apply_runtime_config(values: dict[str, Any]) -> None:
         presentation_guard_service.min_frames = max(1, settings.PRESENTATION_GUARD_MIN_FRAMES)
         presentation_guard_service.window_seconds = max(1.0, settings.PRESENTATION_GUARD_WINDOW_SECONDS)
         presentation_guard_service._samples.clear()
+
+    if {"DAILY_REPORT_HOUR", "DAILY_REPORT_MINUTE"}.intersection(values):
+        _reschedule_daily_report()
+
+
+def _reschedule_daily_report() -> None:
+    try:
+        from apscheduler.triggers.cron import CronTrigger
+        from app.core.lifespan import scheduler
+
+        if not scheduler.get_job("daily_report"):
+            return
+        hour = max(0, min(23, int(settings.DAILY_REPORT_HOUR)))
+        minute = max(0, min(59, int(settings.DAILY_REPORT_MINUTE)))
+        scheduler.reschedule_job("daily_report", trigger=CronTrigger(hour=hour, minute=minute))
+    except Exception as exc:
+        print(f"[warn] Khong reschedule duoc daily_report: {exc}")
 
 
 def _config_response() -> dict[str, dict[str, Any]]:

@@ -107,6 +107,25 @@
     <div class="settings-grid">
       <section class="setting-card">
         <div class="setting-card-head">
+          <h2>Đăng nhập</h2>
+          <p>Cấu hình xác thực khi quản lý và nhân viên đăng nhập.</p>
+        </div>
+        <div class="setting-body">
+          <label class="field full">
+            <span class="field-label">OTP đăng nhập</span>
+            <span class="switch-row">
+              <span class="switch-copy">
+                <b>Bật OTP đăng nhập</b>
+                <span>Tắt khi test local để bỏ bước nhập mã OTP sau mật khẩu.</span>
+              </span>
+              <input id="LOGIN_OTP_ENABLED" type="checkbox">
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="setting-card">
+        <div class="setting-card-head">
           <h2>Nhận diện khuôn mặt</h2>
           <p>Ngưỡng nhận diện và kích thước khuôn mặt tối thiểu.</p>
         </div>
@@ -134,16 +153,6 @@
             <span class="field-label">Thời gian chờ giữa hai lần chấm công</span>
             <input class="input" id="COOLDOWN_MINUTES" type="number" min="0" max="1440" step="1">
             <span class="field-hint">Tránh ghi nhận trùng liên tục.</span>
-          </label>
-          <label class="field">
-            <span class="field-label">Số phút cho phép vào muộn</span>
-            <input class="input" id="CHECKIN_GRACE_MINUTES" type="number" min="0" max="240" step="1">
-            <span class="field-hint">Dùng khi ca làm chưa có ngưỡng riêng.</span>
-          </label>
-          <label class="field full">
-            <span class="field-label">Ngưỡng cần duyệt tăng ca</span>
-            <input class="input" id="OVERTIME_APPROVAL_THRESHOLD_MINUTES" type="number" min="0" max="720" step="1">
-            <span class="field-hint">Số phút vượt ca trước khi cần quản lý xem lại.</span>
           </label>
         </div>
       </section>
@@ -205,8 +214,8 @@
 
       <section class="setting-card">
         <div class="setting-card-head">
-          <h2>Thông báo</h2>
-          <p>Các thông báo nghiệp vụ gửi cho nhân viên và quản lý.</p>
+          <h2>Thông báo & báo cáo</h2>
+          <p>Các thông báo nghiệp vụ và lịch gửi báo cáo cuối ngày.</p>
         </div>
         <div class="setting-body">
           <label class="field full">
@@ -218,6 +227,16 @@
               </span>
               <input id="NOTIFY_LEAVE_CANCEL" type="checkbox">
             </span>
+          </label>
+          <label class="field">
+            <span class="field-label">Giờ gửi báo cáo cuối ngày</span>
+            <input class="input" id="DAILY_REPORT_HOUR" type="number" min="0" max="23" step="1">
+            <span class="field-hint">Theo giờ máy chủ.</span>
+          </label>
+          <label class="field">
+            <span class="field-label">Phút gửi báo cáo cuối ngày</span>
+            <input class="input" id="DAILY_REPORT_MINUTE" type="number" min="0" max="59" step="1">
+            <span class="field-hint">Ví dụ 18:00 thì nhập giờ 18, phút 0.</span>
           </label>
         </div>
       </section>
@@ -237,6 +256,7 @@
 <script src="/static/js/toast.js"></script>
 <script>
 const CONFIG_KEYS = [
+  "LOGIN_OTP_ENABLED",
   "FACE_THRESHOLD",
   "MIN_FACE_SIZE",
   "PRESENTATION_GUARD_ENABLED",
@@ -249,10 +269,13 @@ const CONFIG_KEYS = [
   "COOLDOWN_MINUTES",
   "CHECKIN_GRACE_MINUTES",
   "OVERTIME_APPROVAL_THRESHOLD_MINUTES",
-  "NOTIFY_LEAVE_CANCEL"
+  "CONSECUTIVE_SHIFT_GAP_MINUTES",
+  "NOTIFY_LEAVE_CANCEL",
+  "DAILY_REPORT_HOUR",
+  "DAILY_REPORT_MINUTE"
 ];
 
-const BOOLEAN_KEYS = new Set(["PRESENTATION_GUARD_ENABLED", "NOTIFY_LEAVE_CANCEL"]);
+const BOOLEAN_KEYS = new Set(["LOGIN_OTP_ENABLED", "PRESENTATION_GUARD_ENABLED", "NOTIFY_LEAVE_CANCEL"]);
 const NUMBER_KEYS = new Set([
   "FACE_THRESHOLD",
   "MIN_FACE_SIZE",
@@ -263,7 +286,10 @@ const NUMBER_KEYS = new Set([
   "AI_AUDIT_MAX_IMAGES_PER_RUN",
   "COOLDOWN_MINUTES",
   "CHECKIN_GRACE_MINUTES",
-  "OVERTIME_APPROVAL_THRESHOLD_MINUTES"
+  "OVERTIME_APPROVAL_THRESHOLD_MINUTES",
+  "CONSECUTIVE_SHIFT_GAP_MINUTES",
+  "DAILY_REPORT_HOUR",
+  "DAILY_REPORT_MINUTE"
 ]);
 
 document.addEventListener("DOMContentLoaded", () => {

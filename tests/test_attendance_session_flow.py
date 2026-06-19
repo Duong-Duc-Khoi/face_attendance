@@ -34,6 +34,7 @@ from app.services.shift_service import (
 from app.api.v1.reports import (
     AttendanceSessionReviewRequest,
     _session_counts_as_work,
+    attendance_exceptions,
     review_attendance_session,
 )
 from app.api.v1.shifts import (
@@ -197,7 +198,7 @@ class AttendanceSessionFlowTests(unittest.TestCase):
         self.assertIsNotNone(session)
         self.assertEqual(session.check_in_at, self._dt("08:55"))
         self.assertEqual(session.check_out_at, self._dt("13:05"))
-        self.assertEqual(session.worked_minutes, 220)
+        self.assertEqual(session.worked_minutes, 250)
 
     def test_unscheduled_checkin_creates_pending_session(self):
         result = process_attendance(self.employee.emp_code, 0.93, "", self.branch.id)
@@ -934,7 +935,7 @@ class AttendanceSessionFlowTests(unittest.TestCase):
             check_in_at=self._dt("09:00"),
             check_out_at=self._dt("13:00"),
             status="completed",
-            worked_minutes=210,
+            worked_minutes=240,
             overtime_minutes=45,
             review_status="none",
         )
@@ -959,7 +960,7 @@ class AttendanceSessionFlowTests(unittest.TestCase):
         assignment.status = "leave_approved"
         leave_credit, leave_minutes = leave_credit_for_assignment(assignment, shift)
         self.assertEqual(leave_credit, 1)
-        self.assertEqual(leave_minutes, 210)
+        self.assertEqual(leave_minutes, 240)
 
     def test_leave_request_creation_only_accepts_shift_scope(self):
         shift = self._shift("Day", "day", "09:00", "13:00")
@@ -1095,6 +1096,33 @@ class AttendanceSessionFlowTests(unittest.TestCase):
         fresh_req = self.db.query(LeaveRequest).filter_by(id=req.id).first()
         self.assertEqual(fresh_assignment.status, "scheduled")
         self.assertEqual(fresh_req.status, "pending")
+
+    def test_attendance_exceptions_excludes_cancelled_assignments(self):
+        shift = self._shift("Day", "day", "09:00", "13:00")
+        assignment = self._assignment(shift)
+        assignment.status = "cancelled"
+        session = AttendanceSession(
+            employee_id=self.employee.id,
+            branch_id=self.branch.id,
+            shift_assignment_id=assignment.id,
+            shift_id=shift.id,
+            work_date=self.work_date,
+            status="absent",
+            review_type="absent",
+            review_status="pending_review",
+        )
+        self.db.add(session)
+        self.db.commit()
+
+        result = attendance_exceptions(
+            self.work_date.isoformat(),
+            self.work_date.isoformat(),
+            db=self.db,
+            current_user=self._admin_user(),
+        )
+
+        self.assertEqual(result["summary"]["total"], 0)
+        self.assertEqual(result["items"], [])
 
     def test_manual_correction_requires_reason(self):
         shift = self._shift("Day", "day", "09:00", "13:00")

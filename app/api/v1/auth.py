@@ -106,6 +106,21 @@ def _user_dict(u: User, db: Session | None = None) -> dict:
     return data
 
 
+def _login_token_response(user: User, db: Session) -> dict:
+    user.last_login = datetime.now()
+    db.commit()
+    access_token = create_access_token(user.id, user.email, user.role)
+    refresh_token = create_refresh_token_db(user.id, db)
+    return {
+        "success": True,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXP * 60,
+        "user": _user_dict(user, db),
+    }
+
+
 # ── POST /auth/register ──────────────────────────────────────────
 @router.post("/register", status_code=201)
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
@@ -166,6 +181,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(403, "Tài khoản chưa được duyệt. Vui lòng chờ admin/manager phê duyệt.")
     if not user.is_active:
         raise HTTPException(403, "Tài khoản đã bị khóa. Liên hệ quản trị viên.")
+    if not settings.LOGIN_OTP_ENABLED:
+        return _login_token_response(user, db)
     otp = create_otp_token(user.id, db)
     send_login_otp_email(user.email, user.full_name, otp)
     return {"success": True, "message": f"Mã OTP đã gửi tới {user.email}.", "step": "otp_required", "email": user.email}
@@ -181,12 +198,7 @@ def login_verify_otp(req: OTPVerifyRequest, db: Session = Depends(get_db)):
     if not et or et.user_id != user.id:
         raise HTTPException(401, "OTP không đúng hoặc đã hết hạn")
     consume_token(et, db)
-    user.last_login = datetime.now()
-    db.commit()
-    access_token  = create_access_token(user.id, user.email, user.role)
-    refresh_token = create_refresh_token_db(user.id, db)
-    return {"success": True, "access_token": access_token, "refresh_token": refresh_token,
-            "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXP * 60, "user": _user_dict(user, db)}
+    return _login_token_response(user, db)
 
 
 # ── POST /auth/refresh ───────────────────────────────────────────

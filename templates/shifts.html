@@ -174,7 +174,6 @@ html:not([data-admin-theme="light"]) body.admin-shell .shift-tabs .tab-btn.activ
 .schedule-roster .employee-list{
   max-height:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;
 }
-.employee-row.dragging{opacity:.55}
 .week-toolbar{
   display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
   padding:14px;border-bottom:1px solid var(--border);background:var(--panel)
@@ -219,16 +218,17 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.lunch .slot-time
 html[data-admin-theme="light"] body.admin-shell .shift-row-head.evening .slot-time{color:#224b91;background:#eaf3ff;border-color:rgba(47,97,182,.24)}
 html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time{color:#4d39a5;background:#f1edff;border-color:rgba(97,73,199,.24)}
 .shift-cell{min-height:82px;padding:7px;display:grid;gap:5px;align-content:start}
+.shift-cell.editable{cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
+.shift-cell.editable:hover{border-color:rgba(0,212,170,.46);background:rgba(0,212,170,.055);transform:translateY(-1px)}
 .shift-cell.day-off{background:rgba(255,127,149,.035);border-color:rgba(255,127,149,.18)}
 .shift-cell.locked{background:rgba(90,122,154,.06);border-color:rgba(90,122,154,.22);opacity:.78}
 .cell-day-label{display:none;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .slot-empty{border:1px dashed rgba(90,122,154,.48);border-radius:8px;padding:9px 6px;font-size:10px;color:var(--muted);text-align:center;background:rgba(8,17,31,.18)}
 .slot-empty.off{border-color:rgba(255,127,149,.28);color:#e29aa7;background:rgba(255,127,149,.045)}
 .slot-empty.locked{border-color:rgba(90,122,154,.3);color:#8fa8c2;background:rgba(90,122,154,.06)}
-.shift-cell.drag-over{background:rgba(0,212,170,.12);box-shadow:0 0 0 1px rgba(0,212,170,.32) inset}
 .assignment-person{
   display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;border:1px solid rgba(90,122,154,.42);
-  border-radius:7px;background:rgba(8,17,31,.54);padding:6px 7px;cursor:grab;box-shadow:0 6px 14px rgba(0,0,0,.1);
+  border-radius:7px;background:rgba(8,17,31,.54);padding:6px 7px;box-shadow:0 6px 14px rgba(0,0,0,.1);
 }
 .assignment-person.morning{border-color:rgba(246,201,14,.42)}
 .assignment-person.lunch{border-color:rgba(255,138,76,.42)}
@@ -237,13 +237,16 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
 .assignment-person.leave{border-color:rgba(58,143,255,.58);background:linear-gradient(180deg,rgba(58,143,255,.14),rgba(8,17,31,.58));cursor:default}
 .assignment-person.unscheduled{border-color:rgba(56,189,248,.62);background:linear-gradient(180deg,rgba(56,189,248,.13),rgba(8,17,31,.58));cursor:default}
 .assignment-person.attendance-locked{border-color:rgba(246,201,14,.58);background:linear-gradient(180deg,rgba(246,201,14,.12),rgba(8,17,31,.58));cursor:default}
-.assignment-person:active{cursor:grabbing}
+.assignment-person.absent-review{border-color:rgba(255,77,106,.48);background:linear-gradient(180deg,rgba(255,77,106,.1),rgba(8,17,31,.56))}
 .assignment-main{min-width:0}
 .assignment-name{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .assignment-role{font-size:9px;color:var(--green);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .assignment-leave-badge{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;background:rgba(58,143,255,.16);border:1px solid rgba(58,143,255,.4);color:#8ec2ff;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 .assignment-unscheduled-badge{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.38);color:#8fd9ff;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 .assignment-attendance-badge{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;background:rgba(246,201,14,.14);border:1px solid rgba(246,201,14,.38);color:#ffd76a;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.assignment-absent-badge{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;background:rgba(255,77,106,.13);border:1px solid rgba(255,77,106,.36);color:#ff93a5;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.assignment-review-btn{display:inline-flex;align-items:center;justify-content:center;margin-top:4px;min-height:22px;border-radius:999px;border:1px solid rgba(246,201,14,.38);background:rgba(246,201,14,.12);color:#ffd76a;font-size:9px;font-weight:800;padding:0 8px;cursor:pointer}
+.assignment-review-btn:hover{border-color:rgba(246,201,14,.62);background:rgba(246,201,14,.18);color:#fff1a8}
 .mini-danger{width:22px;height:22px;min-height:22px;padding:0}
 .empty-board{padding:22px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:13px;text-align:center;background:var(--surface)}
 .scope-required{
@@ -364,14 +367,30 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
 .modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.36);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px}
 .modal-overlay.open{display:flex}
 .modal-box{width:min(560px,100%);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;animation:modalIn .18s ease}
+.modal-box.assignment-modal{width:min(760px,100%)}
 @keyframes modalIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);background:var(--panel)}
 .modal-title{font-size:14px;font-weight:700}
 .modal-body{padding:18px;display:grid;gap:13px}
 .modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--border)}
+.modal-shift-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:10px 12px}
+.modal-shift-name{font-size:13px;font-weight:800;color:var(--text)}
+.modal-shift-time{font-family:var(--font-mono);font-size:11px;color:var(--green);white-space:nowrap}
+.modal-employee-list{max-height:min(56vh,520px);overflow:auto;display:grid;gap:8px;padding-right:2px}
+.employee-pick-row{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;
+  min-height:56px;border:1px solid rgba(90,122,154,.34);border-radius:8px;background:rgba(8,17,31,.34);padding:9px 11px;
+  cursor:pointer;transition:border-color .15s,background .15s;
+}
+.employee-pick-row:hover{border-color:rgba(58,143,255,.5);background:rgba(58,143,255,.055)}
+.employee-pick-row.selected{border-color:rgba(0,212,170,.42);background:rgba(0,212,170,.075)}
+.employee-pick-row.locked{cursor:not-allowed;opacity:.76}
+.employee-pick-row input{accent-color:var(--green);width:16px;height:16px}
+.pick-status{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}
 .assigned-list{display:flex;flex-direction:column;gap:8px}
 .assigned-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:9px 10px}
 .assigned-title{font-size:12px;font-weight:700}.assigned-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px}
+.assigned-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
 .io-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .io-card{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:16px;display:grid;gap:12px}
 .io-title{font-size:14px;font-weight:800;color:var(--text)}
@@ -497,22 +516,6 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
 
   <section class="tab-panel active" id="tabSchedule">
     <div class="schedule-stack">
-      <div class="panel tight schedule-roster">
-        <div class="panel-header">
-          <div class="panel-title-strong">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Nhân sự kéo thả
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="roster-tools">
-            <input class="input" id="employeeSearch" placeholder="Tìm tên, mã, bộ phận" oninput="renderEmployees()">
-            <span class="selected-count" id="selectedCount">0 đã chọn</span>
-          </div>
-          <div class="employee-list" id="employeeList"></div>
-        </div>
-      </div>
-
       <div class="panel">
         <div class="week-toolbar">
           <div class="month-nav">
@@ -636,10 +639,10 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
 </div>
 
 <div class="modal-overlay" id="dayModal">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
+  <div class="modal-box assignment-modal" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
     <div class="modal-head">
       <div>
-        <div class="modal-title" id="dayModalTitle">Phân ca trong ngày</div>
+        <div class="modal-title" id="dayModalTitle">Chọn nhân viên cho ca</div>
         <div style="font-size:11px;color:var(--muted);margin-top:3px" id="dayModalSub"></div>
       </div>
       <button class="icon-btn icon-only" onclick="closeDayModal()" aria-label="Đóng">
@@ -647,18 +650,16 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
       </button>
     </div>
     <div class="modal-body">
-      <div>
-        <div class="field-label" style="margin-bottom:8px">Ca đã phân</div>
-        <div class="assigned-list" id="assignedList"></div>
+      <div class="modal-shift-summary">
+        <div class="modal-shift-name" id="dayShiftName">Ca</div>
+        <div class="modal-shift-time" id="dayShiftTime"></div>
       </div>
-      <div class="field-row">
-        <div class="field"><label class="field-label">Thêm ca</label><select class="select" id="dayShiftSelect"></select></div>
-        <div class="field"><label class="field-label">Ghi chú</label><input class="input" id="dayNote" placeholder="Tuỳ chọn"></div>
-      </div>
+      <div class="field"><label class="field-label">Tìm nhân viên</label><input class="input" id="dayEmployeeSearch" placeholder="Tên, mã, bộ phận, vai trò" oninput="renderAssignedList()"></div>
+      <div class="modal-employee-list" id="assignedList"></div>
     </div>
     <div class="modal-foot">
       <button class="icon-btn" onclick="closeDayModal()">Đóng</button>
-      <button class="icon-btn primary" onclick="saveDayAssignment()">Lưu phân ca</button>
+      <button class="icon-btn primary" id="daySaveBtn" onclick="saveDayAssignment()">Lưu phân ca</button>
     </div>
   </div>
 </div>
@@ -668,13 +669,13 @@ html[data-admin-theme="light"] body.admin-shell .shift-row-head.night .slot-time
 <script>
 let shifts = [];
 let employees = [];
-let selectedEmployee = "";
-let selectedBulk = new Set();
 let assignmentsByDate = {};
 let calendarByDate = {};
 let weekAssignments = [];
 let currentWeekStart = startOfWeek(new Date());
 let modalDate = "";
+let modalShiftId = null;
+let modalSelectedEmployees = new Set();
 
 function normalizeText(value){
   return String(value || "")
@@ -687,8 +688,8 @@ function normalizeText(value){
 function shiftTone(shift){
   const text = normalizeText(`${shift?.code || ""} ${shift?.name || ""}`);
   if (text.includes("dem") || text.includes("night")) return "night";
-  if (text.includes("toi") || text.includes("chieu") || text.includes("evening") || text.includes("afternoon")) return "evening";
-  if (text.includes("trua") || text.includes("lunch")) return "lunch";
+  if (text.includes("toi") || text.includes("evening")) return "evening";
+  if (text.includes("chieu") || text.includes("afternoon") || text.includes("trua") || text.includes("lunch")) return "lunch";
   if (text.includes("sang") || text.includes("morning") || text.includes("office")) return "morning";
   return "";
 }
@@ -742,6 +743,35 @@ function employeeRole(emp){
   return emp?.job_role_label || labels[role] || role || "Chưa có vai trò";
 }
 
+function assignmentReview(row){
+  return row?.attendance_review || {};
+}
+
+function isAbsentReview(row){
+  const review = assignmentReview(row);
+  return !!(review.is_absent || review.status === "absent" || review.review_type === "absent");
+}
+
+function absentReviewLabel(row){
+  const review = assignmentReview(row);
+  return review.label || (review.review_status === "rejected" ? "Vắng - cần xem lại" : (review.review_status === "pending_review" ? "Vắng - chờ duyệt" : "Vắng"));
+}
+
+function absentBadgeText(_row){
+  return "Vắng";
+}
+
+function reviewAttendanceUrl(row){
+  const review = assignmentReview(row);
+  if (!review.session_id) return "/attendance?section=review";
+  return `/attendance?section=review&session_id=${encodeURIComponent(review.session_id)}`;
+}
+
+function openAttendanceReview(rowId){
+  const row = weekAssignments.find(r => Number(r.id) === Number(rowId));
+  location.href = reviewAttendanceUrl(row);
+}
+
 function isAdminWithoutShiftBranch(){
   const current = window.getUser ? window.getUser() : null;
   const branchId = window.getSelectedBranchId ? window.getSelectedBranchId() : "";
@@ -761,11 +791,10 @@ function setShiftWorkspaceLocked(locked){
 function resetShiftData(){
   shifts = [];
   employees = [];
-  selectedEmployee = "";
-  selectedBulk.clear();
   assignmentsByDate = {};
   calendarByDate = {};
   weekAssignments = [];
+  modalSelectedEmployees.clear();
   ["statActive","statToday","statEmployees","statSelected"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = "0";
@@ -797,7 +826,6 @@ async function loadAll(){
   await Promise.all([loadShifts(), loadEmployees()]);
   fillShiftSelects();
   await loadTodayAssignments();
-  updateSelectedEmployeeBox();
   await loadCalendar();
 }
 
@@ -817,10 +845,6 @@ async function loadEmployees(){
   const res = await authFetch("/api/employees?active_only=true");
   const data = res.ok ? await res.json() : [];
   employees = Array.isArray(data) ? data : (data.items || []);
-  const validCodes = new Set(employees.map(e => e.emp_code));
-  selectedBulk = new Set([...selectedBulk].filter(code => validCodes.has(code)));
-  if (selectedEmployee && !validCodes.has(selectedEmployee)) selectedEmployee = "";
-  renderEmployees();
   document.getElementById("statEmployees").textContent = employees.length;
   updateSelectedStats();
 }
@@ -875,75 +899,23 @@ function renderShifts(){
   `).join("");
 }
 
-function renderEmployees(){
-  const q = document.getElementById("employeeSearch").value.trim().toLowerCase();
-  const rows = filteredEmployees(q);
-  const list = document.getElementById("employeeList");
-  list.innerHTML = rows.map(e => {
-    const role = employeeRole(e);
-    const checked = selectedBulk.has(e.emp_code);
-    return `
-    <div class="employee-row ${selectedEmployee === e.emp_code ? "active" : ""} ${checked ? "selected" : ""}" draggable="true" ondragstart="dragEmployee(event,'${esc(e.emp_code)}')" ondragend="event.currentTarget.classList.remove('dragging')" ondblclick="setSelectedEmployee('${esc(e.emp_code)}')" title="Kéo ${esc(e.name || e.emp_code)} vào ca">
-      <input type="checkbox" ${checked ? "checked" : ""} aria-label="Chọn ${esc(e.name || e.emp_code)} để kéo nhóm" onclick="event.stopPropagation()" onchange="toggleBulkEmployee('${esc(e.emp_code)}', this.checked)">
-      <div class="emp-main" onclick="setSelectedEmployee('${esc(e.emp_code)}')">
-        <div class="emp-name">${esc(e.name)}</div>
-        <div class="emp-role">${esc(role)}</div>
-      </div>
-    </div>`;
-  }).join("") || `<div class="empty">Không tìm thấy nhân viên</div>`;
-  updateSelectedStats();
-}
-
-function toggleBulkEmployee(code, checked){
-  if (checked) selectedBulk.add(code);
-  else selectedBulk.delete(code);
-  updateSelectedStats();
-  renderEmployees();
-}
-
 function updateSelectedStats(){
-  const count = selectedBulk.size;
-  const label = count ? `${count} đã chọn` : "0 đã chọn";
   const countEl = document.getElementById("selectedCount");
   const statEl = document.getElementById("statSelected");
-  if (countEl) countEl.textContent = label;
-  if (statEl) statEl.textContent = String(count);
+  if (countEl) countEl.textContent = `${modalSelectedEmployees.size} đã chọn`;
+  if (statEl) statEl.textContent = String(modalSelectedEmployees.size);
 }
 
-function filteredEmployees(q = document.getElementById("employeeSearch").value.trim().toLowerCase()){
-  if (!q) return employees;
-  return employees.filter(e => [e.name,e.emp_code,e.department,e.position].some(v => String(v || "").toLowerCase().includes(q)));
-}
-
-function setSelectedEmployee(code){
-  if (!requireShiftBranch("xem lịch phân ca")) return;
-  selectedEmployee = code;
-  updateSelectedEmployeeBox();
-  renderEmployees();
-  loadCalendar();
-}
-
-function updateSelectedEmployeeBox(){
-  const box = document.getElementById("selectedEmployeeBox");
-  if (!box) return;
-  const emp = employees.find(e => e.emp_code === selectedEmployee);
-  if (!emp){
-    box.innerHTML = `<div class="selected-name">Chưa chọn nhân viên</div>`;
-    return;
-  }
-  const initials = String(emp.name || emp.emp_code).split(" ").slice(-2).map(x => x[0]).join("").toUpperCase();
-  box.innerHTML = `
-    <div class="avatar">${esc(initials)}</div>
-    <div style="min-width:0">
-      <div class="selected-name">${esc(emp.name)}</div>
-      <div class="selected-sub">${esc(emp.emp_code)} · ${esc(emp.department || "Nhân viên")}</div>
-    </div>`;
+function filteredEmployees(q = ""){
+  const needle = normalizeText(q);
+  if (!needle) return employees;
+  return employees.filter(e => [e.name,e.emp_code,e.department,e.position,e.job_role_label,e.job_role].some(v => normalizeText(v).includes(needle)));
 }
 
 function fillShiftSelects(){
   const active = shifts.filter(s => s.is_active);
-  const html = active.map(s => `<option value="${s.id}">${esc(s.name)} · ${esc(s.work_start)}-${esc(s.work_end)}</option>`).join("");
-  document.getElementById("dayShiftSelect").innerHTML = html;
+  const select = document.getElementById("dayShiftSelect");
+  if (select) select.innerHTML = active.map(s => `<option value="${s.id}">${esc(s.name)} · ${esc(s.work_start)}-${esc(s.work_end)}</option>`).join("");
   const positions = [...new Set(employees.map(e => e.position).filter(Boolean))].sort();
   document.getElementById("positionList").innerHTML = positions.map(p => `<option value="${esc(p)}"></option>`).join("");
 }
@@ -1050,11 +1022,19 @@ function renderShiftCell(iso, shift, dayLabel){
   const pay = Number(cal.pay_multiplier || 1);
   const isOff = cal.day_type === "off";
   const isLocked = isAssignmentWriteLocked(iso);
+  const canEdit = !isOff && !isLocked;
+  const label = `${shift.name || "Ca"} ${dayLabel} ${iso}`;
   return `
-    <div class="shift-cell ${isOff ? "day-off" : ""} ${isLocked ? "locked" : ""}" data-date="${iso}" data-shift-id="${shift.id}" ondragover="allowShiftDrop(event)" ondragleave="event.currentTarget.classList.remove('drag-over')" ondrop="dropOnShift(event,'${iso}',${shift.id})">
+    <div class="shift-cell ${canEdit ? "editable" : ""} ${isOff ? "day-off" : ""} ${isLocked ? "locked" : ""}" data-date="${iso}" data-shift-id="${shift.id}" ${canEdit ? `role="button" tabindex="0" aria-label="Chọn nhân viên cho ${esc(label)}" onclick="openDayModal('${esc(iso)}',${Number(shift.id)})" onkeydown="openShiftCellFromKey(event,'${esc(iso)}',${Number(shift.id)})"` : ""}>
       <div class="cell-day-label">${esc(dayLabel)} · ${esc(iso)}${pay !== 1 ? ` · ${pay.toFixed(2)}x` : ""}</div>
-      ${rows.length ? rows.map(assignmentChip).join("") : `<div class="slot-empty ${isOff ? "off" : ""} ${isLocked ? "locked" : ""}">${isLocked ? "Đã khóa" : (isOff ? "Ngày nghỉ" : "Kéo vào")}</div>`}
+      ${rows.length ? rows.map(assignmentChip).join("") : `<div class="slot-empty ${isOff ? "off" : ""} ${isLocked ? "locked" : ""}">${isLocked ? "Đã khóa" : (isOff ? "Ngày nghỉ" : "Bấm để chọn")}</div>`}
     </div>`;
+}
+
+function openShiftCellFromKey(event, iso, shiftId){
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  openDayModal(iso, shiftId);
 }
 
 function assignmentChip(row){
@@ -1064,98 +1044,22 @@ function assignmentChip(row){
   const isLeave = row.status === "leave_approved";
   const isUnscheduled = row.status === "unscheduled_approved";
   const isAttendanceLocked = !!row.attendance_locked;
+  const isAbsent = !isAttendanceLocked && isAbsentReview(row);
   const locked = isLeave || isUnscheduled || isAttendanceLocked;
-  const lockClass = isLeave ? "leave" : (isUnscheduled ? "unscheduled" : (isAttendanceLocked ? "attendance-locked" : tone));
+  const lockClass = isLeave ? "leave" : (isUnscheduled ? "unscheduled" : (isAttendanceLocked ? "attendance-locked" : (isAbsent ? "absent-review" : tone)));
+  const title = isAttendanceLocked ? (row.attendance_lock_reason || "Đã có chấm công") : (isAbsent ? absentReviewLabel(row) : "");
   return `
-    <div class="assignment-person ${lockClass}" draggable="${locked ? "false" : "true"}" title="${isAttendanceLocked ? esc(row.attendance_lock_reason || "Đã có chấm công") : ""}" ${locked ? "" : `ondragstart="dragAssignment(event,${row.id})"`}>
+    <div class="assignment-person ${lockClass}" title="${esc(title)}">
       <div class="assignment-main">
         <div class="assignment-name">${esc(emp?.name || row.emp_code)}</div>
         <div class="assignment-role">${esc(role)}</div>
         ${isLeave ? `<div class="assignment-leave-badge">Nghỉ phép</div>` : ""}
         ${isUnscheduled ? `<div class="assignment-unscheduled-badge">Ngoài ca đã duyệt</div>` : ""}
         ${isAttendanceLocked ? `<div class="assignment-attendance-badge">Đã có chấm công</div>` : ""}
+        ${isAbsent ? `<div class="assignment-absent-badge">${esc(absentBadgeText(row))}</div><button class="assignment-review-btn" type="button" onclick="event.stopPropagation();openAttendanceReview(${row.id})">Xem lại</button>` : ""}
       </div>
       ${locked ? "" : `<button class="icon-btn icon-only danger mini-danger" aria-label="Xoá phân ca" onclick="event.stopPropagation();deleteAssignment(${row.id})">×</button>`}
     </div>`;
-}
-
-function allowShiftDrop(event){
-  event.preventDefault();
-  event.currentTarget.classList.add("drag-over");
-}
-
-function dragEmployee(event, empCode){
-  event.currentTarget.classList.add("dragging");
-  event.dataTransfer.effectAllowed = "copy";
-  const group = selectedBulk.has(empCode) ? [...selectedBulk] : [];
-  if (group.length > 1){
-    event.dataTransfer.setData("application/json", JSON.stringify({type:"employees", emp_codes:group}));
-    return;
-  }
-  event.dataTransfer.setData("application/json", JSON.stringify({type:"employee", emp_code:empCode}));
-}
-
-function dragAssignment(event, assignmentId){
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("application/json", JSON.stringify({type:"assignment", id:assignmentId}));
-}
-
-async function dropOnShift(event, iso, shiftId){
-  event.preventDefault();
-  event.currentTarget.classList.remove("drag-over");
-  if (!requireShiftBranch("xếp ca")) return;
-  if (isCalendarDayOff(iso)) return showToast("Ngày này đang được đặt là ngày nghỉ, không thể xếp nhân viên vào ca", "error");
-  if (!requireEditableAssignmentDate(iso)) return;
-  let payload = null;
-  try{ payload = JSON.parse(event.dataTransfer.getData("application/json") || "{}"); }
-  catch{ payload = null; }
-  if (!payload?.type) return;
-  if (payload.type === "assignment"){
-    const moving = weekAssignments.find(r => Number(r.id) === Number(payload.id));
-    if (moving?.attendance_locked) return showToast(moving.attendance_lock_reason || "Phân ca đã có chấm công, không thể chuyển", "error");
-  }
-
-  if (payload.type === "employees"){
-    const codes = Array.isArray(payload.emp_codes) ? payload.emp_codes.filter(Boolean) : [];
-    if (!codes.length) return;
-    const res = await authFetch("/api/shifts/assignments/multi", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({emp_codes:codes, shift_id:shiftId, work_date:iso})
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok){
-      return showToast(formatErrorDetail(data.detail) || "Không xếp được nhóm nhân viên", "error");
-    }
-    await loadCalendar();
-    await loadTodayAssignments();
-    if (data.errors?.length && !data.assigned){
-      showToast(`Không xếp được nhóm: ${data.errors[0].message || "dữ liệu chưa hợp lệ"}`, "error");
-    }else if (data.errors?.length){
-      showToast(`Đã xếp ${data.assigned || 0} nhân viên, lỗi ${data.errors.length}`, "error");
-    }else{
-      showToast(`Đã xếp ${data.assigned || codes.length} nhân viên`, "success");
-    }
-    return;
-  }
-
-  const body = payload.type === "employee"
-    ? {emp_code:payload.emp_code, shift_id:shiftId, work_date:iso}
-    : {shift_id:shiftId, work_date:iso};
-  const url = payload.type === "employee" ? "/api/shifts/assignments" : `/api/shifts/assignments/${payload.id}`;
-  const method = payload.type === "employee" ? "POST" : "PUT";
-  const res = await authFetch(url, {
-    method,
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify(body)
-  });
-  if (!res.ok){
-    const err = await res.json().catch(() => ({}));
-    return showToast(formatErrorDetail(err.detail) || "Không xếp được ca", "error");
-  }
-  await loadCalendar();
-  await loadTodayAssignments();
-  showToast(payload.type === "employee" ? "Đã xếp ca" : "Đã chuyển ca", "success");
 }
 
 function currentBranchId(){
@@ -1444,70 +1348,146 @@ async function restoreShift(id){
   }
 }
 
-function openDayModal(iso){
-  if (!requireShiftBranch("xem phân ca theo ngày")) return;
-  if (!selectedEmployee) return showToast("Chọn nhân viên trước", "error");
+function openDayModal(iso, shiftId){
+  if (!requireShiftBranch("xem phân ca theo ca")) return;
+  if (isCalendarDayOff(iso)) return showToast("Ngày này đang được đặt là ngày nghỉ, không thể xếp nhân viên vào ca", "error");
+  if (!requireEditableAssignmentDate(iso)) return;
+  const shift = shifts.find(s => Number(s.id) === Number(shiftId));
+  if (!shift) return showToast("Không tìm thấy ca làm", "error");
   modalDate = iso;
-  const emp = employees.find(e => e.emp_code === selectedEmployee);
-  document.getElementById("dayModalSub").textContent = `${emp?.name || selectedEmployee} · ${iso}`;
+  modalShiftId = Number(shiftId);
+  modalSelectedEmployees = new Set(currentModalAssignments().map(r => r.emp_code));
+  document.getElementById("dayModalSub").textContent = iso;
+  document.getElementById("dayShiftName").textContent = shift.name || "Ca";
+  document.getElementById("dayShiftTime").textContent = `${shift.work_start || ""}-${shift.work_end || ""}`;
+  const search = document.getElementById("dayEmployeeSearch");
+  if (search) search.value = "";
   renderAssignedList();
-  document.getElementById("dayNote").value = "";
   document.getElementById("dayModal").classList.add("open");
 }
 
 function closeDayModal(){
   document.getElementById("dayModal").classList.remove("open");
+  modalDate = "";
+  modalShiftId = null;
+  modalSelectedEmployees.clear();
+  updateSelectedStats();
+}
+
+function currentModalAssignments(){
+  if (!modalDate || !modalShiftId) return [];
+  return (assignmentsByDate[modalDate] || []).filter(r => Number(r.shift_id) === Number(modalShiftId));
+}
+
+function assignmentCanBeRemoved(row){
+  return !(row?.status === "leave_approved" || row?.status === "unscheduled_approved" || row?.attendance_locked);
+}
+
+function assignmentStatusBadges(row){
+  const badges = [];
+  if (row?.status === "leave_approved") badges.push(`<span class="assignment-leave-badge">Nghỉ phép</span>`);
+  if (row?.status === "unscheduled_approved") badges.push(`<span class="assignment-unscheduled-badge">Ngoài ca đã duyệt</span>`);
+  if (row?.attendance_locked) badges.push(`<span class="assignment-attendance-badge">Đã có chấm công</span>`);
+  if (!row?.attendance_locked && isAbsentReview(row)){
+    badges.push(`<span class="assignment-absent-badge">${esc(absentBadgeText(row))}</span><button class="assignment-review-btn" type="button" onclick="event.stopPropagation();openAttendanceReview(${row.id})">Xem lại</button>`);
+  }
+  return badges.join("");
+}
+
+function toggleModalEmployee(code, checked){
+  const row = currentModalAssignments().find(r => r.emp_code === code);
+  if (row && !assignmentCanBeRemoved(row)){
+    modalSelectedEmployees.add(code);
+    renderAssignedList();
+    return;
+  }
+  if (checked) modalSelectedEmployees.add(code);
+  else modalSelectedEmployees.delete(code);
+  updateSelectedStats();
+  renderAssignedList();
+}
+
+function toggleModalEmployeeRow(event, code, locked){
+  if (event.target.closest("button") || event.target.closest("input")) return;
+  if (locked) return;
+  toggleModalEmployee(code, !modalSelectedEmployees.has(code));
 }
 
 function renderAssignedList(){
   const list = document.getElementById("assignedList");
-  const rows = assignmentsByDate[modalDate] || [];
-  list.innerHTML = rows.length ? rows.map(r => {
-    const isLeave = r.status === "leave_approved";
-    const isUnscheduled = r.status === "unscheduled_approved";
-    const isAttendanceLocked = !!r.attendance_locked;
-    const locked = isLeave || isUnscheduled || isAttendanceLocked;
-    const lockedBadge = isLeave
-      ? `<span class="assignment-leave-badge">Nghỉ phép</span>`
-      : (isUnscheduled
-        ? `<span class="assignment-unscheduled-badge">Ngoài ca đã duyệt</span>`
-        : `<span class="assignment-attendance-badge">Đã có chấm công</span>`);
+  if (!list) return;
+  const q = document.getElementById("dayEmployeeSearch")?.value || "";
+  const rowsByEmp = new Map(currentModalAssignments().map(r => [r.emp_code, r]));
+  const rows = filteredEmployees(q);
+  list.innerHTML = rows.map(emp => {
+    const row = rowsByEmp.get(emp.emp_code);
+    const checked = modalSelectedEmployees.has(emp.emp_code);
+    const locked = row && !assignmentCanBeRemoved(row);
+    const badges = row ? assignmentStatusBadges(row) : "";
+    const role = employeeRole(emp);
     return `
-    <div class="assigned-row">
-      <div>
-        <div class="assigned-title">${esc(r.shift?.name || "Ca")}</div>
-        <div class="assigned-meta">${esc(r.shift?.work_start || "")}-${esc(r.shift?.work_end || "")}${isLeave ? " · Nghỉ phép" : ""}${isUnscheduled ? " · Ngoài ca đã duyệt" : ""}${isAttendanceLocked ? ` · ${esc(r.attendance_lock_reason || "Đã có chấm công")}` : ""}${r.note ? ` · ${esc(r.note)}` : ""}</div>
-      </div>
-      ${locked ? lockedBadge : `<button class="icon-btn icon-only danger" aria-label="Xoá phân ca" onclick="deleteAssignment(${r.id})">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-      </button>`}
-    </div>`;
-  }).join("") : `<div class="empty" style="padding:18px">Ngày này chưa có ca</div>`;
+      <div class="employee-pick-row ${checked ? "selected" : ""} ${locked ? "locked" : ""}" onclick="toggleModalEmployeeRow(event,'${esc(emp.emp_code)}',${locked ? "true" : "false"})">
+        <input type="checkbox" ${checked ? "checked" : ""} ${locked ? "disabled" : ""} onchange="toggleModalEmployee('${esc(emp.emp_code)}', this.checked)">
+        <div class="emp-main">
+          <div class="emp-name">${esc(emp.name || emp.emp_code)}</div>
+          <div class="emp-role">${esc(emp.emp_code)} · ${esc(role)}</div>
+        </div>
+        <div class="pick-status">${badges}</div>
+      </div>`;
+  }).join("") || `<div class="empty" style="padding:18px">Không tìm thấy nhân viên</div>`;
+  updateSelectedStats();
+}
+
+async function createAssignment(empCode, shiftId, workDate){
+  const res = await authFetch("/api/shifts/assignments", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({emp_code:empCode, shift_id:shiftId, work_date:workDate})
+  });
+  if (res.ok) return {ok:true};
+  const err = await res.json().catch(() => ({}));
+  return {ok:false, message:formatErrorDetail(err.detail) || `Không xếp được ${employeeName(empCode)}`};
 }
 
 async function saveDayAssignment(){
   if (!requireShiftBranch("lưu phân ca")) return;
   if (isCalendarDayOff(modalDate)) return showToast("Ngày này đang được đặt là ngày nghỉ, không thể lưu phân ca", "error");
   if (!requireEditableAssignmentDate(modalDate)) return;
-  const shiftId = parseInt(document.getElementById("dayShiftSelect").value);
-  if (!shiftId) return showToast("Chưa có ca hoạt động", "error");
-  const res = await authFetch("/api/shifts/assignments", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      emp_code:selectedEmployee,
-      shift_id:shiftId,
-      work_date:modalDate,
-      note:document.getElementById("dayNote").value.trim()
-    })
-  });
-  if (!res.ok){
-    const err = await res.json();
-    return showToast(err.detail || "Không lưu được phân ca", "error");
+  if (!modalShiftId) return showToast("Chưa chọn ca", "error");
+  const saveBtn = document.getElementById("daySaveBtn");
+  if (saveBtn){
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Đang lưu...";
   }
+  const currentRows = currentModalAssignments();
+  const currentCodes = new Set(currentRows.map(r => r.emp_code));
+  const selectedCodes = new Set([...modalSelectedEmployees]);
+  const toAdd = [...selectedCodes].filter(code => !currentCodes.has(code));
+  const toRemove = currentRows.filter(row => !selectedCodes.has(row.emp_code) && assignmentCanBeRemoved(row));
+  const errors = [];
+
+  for (const row of toRemove){
+    const res = await authFetch(`/api/shifts/assignments/${row.id}`, {method:"DELETE"});
+    if (!(res.ok || res.status === 204)){
+      const err = await res.json().catch(() => ({}));
+      errors.push(formatErrorDetail(err.detail) || `Không xoá ${employeeName(row.emp_code)}`);
+    }
+  }
+  for (const code of toAdd){
+    const result = await createAssignment(code, modalShiftId, modalDate);
+    if (!result.ok) errors.push(result.message);
+  }
+
   await loadCalendar();
+  await loadTodayAssignments();
+  modalSelectedEmployees = new Set(currentModalAssignments().map(r => r.emp_code));
   renderAssignedList();
-  showToast("Đã lưu phân ca", "success");
+  if (saveBtn){
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Lưu phân ca";
+  }
+  if (errors.length) return showToast(errors.slice(0, 2).join("; "), "error");
+  showToast("Đã cập nhật phân ca", "success");
 }
 
 async function deleteAssignment(id){
@@ -1520,7 +1500,7 @@ async function deleteAssignment(id){
   const res = await authFetch(`/api/shifts/assignments/${id}`, {method:"DELETE"});
   if (res.ok || res.status === 204){
     await loadCalendar();
-    renderAssignedList();
+    if (modalDate && modalShiftId) renderAssignedList();
     showToast("Đã xoá phân ca", "success");
   }else{
     const err = await res.json().catch(() => ({}));

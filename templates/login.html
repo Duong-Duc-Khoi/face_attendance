@@ -205,6 +205,14 @@ function showAlert(msg, type='err'){
 }
 function clearAlert(){ document.getElementById('alert').className='alert'; }
 
+function finishLogin(data){
+  localStorage.setItem('access_token',  data.access_token);
+  localStorage.setItem('refresh_token', data.refresh_token);
+  localStorage.setItem('user', JSON.stringify(data.user));
+  const role = data.user?.role;
+  window.location.href = (role === 'admin' || role === 'manager') ? '/dashboard' : '/me';
+}
+
 function setAuthView(view){
   clearTimer();clearAlert();
   document.getElementById('step1').style.display = view==='login' ? '' : 'none';
@@ -241,6 +249,10 @@ async function doLogin(){
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || 'Lỗi đăng nhập');
 
+    if(data.access_token){
+      finishLogin(data);
+      return;
+    }
     currentEmail = email;
     goToStep2();
   }catch(e){
@@ -406,19 +418,8 @@ async function doVerifyOTP(){
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || 'OTP không đúng');
 
-    // Lưu tokens
-    localStorage.setItem('access_token',  data.access_token);
-    localStorage.setItem('refresh_token', data.refresh_token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-
     clearTimer();
-    // Redirect theo role
-    const role = data.user?.role;
-    if (role === 'admin' || role === 'manager') {
-      window.location.href = '/dashboard';
-    } else {
-      window.location.href = '/me';
-    }
+    finishLogin(data);
   }catch(e){
     // Shake OTP boxes
     for(let i=0;i<6;i++) document.getElementById('o'+i).classList.add('err');

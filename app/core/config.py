@@ -33,6 +33,7 @@ class Settings:
     ACCESS_TOKEN_EXP:  int = int(os.getenv("ACCESS_TOKEN_EXP",  "15"))      # phút
     REFRESH_TOKEN_EXP: int = int(os.getenv("REFRESH_TOKEN_EXP", "10080"))   # phút (7 ngày)
     OTP_EXP_MINUTES:   int = int(os.getenv("OTP_EXP_MINUTES",   "10"))
+    LOGIN_OTP_ENABLED: bool = os.getenv("LOGIN_OTP_ENABLED", "true").lower() == "true"
 
     # ── OpenAI / AI planning ───────────────────────────
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -46,6 +47,8 @@ class Settings:
     EMAIL_USER:     str = os.getenv("EMAIL_USER",     "")
     EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
     EMAIL_TO:       str = os.getenv("EMAIL_TO",       "")
+    DAILY_REPORT_HOUR: int = int(os.getenv("DAILY_REPORT_HOUR", "18"))
+    DAILY_REPORT_MINUTE: int = int(os.getenv("DAILY_REPORT_MINUTE", "0"))
     APP_NAME:       str = "FaceAttend"
     BASE_URL:       str = os.getenv("BASE_URL", "http://127.0.0.1:5600")
 
@@ -70,6 +73,7 @@ class Settings:
     CHECKIN_GRACE_MINUTES: int = int(os.getenv("CHECKIN_GRACE_MINUTES", "15"))
     MISSING_CHECKIN_CHECKOUT_WINDOW_MINUTES: int = int(os.getenv("MISSING_CHECKIN_CHECKOUT_WINDOW_MINUTES", "30"))
     OVERTIME_APPROVAL_THRESHOLD_MINUTES: int = int(os.getenv("OVERTIME_APPROVAL_THRESHOLD_MINUTES", "30"))
+    CONSECUTIVE_SHIFT_GAP_MINUTES: int = int(os.getenv("CONSECUTIVE_SHIFT_GAP_MINUTES", "30"))
     WORK_DAYS:              str  = os.getenv("WORK_DAYS", "1,2,3,4,5,6,7")
     NOTIFY_LEAVE_CANCEL:    bool = os.getenv("NOTIFY_LEAVE_CANCEL", "true").lower() == "true"
 

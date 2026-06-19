@@ -19,12 +19,15 @@ from app.models.attendance import (
 from app.models.shift import Shift, ShiftAssignment
 from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS
 from app.services.shift_service import (
+    assignment_is_first_in_consecutive_chain,
     calc_status_for_shift,
+    consecutive_shift_chain_for_assignment,
     find_open_session_for_time,
     find_shift_assignment_for_checkin,
     find_shift_assignment_for_time,
     find_leave_assignment_for_time,
     is_missing_checkin_checkout_time,
+    log_available_for_assignment,
     rebuild_session_for_assignment,
     rebuild_sessions_for_log_change,
     shift_window,
@@ -37,6 +40,7 @@ from app.services.attendance_period import (
     log_snapshot,
 )
 from app.services.attendance_policy import (
+    confirmed_absent,
     review_status_label,
     session_counts_as_work,
     session_status_label,
@@ -79,6 +83,211 @@ def _late_minutes_after_grace(check_time: datetime, shift_start: datetime, shift
 def _overtime_requires_review(check_time: datetime, shift_end: datetime) -> tuple[bool, int]:
     overtime = max(0, int((check_time - shift_end).total_seconds() / 60))
     return overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES, overtime
+
+
+def _calc_check_in_status(check_time: datetime, shift_start: datetime, shift: Shift | None) -> tuple[str, int]:
+    raw_late = max(0, int((check_time - shift_start).total_seconds() / 60))
+    late_minutes = max(0, raw_late - _checkin_grace_minutes(shift))
+    return ("late" if late_minutes > 0 else "on_time"), late_minutes
+
+
+def _shift_worked_minutes(check_in_at: datetime, check_out_at: datetime, shift: Shift | None) -> int:
+    return max(0, int((check_out_at - check_in_at).total_seconds() / 60))
+
+
+def _link_matching_event_to_session(
+    db,
+    emp: Employee,
+    event_type: str,
+    event_time: datetime,
+    session: AttendanceSession,
+) -> None:
+    event = (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == emp.id,
+              AttendanceEvent.event_type == event_type,
+              AttendanceEvent.event_time == event_time,
+          )
+          .order_by(AttendanceEvent.id.desc())
+          .first()
+    )
+    if event:
+        event.session_id = session.id
+        event.branch_id = session.branch_id
+
+
+def _add_internal_boundary_log(
+    db,
+    emp: Employee,
+    session: AttendanceSession,
+    check_type: str,
+    timestamp: datetime,
+    note: str,
+) -> None:
+    db.add(AttendanceLog(
+        employee_id=emp.id,
+        emp_code=emp.emp_code,
+        emp_name=emp.name,
+        department=emp.department,
+        check_type=check_type,
+        timestamp=timestamp,
+        confidence=0.0,
+        capture_path="",
+        note=note,
+    ))
+    db.add(AttendanceEvent(
+        session_id=session.id,
+        employee_id=emp.id,
+        branch_id=session.branch_id,
+        event_type=check_type,
+        event_time=timestamp,
+        confidence=0.0,
+        source="auto",
+        note=note,
+    ))
+
+
+def _set_session_completed(
+    session: AttendanceSession,
+    shift: Shift,
+    check_in_at: datetime,
+    check_out_at: datetime,
+    check_in_status: str = "on_time",
+    late_minutes: int = 0,
+    check_out_status: str = "normal",
+    source: str = "face",
+    note: str = "",
+) -> None:
+    shift_start, shift_end, _from, _until = shift_window(session.work_date, shift)
+    session.check_in_at = check_in_at
+    session.check_out_at = check_out_at
+    session.check_in_status = check_in_status
+    session.check_out_status = check_out_status
+    session.late_minutes = late_minutes
+    session.early_leave_minutes = max(0, int((shift_end - check_out_at).total_seconds() / 60))
+    raw_overtime = max(0, int((check_out_at - shift_end).total_seconds() / 60))
+    session.overtime_minutes = raw_overtime if raw_overtime > settings.OVERTIME_APPROVAL_THRESHOLD_MINUTES else 0
+    session.worked_minutes = _shift_worked_minutes(check_in_at, check_out_at, shift)
+    session.status = "completed"
+    session.source = session.source or source
+    session.review_type = ""
+    session.review_status = "none"
+    if session.overtime_minutes > 0:
+        session.check_out_status = "overtime"
+        session.review_type = "overtime"
+        session.review_status = "pending_review"
+    if note:
+        session.note = note
+
+
+def _split_consecutive_shift_sessions(
+    db,
+    emp: Employee,
+    open_session: AttendanceSession,
+    open_assignment: ShiftAssignment,
+    open_shift: Shift,
+    check_out_at: datetime,
+    auto_checkout: bool = False,
+) -> tuple[AttendanceSession, list[AttendanceSession]]:
+    chain = consecutive_shift_chain_for_assignment(open_assignment, open_shift, db)
+    if len(chain) <= 1:
+        return open_session, [open_session]
+
+    last_assignment, last_shift = chain[-1]
+    _last_start, last_end, _last_from, _last_until = shift_window(last_assignment.work_date, last_shift)
+    final_checkout = last_end if auto_checkout else check_out_at
+    sessions: list[AttendanceSession] = []
+    note = "Tự tách công liên ca"
+
+    for idx, (assignment, shift) in enumerate(chain):
+        shift_start, shift_end, _from, _until = shift_window(assignment.work_date, shift)
+        session = (
+            db.query(AttendanceSession)
+              .filter_by(shift_assignment_id=assignment.id)
+              .first()
+        )
+        if not session:
+            session = AttendanceSession(
+                employee_id=emp.id,
+                branch_id=assignment.branch_id or shift.branch_id or emp.branch_id,
+                shift_assignment_id=assignment.id,
+                shift_id=shift.id,
+                work_date=assignment.work_date,
+                status="open",
+                source="face",
+                break_minutes=shift.break_minutes or 0,
+            )
+            db.add(session)
+            db.flush()
+
+        session.employee_id = emp.id
+        session.branch_id = assignment.branch_id or shift.branch_id or emp.branch_id
+        session.shift_id = shift.id
+        session.work_date = assignment.work_date
+        session.break_minutes = shift.break_minutes or 0
+
+        if idx == 0:
+            check_in_at = open_session.check_in_at
+            check_in_status = open_session.check_in_status or _calc_check_in_status(check_in_at, shift_start, shift)[0]
+            late_minutes = open_session.late_minutes or _calc_check_in_status(check_in_at, shift_start, shift)[1]
+        else:
+            check_in_at = shift_start
+            check_in_status = "auto"
+            late_minutes = 0
+            _add_internal_boundary_log(
+                db,
+                emp,
+                session,
+                "check_in",
+                check_in_at,
+                f"Tự tạo check-in liên ca ({shift.name})",
+            )
+
+        if idx == len(chain) - 1:
+            check_out_at_for_shift = final_checkout
+            if auto_checkout:
+                check_out_status = "auto"
+            else:
+                early_leave = max(0, int((shift_end - final_checkout).total_seconds() / 60))
+                overtime_needs_review, _overtime = _overtime_requires_review(final_checkout, shift_end)
+                check_out_status = "early_leave" if early_leave > 0 else ("overtime" if overtime_needs_review else "normal")
+        else:
+            check_out_at_for_shift = shift_end
+            check_out_status = "auto"
+            _add_internal_boundary_log(
+                db,
+                emp,
+                session,
+                "check_out",
+                check_out_at_for_shift,
+                f"Tự tạo check-out liên ca ({shift.name})",
+            )
+
+        _set_session_completed(
+            session,
+            shift,
+            check_in_at,
+            check_out_at_for_shift,
+            check_in_status=check_in_status,
+            late_minutes=late_minutes,
+            check_out_status=check_out_status,
+            source="auto" if auto_checkout else "face",
+            note=note,
+        )
+        if auto_checkout and idx == len(chain) - 1:
+            session.status = "missing_checkout"
+            session.check_out_status = "auto"
+            session.review_type = "missing_checkout"
+            session.review_status = "pending_review"
+            session.early_leave_minutes = 0
+            session.overtime_minutes = 0
+            session.note = _auto_checkout_note(shift.name)
+        _link_matching_event_to_session(db, emp, "check_in", session.check_in_at, session)
+        _link_matching_event_to_session(db, emp, "check_out", session.check_out_at, session)
+        sessions.append(session)
+
+    return sessions[-1], sessions
 
 
 def _is_missing_checkin_checkout_candidate(
@@ -152,6 +361,7 @@ def process_attendance(
     confidence: float,
     capture_path: str = "",
     branch_id: int | None = None,
+    event_time: datetime | None = None,
 ) -> dict | None:
     """
     Xử lý 1 sự kiện chấm công từ kết quả nhận diện.
@@ -205,7 +415,7 @@ def process_attendance(
                 "avatar_url": emp.avatar_url or "",
             }
 
-        now = datetime.now()
+        now = event_time or datetime.now()
 
         # Cooldown — chống spam
         last_log = (
@@ -503,7 +713,7 @@ def process_attendance(
                 if session.check_in_at:
                     session.status = "completed"
                     gross_minutes = int((now - session.check_in_at).total_seconds() / 60)
-                    session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+                    session.worked_minutes = max(0, gross_minutes)
                 else:
                     session.status = "missing_checkin"
                     session.worked_minutes = 0
@@ -511,6 +721,23 @@ def process_attendance(
                     session.review_type = "missing_checkin"
                     session.review_status = "pending_review"
             session.note = status or session.note
+
+        if check_type == "check_out" and open_session and assignment and shift and session and session.check_in_at:
+            chain = consecutive_shift_chain_for_assignment(assignment, shift, db)
+            last_assignment, last_shift = chain[-1] if chain else (None, None)
+            last_start = shift_window(last_assignment.work_date, last_shift)[0] if last_assignment and last_shift else None
+            if len(chain) > 1 and last_start and now > last_start:
+                session, _split_sessions = _split_consecutive_shift_sessions(
+                    db,
+                    emp,
+                    session,
+                    assignment,
+                    shift,
+                    now,
+                )
+                assignment, shift = chain[-1]
+                status = f"Hoàn tất liên ca đến {shift.name}"
+                check_out_status = session.check_out_status or check_out_status
 
         log = AttendanceLog(
             employee_id  = emp.id,
@@ -653,6 +880,10 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             a.id for a in assignments
             if session_by_assignment.get(a.id) and session_by_assignment[a.id].check_out_at
         }
+        confirmed_absent_assignments = {
+            a.id for a in assignments
+            if confirmed_absent(session_by_assignment.get(a.id))
+        }
         checkin_due = set()
         for assignment in assignments:
             shift = shifts_by_id.get(assignment.shift_id)
@@ -683,7 +914,7 @@ def get_summary_today(branch_ids: list[int] | None = None) -> dict:
             "scheduled_employees": unique_emp,
             "checked_in":  len(checked_in),
             "checked_out": len(checked_out),
-            "absent":      max(0, len(checkin_due - (checked_in | checked_out))),
+            "absent":      len(confirmed_absent_assignments),
             "not_started": max(0, total_assigned - len(checkin_due)),
             "total_logs":  len(logs),
             "pending_attendance_reviews": pending_reviews,
@@ -1461,6 +1692,7 @@ def auto_checkout_missing(auto_time: datetime = None) -> int:
     try:
         now         = auto_time or datetime.now()
         count = 0
+        pending_alerts: list[tuple[int, dict]] = []
 
         open_sessions = (
             db.query(AttendanceSession)
@@ -1476,27 +1708,62 @@ def auto_checkout_missing(auto_time: datetime = None) -> int:
             shift = db.query(Shift).filter_by(id=session.shift_id).first() if session.shift_id else None
             if not shift:
                 continue
-            _start, shift_end, _from, auto_until = shift_window(session.work_date, shift)
+            assignment = (
+                db.query(ShiftAssignment)
+                  .filter_by(id=session.shift_assignment_id)
+                  .first()
+            ) if session.shift_assignment_id else None
+            chain = consecutive_shift_chain_for_assignment(assignment, shift, db) if assignment else []
+            target_assignment, target_shift = chain[-1] if chain else (assignment, shift)
+            _start, shift_end, _from, auto_until = shift_window(
+                target_assignment.work_date if target_assignment else session.work_date,
+                target_shift,
+            )
             checkout_at = shift_end
-            note = _auto_checkout_note(shift.name)
+            note = _auto_checkout_note(target_shift.name)
 
             if now < auto_until:
                 continue
 
             emp = db.query(Employee).filter_by(id=session.employee_id).first()
-            session.status = "missing_checkout"
-            session.check_out_at = checkout_at
-            session.check_out_status = "auto"
-            session.review_type = "missing_checkout"
-            session.review_status = "pending_review"
-            session.early_leave_minutes = 0
-            session.overtime_minutes = 0
-            if session.check_in_at:
-                gross_minutes = int((checkout_at - session.check_in_at).total_seconds() / 60)
-                session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
-            session.note = note
+            if emp and assignment and len(chain) > 1 and chain[0][0].id == assignment.id:
+                final_session, _split_sessions = _split_consecutive_shift_sessions(
+                    db,
+                    emp,
+                    session,
+                    assignment,
+                    shift,
+                    checkout_at,
+                    auto_checkout=True,
+                )
+                session = final_session
+            else:
+                session.status = "missing_checkout"
+                session.check_out_at = checkout_at
+                session.check_out_status = "auto"
+                session.review_type = "missing_checkout"
+                session.review_status = "pending_review"
+                session.early_leave_minutes = 0
+                session.overtime_minutes = 0
+                if session.check_in_at:
+                    gross_minutes = int((checkout_at - session.check_in_at).total_seconds() / 60)
+                    session.worked_minutes = max(0, gross_minutes)
+                session.note = note
 
-            if emp:
+                if emp:
+                    db.add(AttendanceLog(
+                        employee_id=emp.id,
+                        emp_code=emp.emp_code,
+                        emp_name=emp.name,
+                        department=emp.department,
+                        check_type="check_out",
+                        timestamp=checkout_at,
+                        confidence=0.0,
+                        capture_path="",
+                        note=note,
+                    ))
+
+            if len(chain) > 1 and emp:
                 db.add(AttendanceLog(
                     employee_id=emp.id,
                     emp_code=emp.emp_code,
@@ -1520,20 +1787,30 @@ def auto_checkout_missing(auto_time: datetime = None) -> int:
                 note=note,
             ))
             if emp and not session.manager_alert_sent_at:
-                try:
-                    notify_missing_checkout({
+                pending_alerts.append((
+                    session.id,
+                    {
                         "emp_name": emp.name,
                         "emp_code": emp.emp_code,
-                        "shift_name": shift.name,
+                        "branch_id": session.branch_id or emp.branch_id,
+                        "shift_name": target_shift.name,
                         "work_date": session.work_date.strftime("%d/%m/%Y"),
                         "checkout_at": checkout_at.strftime("%H:%M %d/%m/%Y"),
-                    })
-                    session.manager_alert_sent_at = now
-                except Exception as exc:
-                    print(f"  ✗ notify_missing_checkout lỗi: {exc}")
+                    },
+                ))
             count += 1
 
         db.commit()
+        for session_id, payload in pending_alerts:
+            try:
+                notify_missing_checkout(payload)
+                alerted_session = db.query(AttendanceSession).filter_by(id=session_id).first()
+                if alerted_session:
+                    alerted_session.manager_alert_sent_at = now
+                    db.commit()
+            except Exception as exc:
+                db.rollback()
+                print(f"  ✗ notify_missing_checkout lỗi: {exc}")
         return count
     except Exception as e:
         db.rollback()
@@ -1564,7 +1841,23 @@ def mark_absent_sessions(auto_time: datetime = None) -> int:
             _start, shift_end, _from, _until = shift_window(assignment.work_date, shift)
             if now < shift_end:
                 continue
-            check_in_log = (
+            if not assignment_is_first_in_consecutive_chain(assignment, shift, db):
+                chain = consecutive_shift_chain_for_assignment(assignment, shift, db)
+                first_assignment, _first_shift = chain[0] if chain else (None, None)
+                if first_assignment:
+                    open_chain_session = (
+                        db.query(AttendanceSession)
+                          .filter(
+                              AttendanceSession.shift_assignment_id == first_assignment.id,
+                              AttendanceSession.check_in_at.isnot(None),
+                              AttendanceSession.check_out_at.is_(None),
+                              AttendanceSession.status == "open",
+                          )
+                          .first()
+                    )
+                    if open_chain_session:
+                        continue
+            check_in_logs = (
                 db.query(AttendanceLog)
                   .filter(
                       AttendanceLog.emp_code == assignment.emp_code,
@@ -1572,9 +1865,10 @@ def mark_absent_sessions(auto_time: datetime = None) -> int:
                       AttendanceLog.timestamp >= _from,
                       AttendanceLog.timestamp <= _until,
                   )
-                  .first()
+                  .order_by(AttendanceLog.timestamp.asc(), AttendanceLog.id.asc())
+                  .all()
             )
-            if check_in_log:
+            if any(log_available_for_assignment(log, assignment, db) for log in check_in_logs):
                 continue
             existing = (
                 db.query(AttendanceSession)

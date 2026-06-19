@@ -34,6 +34,16 @@ PAST_ASSIGNMENT_LOCK_ERROR = "Không thể chỉnh lịch phân ca trước tu�
 INACTIVE_BRANCH_ERROR = "Cửa hàng đã ngừng hoạt động"
 ATTENDANCE_LOCK_ERROR = "Phân ca đã có chấm công, không thể xoá hoặc đổi lịch. Hãy xử lý ở màn Chấm công trước."
 SHIFT_IN_USE_ERROR = "Ca đang được dùng trong lịch phân ca hoặc chấm công, không thể tắt"
+CONSECUTIVE_SHIFT_GAP_MINUTES = 30
+
+
+def consecutive_shift_gap_minutes(max_gap_minutes: int | None = None) -> int:
+    if max_gap_minutes is None:
+        max_gap_minutes = getattr(settings, "CONSECUTIVE_SHIFT_GAP_MINUTES", CONSECUTIVE_SHIFT_GAP_MINUTES)
+    try:
+        return max(0, int(max_gap_minutes))
+    except (TypeError, ValueError):
+        return CONSECUTIVE_SHIFT_GAP_MINUTES
 
 
 def current_assignment_edit_start(today: date | None = None) -> date:
@@ -89,16 +99,17 @@ def _assignment_attendance_lock_info(
         return False, ""
 
     _start, _end, checkin_from, checkout_until = shift_window(a.work_date, shift)
-    log = (
+    logs = (
         db.query(AttendanceLog)
           .filter(
               AttendanceLog.emp_code == a.emp_code,
               AttendanceLog.timestamp >= checkin_from,
               AttendanceLog.timestamp <= checkout_until,
           )
-          .first()
+          .order_by(AttendanceLog.timestamp.asc(), AttendanceLog.id.asc())
+          .all()
     )
-    if log:
+    if any(_log_available_for_assignment(log, a, db) for log in logs):
         return True, "Đã có chấm công"
 
     employee_id = a.employee_id
@@ -106,7 +117,7 @@ def _assignment_attendance_lock_info(
         emp = db.query(Employee).filter_by(emp_code=a.emp_code).first()
         employee_id = emp.id if emp else None
     if employee_id:
-        event = (
+        events = (
             db.query(AttendanceEvent)
               .filter(
                   AttendanceEvent.employee_id == employee_id,
@@ -114,12 +125,156 @@ def _assignment_attendance_lock_info(
                   AttendanceEvent.event_time >= checkin_from,
                   AttendanceEvent.event_time <= checkout_until,
               )
-              .first()
+              .order_by(AttendanceEvent.event_time.asc(), AttendanceEvent.id.asc())
+              .all()
         )
-        if event:
+        if any(_event_available_for_assignment(event, a, db) for event in events):
             return True, "Đã có chấm công"
 
     return False, ""
+
+
+def _assignment_attendance_review_info(a: ShiftAssignment, db: Session) -> dict:
+    session = (
+        db.query(AttendanceSession)
+          .filter(
+              AttendanceSession.shift_assignment_id == a.id,
+              AttendanceSession.status != "cancelled",
+          )
+          .order_by(
+              (AttendanceSession.review_status == "pending_review").desc(),
+              AttendanceSession.id.desc(),
+          )
+          .first()
+    )
+    if not session:
+        return {}
+    info = {
+        "session_id": session.id,
+        "status": session.status or "",
+        "review_type": session.review_type or "",
+        "review_status": session.review_status or "none",
+        "review_note": session.review_note or "",
+    }
+    if session.status == "absent" or session.review_type == "absent":
+        info["is_absent"] = True
+        if session.review_status == "pending_review":
+            info["label"] = "Vắng - chờ duyệt"
+        elif session.review_status == "rejected":
+            info["label"] = "Vắng - cần xem lại"
+        elif session.review_status == "approved":
+            info["label"] = "Vắng đã chốt"
+        else:
+            info["label"] = "Vắng"
+    return info
+
+
+def _session_linked_to_other_assignment(session: AttendanceSession | None, assignment: ShiftAssignment) -> bool:
+    return bool(
+        session
+        and session.shift_assignment_id
+        and assignment.id
+        and int(session.shift_assignment_id) != int(assignment.id)
+    )
+
+
+def _session_linked_to_assignment(session: AttendanceSession | None, assignment: ShiftAssignment) -> bool:
+    return bool(
+        session
+        and session.shift_assignment_id
+        and assignment.id
+        and int(session.shift_assignment_id) == int(assignment.id)
+    )
+
+
+def _event_session(event: AttendanceEvent | None, db: Session) -> AttendanceSession | None:
+    if not event or not event.session_id:
+        return None
+    return db.query(AttendanceSession).filter_by(id=event.session_id).first()
+
+
+def _event_available_for_assignment(event: AttendanceEvent | None, assignment: ShiftAssignment, db: Session) -> bool:
+    linked_session = _event_session(event, db)
+    if _session_linked_to_other_assignment(linked_session, assignment):
+        return False
+    if _session_linked_to_assignment(linked_session, assignment):
+        return True
+    timestamp_session = _session_for_event_timestamp(event, db)
+    if _session_linked_to_other_assignment(timestamp_session, assignment):
+        return False
+    if _session_linked_to_assignment(timestamp_session, assignment):
+        return True
+    return False
+
+
+def _event_for_log(log: AttendanceLog, db: Session) -> AttendanceEvent | None:
+    if not log.employee_id:
+        return None
+    return (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == log.employee_id,
+              AttendanceEvent.event_type == log.check_type,
+              AttendanceEvent.event_time == log.timestamp,
+          )
+          .order_by(AttendanceEvent.id.desc())
+          .first()
+    )
+
+
+def _session_for_log_timestamp(log: AttendanceLog, db: Session) -> AttendanceSession | None:
+    if not log.employee_id:
+        return None
+    q = db.query(AttendanceSession).filter(AttendanceSession.employee_id == log.employee_id)
+    if log.check_type == "check_in":
+        return q.filter(AttendanceSession.check_in_at == log.timestamp).order_by(AttendanceSession.id.desc()).first()
+    if log.check_type == "check_out":
+        return q.filter(AttendanceSession.check_out_at == log.timestamp).order_by(AttendanceSession.id.desc()).first()
+    return None
+
+
+def _session_for_event_timestamp(event: AttendanceEvent | None, db: Session) -> AttendanceSession | None:
+    if not event or not event.employee_id:
+        return None
+    q = db.query(AttendanceSession).filter(AttendanceSession.employee_id == event.employee_id)
+    if event.event_type == "check_in":
+        return q.filter(AttendanceSession.check_in_at == event.event_time).order_by(AttendanceSession.id.desc()).first()
+    if event.event_type in ("check_out", "auto_checkout"):
+        return q.filter(AttendanceSession.check_out_at == event.event_time).order_by(AttendanceSession.id.desc()).first()
+    return None
+
+
+def _log_available_for_assignment(log: AttendanceLog, assignment: ShiftAssignment, db: Session) -> bool:
+    event = _event_for_log(log, db)
+    if event and not _event_available_for_assignment(event, assignment, db):
+        return False
+    timestamp_session = _session_for_log_timestamp(log, db)
+    if _session_linked_to_other_assignment(timestamp_session, assignment):
+        return False
+    if (event and _event_available_for_assignment(event, assignment, db)) or _session_linked_to_assignment(timestamp_session, assignment):
+        return True
+    if _is_auto_checkout_log(log):
+        return bool(
+            timestamp_session
+            and timestamp_session.shift_assignment_id
+            and assignment.id
+            and int(timestamp_session.shift_assignment_id) == int(assignment.id)
+        )
+    if log.check_type == "check_in":
+        shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
+        if shift:
+            start, end, _checkin_from, _checkout_until = shift_window(assignment.work_date, shift)
+            if log.timestamp >= end and not _session_linked_to_assignment(timestamp_session, assignment):
+                return False
+            if log.timestamp >= start:
+                better_assignment, _better_shift = find_shift_assignment_for_checkin(assignment.emp_code, log.timestamp, db)
+                if better_assignment and better_assignment.id != assignment.id:
+                    return False
+    return True
+
+
+def log_available_for_assignment(log: AttendanceLog, assignment: ShiftAssignment, db: Session) -> bool:
+    return _log_available_for_assignment(log, assignment, db)
 
 
 def _assignment_has_attendance(a: ShiftAssignment, db: Session, shift: Optional[Shift] = None) -> bool:
@@ -141,6 +296,7 @@ def _assignment_to_dict(a: ShiftAssignment, shift: Optional[Shift] = None, db: S
     attendance_lock_reason = ""
     if db is not None:
         attendance_locked, attendance_lock_reason = _assignment_attendance_lock_info(a, db, shift)
+    attendance_review = _assignment_attendance_review_info(a, db) if db is not None else {}
     d = {
         "id":          a.id,
         "employee_id": a.employee_id,
@@ -154,6 +310,7 @@ def _assignment_to_dict(a: ShiftAssignment, shift: Optional[Shift] = None, db: S
         "assigned_by_id": a.assigned_by_id,
         "attendance_locked": attendance_locked,
         "attendance_lock_reason": attendance_lock_reason,
+        "attendance_review": attendance_review,
     }
     if shift:
         d["shift"] = _shift_to_dict(shift)
@@ -652,6 +809,94 @@ def is_missing_checkin_checkout_time(work_date: date, shift: Shift, moment: date
     return checkout_from <= moment <= checkout_until
 
 
+def _assignment_shift_rows(
+    emp_code: str,
+    candidate_dates: list[date],
+    db: Session,
+) -> list[tuple[ShiftAssignment, Shift, datetime, datetime, datetime, datetime]]:
+    rows = (
+        db.query(ShiftAssignment)
+          .filter(
+              ShiftAssignment.emp_code == emp_code,
+              ShiftAssignment.work_date.in_(candidate_dates),
+              ShiftAssignment.status.notin_(["cancelled", LEAVE_ASSIGNMENT_STATUS]),
+          )
+          .all()
+    )
+    result: list[tuple[ShiftAssignment, Shift, datetime, datetime, datetime, datetime]] = []
+    for assignment in rows:
+        shift = db.query(Shift).filter_by(id=assignment.shift_id, is_active=True).first()
+        if not shift:
+            continue
+        start, end, checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+        result.append((assignment, shift, start, end, checkin_from, checkout_until))
+    result.sort(key=lambda item: (item[2], item[0].id or 0))
+    return result
+
+
+def consecutive_shift_chain_for_assignment(
+    assignment: ShiftAssignment,
+    shift: Shift,
+    db: Session,
+    max_gap_minutes: int | None = None,
+) -> list[tuple[ShiftAssignment, Shift]]:
+    """Return the contiguous shift chain that contains `assignment`."""
+    if not assignment or not shift:
+        return []
+    candidate_dates = [
+        assignment.work_date - timedelta(days=1),
+        assignment.work_date,
+        assignment.work_date + timedelta(days=1),
+    ]
+    rows = _assignment_shift_rows(assignment.emp_code, candidate_dates, db)
+    if not rows:
+        return []
+    target_index = next((idx for idx, row in enumerate(rows) if row[0].id == assignment.id), None)
+    if target_index is None:
+        return []
+
+    max_gap = timedelta(minutes=consecutive_shift_gap_minutes(max_gap_minutes))
+    start_index = target_index
+    while start_index > 0:
+        prev_row = rows[start_index - 1]
+        current_row = rows[start_index]
+        gap = current_row[2] - prev_row[3]
+        if gap < timedelta(0) or gap > max_gap:
+            break
+        start_index -= 1
+
+    end_index = target_index
+    while end_index + 1 < len(rows):
+        current_row = rows[end_index]
+        next_row = rows[end_index + 1]
+        gap = next_row[2] - current_row[3]
+        if gap < timedelta(0) or gap > max_gap:
+            break
+        end_index += 1
+
+    return [(row[0], row[1]) for row in rows[start_index:end_index + 1]]
+
+
+def assignment_is_first_in_consecutive_chain(
+    assignment: ShiftAssignment,
+    shift: Shift,
+    db: Session,
+    max_gap_minutes: int | None = None,
+) -> bool:
+    chain = consecutive_shift_chain_for_assignment(assignment, shift, db, max_gap_minutes)
+    return bool(chain and chain[0][0].id == assignment.id)
+
+
+def assignment_is_last_in_consecutive_chain(
+    assignment: ShiftAssignment,
+    shift: Shift,
+    db: Session,
+    max_gap_minutes: int | None = None,
+) -> bool:
+    chain = consecutive_shift_chain_for_assignment(assignment, shift, db, max_gap_minutes)
+    return bool(chain and chain[-1][0].id == assignment.id)
+
+
 def _session_note_for_reconcile(session: AttendanceSession) -> str:
     if session.check_in_at and session.check_out_at:
         return "Đồng bộ từ log chấm công sau khi bổ sung ca"
@@ -787,6 +1032,7 @@ def rebuild_session_for_assignment(
           .order_by(AttendanceLog.timestamp.asc(), AttendanceLog.id.asc())
           .all()
     )
+    logs = [log for log in logs if _log_available_for_assignment(log, assignment, db)]
     check_in_log = next((log for log in logs if log.check_type == "check_in"), None)
     check_out_candidates = [
         log for log in logs
@@ -911,7 +1157,7 @@ def rebuild_session_for_assignment(
             else:
                 session.check_out_status = "normal"
         gross_minutes = int((session.check_out_at - session.check_in_at).total_seconds() / 60)
-        session.worked_minutes = max(0, gross_minutes - (session.break_minutes or 0))
+        session.worked_minutes = max(0, gross_minutes)
     else:
         session.check_out_at = None
         session.check_out_status = ""
@@ -999,6 +1245,11 @@ def find_open_session_for_time(
         if not shift:
             continue
         _start, _end, _checkin_from, checkout_until = shift_window(assignment.work_date, shift)
+        chain = consecutive_shift_chain_for_assignment(assignment, shift, db)
+        if chain:
+            _last_assignment, last_shift = chain[-1]
+            _last_start, _last_end, _last_from, last_checkout_until = shift_window(_last_assignment.work_date, last_shift)
+            checkout_until = max(checkout_until, last_checkout_until)
         session = (
             db.query(AttendanceSession)
               .filter(
@@ -1053,7 +1304,7 @@ def find_shift_assignment_for_checkin(emp_code: str, moment: datetime, db: Sessi
         )
         if session and session.check_in_at:
             continue
-        score = (0 if moment <= end else 1, abs((moment - start).total_seconds()))
+        score = (0 if start <= moment <= end else 1, abs((moment - start).total_seconds()))
         if best is None or score < best[0]:
             best = (score, assignment, shift)
 

@@ -52,10 +52,9 @@
     <div class="panel-header">
       <div class="panel-header-left"><span class="dot"></span> Bộ lọc báo cáo</div>
       <div class="quick-btns">
-        <button class="quick-btn" onclick="setRange(0)">Hôm nay</button>
-        <button class="quick-btn" onclick="setRange(7)">7 ngày</button>
-        <button class="quick-btn active" onclick="setRange(30)">30 ngày</button>
-        <button class="quick-btn" onclick="setRange(90)">3 tháng</button>
+        <button class="quick-btn" onclick="setRange('week', this)">Tuần này</button>
+        <button class="quick-btn active" onclick="setRange('month', this)">Tháng này</button>
+        <button class="quick-btn" onclick="setRange('prev_month', this)">Tháng trước</button>
       </div>
     </div>
     <div class="filter-row">
@@ -101,7 +100,7 @@
         </div>
       </div>
       <div class="chart-wrap">
-        <div class="chart-title">Phân bổ theo phòng ban</div>
+        <div class="chart-title">Phân bổ vai trò</div>
         <div style="position:relative;height:200px">
           <canvas id="chartByDept"></canvas>
         </div>
@@ -165,23 +164,45 @@ let chartDate=null,chartDept=null,exceptionItems=[],exceptionFilter='all',report
 
 // ── Init dates ──
 (function(){
-  const today=new Date();
-  const from=new Date(today);from.setDate(from.getDate()-29);
-  document.getElementById('toDate').value=fmtDate(today);
-  document.getElementById('fromDate').value=fmtDate(from);
+  const range=reportPresetRange('month');
+  document.getElementById('fromDate').value=fmtDate(range.from);
+  document.getElementById('toDate').value=fmtDate(range.to);
   loadReport();
 })();
 
-function fmtDate(d){return d.toISOString().split('T')[0];}
+function fmtDate(d){
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
 
-function setRange(days){
+function startOfWeek(d){
+  const result=new Date(d);
+  const day=result.getDay();
+  result.setDate(result.getDate()+(day===0?-6:1-day));
+  result.setHours(0,0,0,0);
+  return result;
+}
+
+function reportPresetRange(mode){
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  if(mode==='week'){
+    return {from:startOfWeek(today),to:today};
+  }
+  if(mode==='prev_month'){
+    const from=new Date(today.getFullYear(),today.getMonth()-1,1);
+    const to=new Date(today.getFullYear(),today.getMonth(),0);
+    return {from,to};
+  }
+  return {from:new Date(today.getFullYear(),today.getMonth(),1),to:today};
+}
+
+function setRange(mode,btn){
   document.querySelectorAll('.quick-btns .quick-btn').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
-  const to=new Date();
-  const from=new Date(to);
-  if(days>0)from.setDate(from.getDate()-(days-1));
-  document.getElementById('fromDate').value=fmtDate(from);
-  document.getElementById('toDate').value=fmtDate(to);
+  if(btn)btn.classList.add('active');
+  const range=reportPresetRange(mode);
+  document.getElementById('fromDate').value=fmtDate(range.from);
+  document.getElementById('toDate').value=fmtDate(range.to);
   loadReport();
 }
 
@@ -369,11 +390,19 @@ function safeText(value){
 }
 
 function exceptionTypeLabel(type){
-  return {leave:'Nghỉ',absent:'Vắng',missing_checkin:'Thiếu check-in',missing_checkout:'Quên checkout'}[type]||type||'—';
+  return {
+    leave:'Nghỉ',
+    absent:'Vắng',
+    missing_checkin:'Thiếu check-in',
+    missing_checkout:'Quên checkout',
+    pending_absent:'Chờ duyệt vắng',
+    pending_missing_checkin:'Chờ duyệt thiếu check-in',
+    pending_missing_checkout:'Chờ duyệt quên checkout'
+  }[type]||type||'—';
 }
 
 function exceptionBadge(type){
-  const cls=type==='missing_checkout'?'badge-out':'badge-late';
+  const cls=type==='missing_checkout'||type==='pending_missing_checkout'?'badge-out':'badge-late';
   return `<span class="badge ${cls}">${safeText(exceptionTypeLabel(type))}</span>`;
 }
 

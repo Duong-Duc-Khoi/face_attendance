@@ -109,6 +109,10 @@ EMAIL_PORT=587
 EMAIL_USER=your@gmail.com
 EMAIL_PASSWORD=app_password_here
 EMAIL_TO=admin@company.com
+DAILY_REPORT_HOUR=18
+DAILY_REPORT_MINUTE=0
+LOGIN_OTP_ENABLED=true
+CONSECUTIVE_SHIFT_GAP_MINUTES=30
 ```
 
 `KIOSK_BRANCH_ID` là ID chi nhánh/cửa hàng gắn cố định với máy kiosk. Nếu chưa cấu hình, màn hình kiosk sẽ báo thiếu cấu hình và không cho bật camera chấm công.
@@ -221,7 +225,7 @@ Swagger UI đầy đủ ở `http://127.0.0.1:8000/docs`.
 | Biến | Mô tả |
 | --- | --- |
 | `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` | Kết nối PostgreSQL |
-| `JWT_SECRET`, `ACCESS_TOKEN_EXP`, `REFRESH_TOKEN_EXP`, `OTP_EXP_MINUTES` | Xác thực và phiên đăng nhập |
+| `JWT_SECRET`, `ACCESS_TOKEN_EXP`, `REFRESH_TOKEN_EXP`, `OTP_EXP_MINUTES`, `LOGIN_OTP_ENABLED` | Xác thực, phiên đăng nhập và bật/tắt OTP đăng nhập |
 | `BASE_URL` | URL web dùng trong email xác minh/khôi phục mật khẩu |
 | `BACKEND_URL` | Backend thật để web host/kiosk proxy hoặc gọi API |
 | `WEB_URL` | URL web host dùng cho redirect legacy từ backend |
@@ -231,8 +235,10 @@ Swagger UI đầy đủ ở `http://127.0.0.1:8000/docs`.
 | `CAMERA_ID` | Camera backend mặc định cho mode legacy |
 | `FACE_THRESHOLD`, `MIN_FACE_SIZE` | Ngưỡng nhận diện và kích thước mặt tối thiểu |
 | `PRESENTATION_GUARD_*` | Cấu hình chống giả mạo/bằng chứng review |
+| `CONSECUTIVE_SHIFT_GAP_MINUTES` | Khoảng nghỉ tối đa giữa hai ca để tính là liên ca |
 | `OPENAI_API_KEY`, `GEMINI_API_KEY` | Tùy chọn để bật AI phân ca/audit |
-| `EMAIL_*` | SMTP gửi OTP, xác minh email và thông báo |
+| `EMAIL_*` | SMTP gửi OTP, xác minh email và thông báo; `EMAIL_TO` là fallback khi chi nhánh chưa có quản lý nhận mail |
+| `DAILY_REPORT_HOUR`, `DAILY_REPORT_MINUTE` | Giờ gửi báo cáo cuối ngày theo từng chi nhánh |
 
 ## Lưu ý vận hành
 

@@ -50,6 +50,7 @@ from app.services.kiosk_registry import list_online_kiosks, send_to_kiosk
 from app.services.branch_scope import (
     BRANCH_MANAGER_STORE_ROLES,
     default_branch_id_for_write,
+    employee_for_user,
     ensure_branch_access,
     require_admin,
     require_branch_manager_or_admin,
@@ -294,6 +295,26 @@ def list_employees(
     - inactive_only=true: chỉ nhân viên đã nghỉ (is_active=False)
     - không truyền gì:    tất cả nhân viên
     """
+    if current_user.role == "staff":
+        emp = employee_for_user(db, current_user)
+        if not emp:
+            return []
+        if active_only and not emp.is_active:
+            return []
+        if inactive_only and emp.is_active:
+            return []
+        if branch_id is not None and emp.branch_id != branch_id:
+            return []
+        if employment_type and emp.employment_type != normalize_employment_type(employment_type):
+            return []
+        if status and normalize_employee_status(emp.status, emp.is_active) != normalize_employee_status(status):
+            return []
+        if job_role:
+            wanted = normalize_job_role(job_role)
+            if wanted not in _employee_job_roles(emp):
+                return []
+        return [_emp_dict(emp)]
+
     q = db.query(Employee)
     if active_only:
         q = q.filter_by(is_active=True)

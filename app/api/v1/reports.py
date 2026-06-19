@@ -130,6 +130,48 @@ def _ensure_session_scope(db: Session, current_user, session: AttendanceSession)
     ensure_branch_access(db, current_user, session.branch_id)
 
 
+def _exclude_cancelled_assignment_sessions(q):
+    return (
+        q.outerjoin(ShiftAssignment, AttendanceSession.shift_assignment_id == ShiftAssignment.id)
+         .filter(or_(
+             AttendanceSession.shift_assignment_id.is_(None),
+             ShiftAssignment.id.is_(None),
+             ShiftAssignment.status != "cancelled",
+         ))
+    )
+
+
+def _ensure_session_assignment_not_cancelled(db: Session, session: AttendanceSession) -> None:
+    if not session.shift_assignment_id:
+        return
+    assignment = db.query(ShiftAssignment).filter_by(id=session.shift_assignment_id).first()
+    if assignment and assignment.status == "cancelled":
+        raise HTTPException(status_code=409, detail="Ca này đã bị huỷ, không thể duyệt chấm công")
+
+
+def _is_current_user_employee(db: Session, current_user, employee_id: int | None = None, emp_code: str = "") -> bool:
+    if current_user.role == "admin":
+        return False
+    emp = _employee_for_user(db, current_user)
+    if not emp:
+        return False
+    if employee_id and emp.id == employee_id:
+        return True
+    return bool(emp_code and emp.emp_code == emp_code)
+
+
+def _ensure_not_self_attendance_action(
+    db: Session,
+    current_user,
+    *,
+    employee_id: int | None = None,
+    emp_code: str = "",
+    detail: str = "Không được tự duyệt/chỉnh sửa chấm công của chính mình. Vui lòng để quản lý khác hoặc admin xử lý.",
+) -> None:
+    if _is_current_user_employee(db, current_user, employee_id, emp_code):
+        raise HTTPException(status_code=403, detail=detail)
+
+
 def _filter_logs_for_branch_ids(db: Session, logs: list[AttendanceLog], branch_ids: list[int] | None) -> list[AttendanceLog]:
     return filter_logs_by_branch_ids(db, logs, branch_ids)
 
@@ -432,6 +474,7 @@ def summary_range(from_date: str, to_date: str, branch_id: int | None = None, db
                 "scheduled_emp": set(),
                 "checked_in": 0,
                 "checked_out": 0,
+                "absent": 0,
             }
         row = by_date[day]
         row["assigned"] += 1
@@ -441,6 +484,8 @@ def summary_range(from_date: str, to_date: str, branch_id: int | None = None, db
             row["checked_in"] += 1
         if session and session.check_out_at:
             row["checked_out"] += 1
+        if confirmed_absent(session):
+            row["absent"] += 1
 
     role_stats: dict[str, int] = {}
     branch_stats: dict[str, int] = {}
@@ -462,7 +507,7 @@ def summary_range(from_date: str, to_date: str, branch_id: int | None = None, db
                 "scheduled_employees": len(v["scheduled_emp"]),
                 "checked_in": v["checked_in"],
                 "checked_out": v["checked_out"],
-                "absent": max(0, v["assigned"] - v["checked_in"]),
+                "absent": v["absent"],
             }
             for d, v in sorted(by_date.items())
         ],
@@ -843,10 +888,11 @@ def attendance_exceptions(
             leave_q = leave_q.filter(LeaveRequest.emp_code.in_(list(allowed_emp_codes)))
     leave_requests = leave_q.order_by(LeaveRequest.submitted_at.desc()).all()
 
-    session_q = db.query(AttendanceSession).filter(
+    session_q = _exclude_cancelled_assignment_sessions(
+        db.query(AttendanceSession)
+    ).filter(
         AttendanceSession.work_date >= fd,
         AttendanceSession.work_date <= td,
-        AttendanceSession.review_status == "pending_review",
         AttendanceSession.review_type.in_(["absent", "missing_checkout", "missing_checkin"]),
     )
     if branch_ids is not None:
@@ -900,10 +946,18 @@ def attendance_exceptions(
             })
 
     for session in sessions:
+        if not (
+            confirmed_absent(session)
+            or missing_checkin_recorded(session)
+            or missing_checkout_recorded(session)
+            or session.review_status == "pending_review"
+        ):
+            continue
         row = _session_review_to_dict(session, db)
         review_type = row.get("review_type") or ""
+        is_pending = row.get("review_status") == "pending_review"
         items.append({
-            "type": review_type,
+            "type": f"pending_{review_type}" if is_pending else review_type,
             "date": row.get("work_date") or "",
             "emp_code": row.get("emp_code") or "",
             "emp_name": row.get("emp_name") or "",
@@ -918,12 +972,32 @@ def attendance_exceptions(
             "note": row.get("review_note") or row.get("note") or "",
         })
 
-    order = {"leave": 0, "absent": 1, "missing_checkin": 2, "missing_checkout": 3}
+    order = {
+        "leave": 0,
+        "pending_absent": 1,
+        "pending_missing_checkin": 2,
+        "pending_missing_checkout": 3,
+        "absent": 4,
+        "missing_checkin": 5,
+        "missing_checkout": 6,
+    }
     items.sort(key=lambda item: (item.get("date") or "", order.get(item.get("type"), 9), item.get("emp_name") or ""))
-    summary = {"leave": 0, "absent": 0, "missing_checkin": 0, "missing_checkout": 0, "total": len(items)}
+    summary = {
+        "leave": 0,
+        "absent": 0,
+        "missing_checkin": 0,
+        "missing_checkout": 0,
+        "pending_absent": 0,
+        "pending_missing_checkin": 0,
+        "pending_missing_checkout": 0,
+        "pending_review": 0,
+        "total": len(items),
+    }
     for item in items:
         if item["type"] in summary:
             summary[item["type"]] += 1
+        if str(item["type"]).startswith("pending_"):
+            summary["pending_review"] += 1
     return {"summary": summary, "items": items}
 
 
@@ -1144,7 +1218,7 @@ def _approve_unscheduled_session(
     session.check_in_status = session.check_in_status or "unscheduled"
     session.check_out_status = session.check_out_status or "unscheduled"
     session.break_minutes = shift.break_minutes or 0
-    session.worked_minutes = max(0, int((session.check_out_at - session.check_in_at).total_seconds() / 60) - int(shift.break_minutes or 0))
+    session.worked_minutes = max(0, int((session.check_out_at - session.check_in_at).total_seconds() / 60))
     session.note = f"Đã duyệt ngoài ca và gắn vào ca {shift.name}"
 
     events = (
@@ -1216,19 +1290,121 @@ def _checkin_log_for_missing_session(
     )
 
 
+def _event_for_session_time(
+    db: Session,
+    session: AttendanceSession,
+    event_type: str,
+    event_time: datetime | None,
+) -> AttendanceEvent | None:
+    if not event_time:
+        return None
+    return (
+        db.query(AttendanceEvent)
+          .filter(
+              AttendanceEvent.employee_id == session.employee_id,
+              AttendanceEvent.event_type == event_type,
+              AttendanceEvent.event_time == event_time,
+          )
+          .order_by(AttendanceEvent.id.desc())
+          .first()
+    )
+
+
+def _ensure_attendance_log_event(
+    db: Session,
+    session: AttendanceSession,
+    emp: Employee,
+    check_type: str,
+    timestamp: datetime,
+    note: str,
+    source: str = "manual",
+    existing_log: AttendanceLog | None = None,
+    existing_event: AttendanceEvent | None = None,
+) -> tuple[AttendanceLog, AttendanceEvent]:
+    log = existing_log or (
+        db.query(AttendanceLog)
+          .filter(
+              AttendanceLog.employee_id == emp.id,
+              AttendanceLog.check_type == check_type,
+              AttendanceLog.timestamp == timestamp,
+          )
+          .order_by(AttendanceLog.id.desc())
+          .first()
+    )
+    if log:
+        log.emp_code = emp.emp_code
+        log.emp_name = emp.name
+        log.department = emp.department
+        log.timestamp = timestamp
+        if note:
+            log.note = (log.note or "") if note in (log.note or "") else f"{log.note or ''} {note}".strip()
+        else:
+            log.note = log.note or ""
+    else:
+        log = AttendanceLog(
+            employee_id=emp.id,
+            emp_code=emp.emp_code,
+            emp_name=emp.name,
+            department=emp.department,
+            check_type=check_type,
+            timestamp=timestamp,
+            confidence=0.0,
+            capture_path="",
+            note=note,
+        )
+        db.add(log)
+        db.flush()
+
+    event_type = "check_in" if check_type == "check_in" else "check_out"
+    event = existing_event or _event_for_session_time(db, session, event_type, timestamp)
+    if event:
+        event.session_id = session.id
+        event.branch_id = session.branch_id
+        event.event_time = timestamp
+        if note:
+            event.note = (event.note or "") if note in (event.note or "") else f"{event.note or ''} {note}".strip()
+        else:
+            event.note = event.note or ""
+    else:
+        event = AttendanceEvent(
+            session_id=session.id,
+            employee_id=emp.id,
+            branch_id=session.branch_id,
+            event_type=event_type,
+            event_time=timestamp,
+            confidence=log.confidence or 0.0,
+            capture_path=log.capture_path or "",
+            source=source,
+            note=note,
+        )
+        db.add(event)
+        db.flush()
+
+    return log, event
+
+
 def _apply_missing_checkout_review(
     db: Session,
     session: AttendanceSession,
     body: AttendanceSessionReviewRequest,
     reviewer: str,
 ) -> None:
-    if body.review_status in ("pending_review", "rejected"):
+    if body.review_status == "pending_review":
         session.status = "missing_checkout"
+        return
+    if body.review_status == "rejected":
+        session.status = "missing_checkout"
+        session.worked_minutes = 0
+        session.early_leave_minutes = 0
+        session.overtime_minutes = 0
         return
     if body.review_status != "approved":
         return
     if not session.check_in_at:
         raise HTTPException(status_code=422, detail="Phiên quên checkout chưa có giờ vào")
+    emp = db.query(Employee).filter_by(id=session.employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên của phiên chấm công")
 
     previous_checkout_at = session.check_out_at
     checkout_at = _parse_review_datetime(body.check_out_at, "Giờ ra") if body.check_out_at else previous_checkout_at
@@ -1256,19 +1432,39 @@ def _apply_missing_checkout_review(
         session.early_leave_minutes = 0
         session.overtime_minutes = 0
 
+    checkin_note = f"Xác nhận check-in khi duyệt quên checkout bởi {reviewer}"
+    _ensure_attendance_log_event(
+        db,
+        session,
+        emp,
+        "check_in",
+        session.check_in_at,
+        checkin_note,
+        source="manual",
+    )
     checkout_log = _checkout_log_for_missing_session(db, session, previous_checkout_at)
+    checkout_event = _event_for_session_time(db, session, "check_out", previous_checkout_at)
     session.check_out_at = checkout_at
     session.status = "completed"
     if body.check_out_at and previous_checkout_at != checkout_at:
         session.check_out_status = "manual"
     else:
         session.check_out_status = session.check_out_status or "auto"
-    session.worked_minutes = max(0, int((checkout_at - session.check_in_at).total_seconds() / 60) - int(session.break_minutes or 0))
+    session.worked_minutes = max(0, int((checkout_at - session.check_in_at).total_seconds() / 60))
 
-    if checkout_log:
-        checkout_log.timestamp = checkout_at
-        trail = f"[Duyệt quên checkout bởi {reviewer} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
-        checkout_log.note = f"{checkout_log.note or 'Tự động chấm ra - nhân viên quên check out'} {trail}".strip()
+    trail = f"[Duyệt quên checkout bởi {reviewer} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
+    checkout_note = trail if checkout_log else f"Tự động chấm ra - nhân viên quên check out {trail}".strip()
+    _ensure_attendance_log_event(
+        db,
+        session,
+        emp,
+        "check_out",
+        checkout_at,
+        checkout_note,
+        source="auto",
+        existing_log=checkout_log,
+        existing_event=checkout_event,
+    )
 
 
 def _apply_missing_checkin_review(
@@ -1277,8 +1473,15 @@ def _apply_missing_checkin_review(
     body: AttendanceSessionReviewRequest,
     reviewer: str,
 ) -> None:
-    if body.review_status in ("pending_review", "rejected"):
+    if body.review_status == "pending_review":
         session.status = "missing_checkin"
+        return
+    if body.review_status == "rejected":
+        session.status = "missing_checkin"
+        session.worked_minutes = 0
+        session.late_minutes = 0
+        session.early_leave_minutes = 0
+        session.overtime_minutes = 0
         return
     if body.review_status != "approved":
         return
@@ -1328,6 +1531,7 @@ def _apply_missing_checkin_review(
         raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên của phiên chấm công")
 
     checkin_log = _checkin_log_for_missing_session(db, session, previous_checkin_at)
+    checkin_event = _event_for_session_time(db, session, "check_in", previous_checkin_at)
     trail = f"[Duyệt thiếu check-in bởi {reviewer} lúc {datetime.now().strftime('%H:%M %d/%m/%Y')}]"
     note = f"Bổ sung giờ vào khi duyệt thiếu check-in {trail}".strip()
     session.check_in_at = checkin_at
@@ -1335,51 +1539,29 @@ def _apply_missing_checkin_review(
     session.check_in_status = "manual" if body.check_in_at or not checkin_log else (session.check_in_status or "manual")
     session.check_out_status = session.check_out_status or "normal"
     gross_minutes = int((session.check_out_at - session.check_in_at).total_seconds() / 60)
-    session.worked_minutes = max(0, gross_minutes - int(session.break_minutes or 0))
+    session.worked_minutes = max(0, gross_minutes)
 
-    if checkin_log:
-        checkin_log.timestamp = checkin_at
-        checkin_log.note = f"{checkin_log.note or 'Bổ sung giờ vào'} {trail}".strip()
-    else:
-        checkin_log = AttendanceLog(
-            employee_id=emp.id,
-            emp_code=emp.emp_code,
-            emp_name=emp.name,
-            department=emp.department,
-            check_type="check_in",
-            timestamp=checkin_at,
-            confidence=0.0,
-            capture_path="",
-            note=note,
-        )
-        db.add(checkin_log)
-        db.flush()
-
-    event = (
-        db.query(AttendanceEvent)
-          .filter(
-              AttendanceEvent.employee_id == emp.id,
-              AttendanceEvent.event_type == "check_in",
-              AttendanceEvent.event_time == checkin_at,
-          )
-          .order_by(AttendanceEvent.id.desc())
-          .first()
+    _ensure_attendance_log_event(
+        db,
+        session,
+        emp,
+        "check_in",
+        checkin_at,
+        note if not checkin_log else trail,
+        source="manual",
+        existing_log=checkin_log,
+        existing_event=checkin_event,
     )
-    if event:
-        event.session_id = session.id
-        event.branch_id = session.branch_id
-        event.note = event.note or note
-    else:
-        db.add(AttendanceEvent(
-            session_id=session.id,
-            employee_id=emp.id,
-            branch_id=session.branch_id,
-            event_type="check_in",
-            event_time=checkin_at,
-            confidence=0.0,
-            source="manual",
-            note=note,
-        ))
+    checkout_note = f"Xác nhận checkout khi duyệt thiếu check-in bởi {reviewer}"
+    _ensure_attendance_log_event(
+        db,
+        session,
+        emp,
+        "check_out",
+        session.check_out_at,
+        checkout_note,
+        source="manual",
+    )
 
 
 class AttendancePeriodLockRequest(BaseModel):
@@ -1485,22 +1667,26 @@ def get_attendance_review_items(
     status: str = "pending_review",
     from_date: str = "",
     to_date: str = "",
+    session_id: int | None = None,
     branch_id: int | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     branch_ids = _manager_branch_ids(db, current_user, branch_id)
-    q = db.query(AttendanceSession)
+    q = _exclude_cancelled_assignment_sessions(db.query(AttendanceSession))
     if branch_ids is not None:
         q = q.filter(AttendanceSession.branch_id.in_(branch_ids))
-    if status:
-        q = q.filter(AttendanceSession.review_status == status)
-    if type:
-        q = q.filter(AttendanceSession.review_type == type)
-    if from_date:
-        q = q.filter(AttendanceSession.work_date >= datetime.strptime(from_date, "%Y-%m-%d").date())
-    if to_date:
-        q = q.filter(AttendanceSession.work_date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+    if session_id:
+        q = q.filter(AttendanceSession.id == session_id)
+    else:
+        if status:
+            q = q.filter(AttendanceSession.review_status == status)
+        if type:
+            q = q.filter(AttendanceSession.review_type == type)
+        if from_date:
+            q = q.filter(AttendanceSession.work_date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+        if to_date:
+            q = q.filter(AttendanceSession.work_date <= datetime.strptime(to_date, "%Y-%m-%d").date())
     rows = q.order_by(AttendanceSession.work_date.desc(), AttendanceSession.id.desc()).limit(500).all()
     return {"items": [_session_review_to_dict(row, db) for row in rows], "total": len(rows)}
 
@@ -1512,7 +1698,9 @@ def get_attendance_review_count(
     current_user=Depends(get_current_user),
 ):
     branch_ids = _manager_branch_ids(db, current_user, branch_id)
-    q = db.query(AttendanceSession.review_type, AttendanceSession.id).filter(AttendanceSession.review_status == "pending_review")
+    q = _exclude_cancelled_assignment_sessions(
+        db.query(AttendanceSession.review_type, AttendanceSession.id)
+    ).filter(AttendanceSession.review_status == "pending_review")
     if branch_ids is not None:
         q = q.filter(AttendanceSession.branch_id.in_(branch_ids))
     rows = q.all()
@@ -1535,6 +1723,8 @@ def create_absent_manual_logs(
     if not session:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
     _ensure_session_scope(db, current_user, session)
+    _ensure_session_assignment_not_cancelled(db, session)
+    _ensure_not_self_attendance_action(db, current_user, employee_id=session.employee_id)
     try:
         result = create_absent_session_manual_logs(
             session_id=session_id,
@@ -1573,6 +1763,8 @@ def review_attendance_session(
     if not session:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên chấm công")
     _ensure_session_scope(db, current_user, session)
+    _ensure_session_assignment_not_cancelled(db, session)
+    _ensure_not_self_attendance_action(db, current_user, employee_id=session.employee_id)
     try:
         ensure_period_unlocked(db, session.branch_id, session.work_date)
     except ValueError as e:
@@ -1811,6 +2003,7 @@ def review_attendance_audit_finding(
     log_row = db.query(AttendanceLog).filter_by(id=finding_row.log_id).first()
     if log_row:
         _ensure_log_scope(db, current_user, log_row)
+        _ensure_not_self_attendance_action(db, current_user, employee_id=log_row.employee_id, emp_code=log_row.emp_code)
     try:
         finding = update_audit_finding_review(
             finding_id=finding_id,
@@ -1841,6 +2034,7 @@ def review_attendance_log_manually(
     if not log:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
     _ensure_log_scope(db, current_user, log)
+    _ensure_not_self_attendance_action(db, current_user, employee_id=log.employee_id, emp_code=log.emp_code)
     evidence = (
         db.query(AttendanceEvidence)
           .filter_by(log_id=log.id)
@@ -1917,6 +2111,7 @@ def edit_attendance_log(
     if not log_row:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh")
     _ensure_log_scope(db, current_user, log_row)
+    _ensure_not_self_attendance_action(db, current_user, employee_id=log_row.employee_id, emp_code=log_row.emp_code)
 
     if body.check_type and body.check_type not in ("check_in", "check_out"):
         raise HTTPException(status_code=422, detail="check_type phải là 'check_in' hoặc 'check_out'")
@@ -1999,6 +2194,7 @@ def add_manual_attendance(
     emp = db.query(Employee).filter_by(emp_code=body.emp_code).first()
     if emp:
         ensure_branch_access(db, current_user, emp.branch_id)
+        _ensure_not_self_attendance_action(db, current_user, employee_id=emp.id, emp_code=emp.emp_code)
 
     try:
         new_log = create_manual_attendance_log(
