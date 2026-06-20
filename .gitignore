@@ -51,3 +51,4 @@ migrations/versions/__pycache__/
 !migrations/versions/*.py
 slide_noi_dung_bao_ve.md
 slideguide.txt
+muc_dich_cac_bang_du_lieu.txt

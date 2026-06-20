@@ -34,10 +34,14 @@ from app.models.shift import Shift, ShiftAssignment
 from app.schemas.employee import JOB_ROLE_LABELS, normalize_job_role
 from app.services.leave_policy import LEAVE_ASSIGNMENT_STATUS, UNSCHEDULED_APPROVED_ASSIGNMENT_STATUS, ensure_can_assign_employee
 from app.services.attendance_period import (
+    correction_audit_counts_for_sessions,
+    create_correction_audit,
     create_period_lock,
     ensure_period_unlocked,
+    list_correction_audits,
     list_period_locks,
     period_lock_to_dict,
+    session_snapshot,
     unlock_period,
 )
 from app.services.attendance_policy import (
@@ -1615,6 +1619,7 @@ def _session_review_to_dict(session: AttendanceSession, db: Session) -> dict:
         "review_note": session.review_note or "",
         "reviewed_by": session.reviewed_by or "",
         "reviewed_at": session.reviewed_at.isoformat() if session.reviewed_at else None,
+        "correction_audit_count": correction_audit_counts_for_sessions(db, [session.id]).get(session.id, 0),
         "note": session.note or "",
     }
     if session.review_type == "unscheduled" and session.check_in_at and session.check_out_at:
@@ -1765,6 +1770,7 @@ def review_attendance_session(
     _ensure_session_scope(db, current_user, session)
     _ensure_session_assignment_not_cancelled(db, session)
     _ensure_not_self_attendance_action(db, current_user, employee_id=session.employee_id)
+    before_data = session_snapshot(session)
     try:
         ensure_period_unlocked(db, session.branch_id, session.work_date)
     except ValueError as e:
@@ -1799,6 +1805,21 @@ def review_attendance_session(
         )
     elif session.review_type == "unscheduled" and body.review_status == "rejected":
         session.status = "cancelled"
+    emp = db.query(Employee).filter_by(id=session.employee_id).first()
+    create_correction_audit(
+        db,
+        action="review",
+        reason=(body.note or f"Duyệt chấm công: {body.review_status}"),
+        session=session,
+        before_data=before_data,
+        after_data=session_snapshot(session),
+        affected_session_ids=[session.id],
+        created_by=current_user.full_name or current_user.email,
+        created_by_id=current_user.id,
+        branch_id=session.branch_id,
+        employee_id=session.employee_id,
+        emp_code=emp.emp_code if emp else "",
+    )
     db.commit()
     db.refresh(session)
     return {
@@ -1894,6 +1915,57 @@ def delete_attendance_period_lock(
         unlocked_by_id=current_user.id,
     )
     return {"success": True, "lock": period_lock_to_dict(unlocked)}
+
+
+# ── Correction audit trail ───────────────────────────────────────
+
+def _parse_audit_date(value: str, field: str):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except Exception:
+        raise HTTPException(status_code=422, detail=f"{field} phải định dạng YYYY-MM-DD")
+
+
+@router.get("/attendance/correction-audits")
+def get_attendance_correction_audits(
+    from_date: str = "",
+    to_date: str = "",
+    emp_code: str = "",
+    employee_id: int | None = None,
+    created_by_id: int | None = None,
+    created_by: str = "",
+    action: str = "",
+    log_id: int | None = None,
+    session_id: int | None = None,
+    limit: int = 100,
+    branch_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    branch_ids = _manager_branch_ids(db, current_user, branch_id)
+    if action and action not in ("create", "update", "delete", "review"):
+        raise HTTPException(status_code=422, detail="action không hợp lệ")
+    start = _parse_audit_date(from_date, "from_date")
+    end = _parse_audit_date(to_date, "to_date")
+    if start and end and end < start:
+        raise HTTPException(status_code=422, detail="Ngày kết thúc phải sau hoặc bằng ngày bắt đầu")
+    items = list_correction_audits(
+        db,
+        from_date=start,
+        to_date=end,
+        emp_code=(emp_code or "").strip(),
+        employee_id=employee_id,
+        created_by_id=created_by_id,
+        created_by=(created_by or "").strip(),
+        action=(action or "").strip(),
+        log_id=log_id,
+        session_id=session_id,
+        branch_ids=branch_ids,
+        limit=limit,
+    )
+    return {"items": items, "total": len(items)}
 
 
 # ── GET /api/attendance/{log_id}/capture ─────────────────────────

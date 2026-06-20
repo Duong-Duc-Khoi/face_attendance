@@ -36,6 +36,8 @@ from app.services.employee_branch_history import branch_for_log, filter_logs_by_
 from app.services.notify import notify_missing_checkout
 from app.services.attendance_period import (
     create_correction_audit,
+    correction_audit_counts_for_logs,
+    correction_audit_counts_for_sessions,
     ensure_period_unlocked,
     log_snapshot,
 )
@@ -1141,6 +1143,8 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
     emp = None
     branch_id = None
     branch_name = ""
+    correction_count = 0
+    session_correction_count = 0
     try:
         db = SessionLocal()
         try:
@@ -1148,6 +1152,9 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
             finding = _top_finding(db, log)
             manual_review = _manual_review_finding(db, log)
             session = _session_for_log(db, log, event)
+            correction_count = correction_audit_counts_for_logs(db, [log.id]).get(log.id, 0)
+            if session:
+                session_correction_count = correction_audit_counts_for_sessions(db, [session.id]).get(session.id, 0)
             if log.employee_id:
                 emp = db.query(Employee).filter_by(id=log.employee_id).first()
             if not emp and log.emp_code:
@@ -1243,6 +1250,9 @@ def _log_to_dict(log: AttendanceLog, event: AttendanceEvent | None = None) -> di
         "session_payroll_status": payroll_status,
         "session_status_text": payroll_text,
         "session_payroll_note": payroll_note,
+        "correction_audit_count": correction_count,
+        "session_correction_audit_count": session_correction_count,
+        "has_corrections": correction_count > 0 or session_correction_count > 0,
         "is_low_confidence": 0 < confidence < LOW_CONFIDENCE_THRESHOLD,
         "status":      log.note,
     }

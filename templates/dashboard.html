@@ -459,6 +459,10 @@ html[data-admin-theme="light"] body.admin-shell .attendance-view-btn.has-review-
 .atd-risk-strip.show{display:block}
 .atd-review-actions{display:none;gap:8px;justify-content:flex-end;margin-top:12px}
 .atd-review-actions.show{display:flex}
+.correction-badge{display:inline-flex;align-items:center;gap:5px;min-height:22px;border:1px solid rgba(246,201,14,.34);background:rgba(246,201,14,.08);color:var(--yellow);border-radius:999px;padding:0 8px;font-family:var(--font-sans);font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap}
+.correction-badge:hover{border-color:rgba(246,201,14,.58);background:rgba(246,201,14,.14)}
+.correction-badge svg{width:11px;height:11px;flex:0 0 auto}
+.session-correction-line{margin-top:6px}
 @media(max-width:900px){.audit-grid{grid-template-columns:1fr}.audit-command-box .log-btn{flex:1}}
 /* Table extras */
 .roster-scope-required{
@@ -1664,7 +1668,24 @@ function _sessionStatusCell(log){
   const text=log.session_status_text||'Chưa có ca phân công';
   const note=log.session_payroll_note||'Log đã ghi nhận nhưng chưa được xác nhận là công đã chốt';
   const raw=log.status?`<br><span style="color:var(--muted);font-size:10px">${rosterSafe(log.status)}</span>`:'';
-  return `<span class="payroll-pill ${_sessionPayrollClass(log)}" title="${rosterSafe(note)}">${rosterSafe(text)}</span>${raw}`;
+  return `<span class="payroll-pill ${_sessionPayrollClass(log)}" title="${rosterSafe(note)}">${rosterSafe(text)}</span>${raw}${_correctionBadge(log)}`;
+}
+
+function _correctionBadge(log){
+  const total=Number(log.correction_audit_count||0)+Number(log.session_correction_audit_count||0);
+  if(!total)return '';
+  const target=Number(log.correction_audit_count||0)>0
+    ? `log_id=${encodeURIComponent(log.id)}`
+    : (log.session_id?`session_id=${encodeURIComponent(log.session_id)}`:'');
+  if(!target)return '';
+  return `<div class="session-correction-line"><button class="correction-badge" type="button" onclick="openCorrectionHistory('${target}')" title="Đã chỉnh sửa · xem chi tiết">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l4 2"/></svg>
+    Đã chỉnh sửa · ${total}
+  </button></div>`;
+}
+
+function openCorrectionHistory(query){
+  window.location.href='/audit-history?'+query;
 }
 function _aiSnippet(finding){
   const ai=finding&&finding.metrics&&finding.metrics.ai?finding.metrics.ai:null;
@@ -1703,15 +1724,24 @@ function _reviewTypePill(type){
   return `<span class="review-type-pill ${type||''}">${labels[type]||'Cần duyệt'}</span>`;
 }
 function _reviewDetail(item){
-  if(item.review_type==='absent')return item.note||'Không check-in cả ca';
-  if(item.review_type==='missing_checkin')return 'Đã chấm ra cuối ca nhưng thiếu check-in. Cần xác nhận giờ vào trước khi tính công';
-  if(item.review_type==='missing_checkout')return 'Hệ thống tự checkout tại giờ kết thúc ca';
-  if(item.review_type==='overtime')return `OT ${item.overtime_minutes||0} phút, cần quản lý duyệt`;
+  const correction=_reviewCorrectionBadge(item);
+  if(item.review_type==='absent')return rosterSafe(item.note||'Không check-in cả ca')+correction;
+  if(item.review_type==='missing_checkin')return 'Đã chấm ra cuối ca nhưng thiếu check-in. Cần xác nhận giờ vào trước khi tính công'+correction;
+  if(item.review_type==='missing_checkout')return 'Hệ thống tự checkout tại giờ kết thúc ca'+correction;
+  if(item.review_type==='overtime')return `OT ${item.overtime_minutes||0} phút, cần quản lý duyệt${correction}`;
   if(item.review_type==='unscheduled'){
-    if(item.check_in_at&&item.check_out_at)return 'Chấm công khi chưa có phân ca. Duyệt sẽ gắn nhân viên vào một ca có sẵn phù hợp';
-    return 'Chấm công khi chưa có phân ca. Cần đủ giờ vào và giờ ra trước khi gắn ca có sẵn';
+    if(item.check_in_at&&item.check_out_at)return 'Chấm công khi chưa có phân ca. Duyệt sẽ gắn nhân viên vào một ca có sẵn phù hợp'+correction;
+    return 'Chấm công khi chưa có phân ca. Cần đủ giờ vào và giờ ra trước khi gắn ca có sẵn'+correction;
   }
-  return item.note||'Cần quản lý xác nhận';
+  return rosterSafe(item.note||'Cần quản lý xác nhận')+correction;
+}
+function _reviewCorrectionBadge(item){
+  const total=Number(item.correction_audit_count||0);
+  if(!total)return '';
+  return `<div class="session-correction-line"><button class="correction-badge" type="button" onclick="openCorrectionHistory('session_id=${encodeURIComponent(item.id)}')" title="Đã chỉnh sửa · xem chi tiết">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l4 2"/></svg>
+    Đã chỉnh sửa · ${total}
+  </button></div>`;
 }
 function _reviewActionButtons(item){
   if(item.review_status&&item.review_status!=='pending_review'){
@@ -1764,7 +1794,7 @@ function renderAttendanceReviewItems(){
       <td><div style="font-weight:700">${rosterSafe(item.emp_name||'—')}</div><div style="font-size:11px;color:var(--muted)">${rosterSafe(item.emp_code||'')}</div></td>
       <td>${rosterSafe(item.shift_name||(item.review_type==='unscheduled'?'Chưa gắn ca':'—'))}<br><span style="color:var(--muted);font-size:10px">${item.work_date||'—'}</span></td>
       <td style="font-family:var(--font-mono);font-size:12px">Vào: ${_fmtDateTime(item.check_in_at)}<br>Ra: ${_fmtDateTime(item.check_out_at)}</td>
-      <td>${rosterSafe(_reviewDetail(item))}<br><span style="color:var(--muted);font-size:10px">Muộn ${item.late_minutes||0}p · OT ${item.overtime_minutes||0}p</span></td>
+      <td>${_reviewDetail(item)}<br><span style="color:var(--muted);font-size:10px">Muộn ${item.late_minutes||0}p · OT ${item.overtime_minutes||0}p</span></td>
       <td style="text-align:right">${_reviewActionButtons(item)}</td>
     </tr>`).join('');
 }

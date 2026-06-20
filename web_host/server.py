@@ -138,6 +138,11 @@ async def settings_page(request: Request):
     return templates.TemplateResponse("settings.html", _template_context(request))
 
 
+@app.get("/audit-history")
+async def audit_history_page(request: Request):
+    return templates.TemplateResponse("audit_history.html", _template_context(request))
+
+
 @app.get("/shifts")
 async def shifts_page(request: Request):
     return templates.TemplateResponse("shifts.html", _template_context(request))

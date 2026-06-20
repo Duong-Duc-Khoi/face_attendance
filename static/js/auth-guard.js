@@ -9,7 +9,7 @@
 
 (function () {
   const LOGIN_PAGE = '/auth/login-page';
-  const ADMIN_ONLY = ['/branches'];
+  const ADMIN_ONLY = ['/branches', '/audit-history'];
   const MANAGER_ONLY = ['/dashboard', '/employees', '/shifts', '/report', '/users', '/settings', '/integrations'];
   const ADMIN_THEME_KEY = 'admin_theme';
 
@@ -119,6 +119,7 @@
     '/report': 'Báo cáo',
     '/users': 'Tài khoản',
     '/settings': 'Cấu hình',
+    '/audit-history': 'Lịch sử chỉnh sửa',
     '/integrations': 'Tích hợp AI'
   };
   const BRANCH_REQUIRED_PATHS = ['/shifts', '/roster'];
@@ -316,6 +317,26 @@
     return match ? ADMIN_NAV_TITLES[match] : 'Quản trị';
   }
 
+  function ensureAuditHistoryNavLink() {
+    const nav = document.querySelector('body.admin-shell #mainNav');
+    if (!nav || nav.querySelector('a.nav-link[href="/audit-history"]')) return;
+    const link = document.createElement('a');
+    link.href = '/audit-history';
+    link.className = 'nav-link';
+    link.id = 'navAuditHistory';
+    link.textContent = 'Lịch sử chỉnh sửa';
+    if (currentPath.startsWith('/audit-history')) link.classList.add('active');
+    const settingsLink = nav.querySelector('a.nav-link[href="/settings"]');
+    const integrationsLink = nav.querySelector('a.nav-link[href="/integrations"]');
+    if (settingsLink && settingsLink.nextSibling) {
+      nav.insertBefore(link, settingsLink.nextSibling);
+    } else if (integrationsLink) {
+      nav.insertBefore(link, integrationsLink);
+    } else {
+      nav.appendChild(link);
+    }
+  }
+
   function ensureBrandScopeChip() {
     const section = document.querySelector('body.admin-shell .brand-section');
     if (!section || !section.parentNode) return null;
@@ -334,6 +355,7 @@
 
   function updateAdminBrandContext(branchLabel, state) {
     if (!document.body || !document.body.classList.contains('admin-shell')) return;
+    ensureAuditHistoryNavLink();
     normalizeAdminNavLabels();
     reorderAdminNavLinks();
     const section = document.querySelector('body.admin-shell .brand-section');
@@ -569,6 +591,10 @@
     const navSettings = document.getElementById('navSettings');
     if (navSettings && user && user.role !== 'admin') {
       navSettings.style.display = 'none';
+    }
+    const navAuditHistory = document.getElementById('navAuditHistory');
+    if (navAuditHistory && user && user.role !== 'admin') {
+      navAuditHistory.style.display = 'none';
     }
     const navIntegrations = document.getElementById('navIntegrations');
     if (navIntegrations && user && user.role !== 'admin') {

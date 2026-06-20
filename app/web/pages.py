@@ -109,6 +109,11 @@ async def settings_page(request: Request):
     return _redirect_to_web("/settings")
 
 
+@router.get("/audit-history")
+async def audit_history_page(request: Request):
+    return _redirect_to_web("/audit-history")
+
+
 @router.get("/shifts")
 async def shifts_page(request: Request):
     return _redirect_to_web("/shifts")
