@@ -49,3 +49,5 @@ migrations/__pycache__/
 !migrations/versions/
 migrations/versions/__pycache__/
 !migrations/versions/*.py
+slide_noi_dung_bao_ve.md
+slideguide.txt
