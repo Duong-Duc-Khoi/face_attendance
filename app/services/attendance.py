@@ -277,7 +277,7 @@ def _split_consecutive_shift_sessions(
             source="auto" if auto_checkout else "face",
             note=note,
         )
-        if auto_checkout and idx == len(chain) - 1:
+        if auto_checkout:
             session.status = "missing_checkout"
             session.check_out_status = "auto"
             session.review_type = "missing_checkout"
